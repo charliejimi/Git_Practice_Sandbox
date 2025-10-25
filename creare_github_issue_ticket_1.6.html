@@ -1,8 +1,4 @@
-<!DOCTYPE html>
-<html lang="zh-Hant" class="dark"> <!-- 預設啟用暗黑模式 --><head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS Task 1 - AI vs Self Assessment</title>
+t</title>
     
     <!-- 載入 Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
     
@@ -16,7 +12,7 @@
                     },
                     colors: {
                         darkBg: '#1a1a2e', // 深色背景
-                        cardBg: '#2a2a4a', // 卡片背景
+                        cardBg: '#2a2a4a', // 卡片 background
                         primaryBtnStart: '#6a11cb', // 漸層按鈕起始色
                         primaryBtnEnd: '#2575fc',   // 漸層按鈕結束色
                         accentGreen: '#34d399',     // 完成提示綠色
@@ -94,7 +90,7 @@
                 </div>
                 <!-- PAT Token --><div class="col-span-1">
                     <label for="github_token" class="block text-sm font-medium text-gray-400 mb-2">Personal Access Token (PAT)</label>
-                    <input type="password" id="github_token" name="github_token" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="">
+                    <input type="password" id="github_token" name="github_token" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="""">
                 </div>
             </div>
             <p id="repo-error" class="text-red-400 text-sm mt-4 hidden">🚨 請務必填寫所有 GitHub 欄位，包括 PAT。</p>
@@ -751,14 +747,19 @@ Stack: ${reGetError.message}`);
 
             try {
                 // 3. 呼叫 Gemini Image API
-                const userPrompt = `Based on the following IELTS Task 1 description, generate a simple, clear visual chart (like a line graph, bar chart, or pie chart) that represents the data described. Focus on the key trends and figures. Description: ${articleContent}`;
+                // ------------------- 變更點 (來自上一輪) -------------------
+                const userPrompt = `根據 ${articleContent},先理解內容,並且break down 輸出所理解的, 接著再畫圖`;
+                // --------------------------------------------------------
                 
                 const payload = {
                     contents: [{
                         parts: [{ text: userPrompt }]
                     }],
                     generationConfig: {
-                        responseModalities: ['IMAGE']
+                        // ------------------- 錯誤修復 -------------------
+                        // 允許 API 返回文字 (用於 break down) 和圖片 (用於畫圖)
+                        responseModalities: ['TEXT', 'IMAGE']
+                        // -------------------------------------------------
                     },
                 };
 
@@ -794,10 +795,15 @@ Stack: ${reGetError.message}`);
                     }
                 }
 
+                // 在這裡 console.log(result) 來調試完整的 API 回應
+                console.log("[Chart Gen] Full API Response:", JSON.stringify(result, null, 2));
+
                 const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
                 if (!base64Data) {
-                    console.warn("[Chart Gen] API Response missing base64 data:", result);
+                    // 增強日誌，顯示 parts 裡到底有什麼
+                    const returnedParts = result?.candidates?.[0]?.content?.parts;
+                    console.warn("[Chart Gen] API Response missing base64 data. Returned parts:", returnedParts);
                     throw new Error('API 未能返回有效的圖片數據。');
                 }
 
@@ -1007,7 +1013,7 @@ Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
                 false // 不使用表格
             );
 
-            // G. 轉換 AI 評分 
+V            // G. 轉換 AI 評分 
             submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/10)'; // (6/9 -> 7/10)
             const aiAssessmentFormatted = await formatTextWithGemini(
                 processedFields.ai_assessment, 
