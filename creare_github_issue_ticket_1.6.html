@@ -216,21 +216,32 @@
                 <textarea id="self_identified_issues" name="self_identified_issues" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：將 '顯著增長' 寫成了 '快速發展'，導致 TA 準確性不足；或連接詞使用與中文語義不符。"></textarea>
 
                 <!-- ================================== -->
-                <!--        ⬇️ AI 圖表生成 (新) ⬇️      -->
+                <!--    ⬇️ AI 內容理解 (已修改) ⬇️      -->
                 <!-- ================================== -->
-                <label class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-purple-300">🤖 AI 圖表生成 (實驗性)</label>
-                <p class="text-xs text-gray-500 mb-2">點擊按鈕，讓 AI 根據您在「文章內容與圖表截圖」欄位中的*文字描述*來嘗試生成一張對應的圖表。 (使用 gemini-2.5-flash-image-preview)</p>
+                <label class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-purple-300">🤖 AI 內容理解 (實驗性)</label>
+                <p class="text-xs text-gray-500 mb-2">點擊按鈕，讓 AI 根據您在「文章內容與圖表截圖」欄位中的*文字描述*來生成內容理解 (Breakdown)。</p>
                 <button type="button" id="generate-chart-button" class="w-full px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 transition duration-200 text-white">
-                    生成圖表
+                    生成 AI 理解
                 </button>
                 <div id="chart-generator-status" class="text-xs text-accentYellow mt-2"></div>
+                
+                <!-- AI Breakdown text will be injected here -->
                 <div id="chart-display-area" class="mt-4">
-                    <!-- AI generated chart will appear here -->
                 </div>
-                <!-- 隱藏欄位，用於儲存上傳後的圖片 URL，以便提交 -->
-                <textarea id="generated_chart_content" name="generated_chart_content" class="hidden"></textarea>
+                
+                <!-- NEW: Container for manual paste, hidden by default -->
+                <div id="manual-chart-paste-container" class="hidden mt-4">
+                    <label for="manual_chart_paste" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-green-300">🖼️ 手動貼上圖表</label>
+                    <p class="text-xs text-gray-500 mb-2">AI 理解已生成。請在此處貼上您手動製作或修正的圖表（支援貼圖/拖曳）。</p>
+                    <textarea id="manual_chart_paste" name="manual_chart_paste" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="請貼上您的圖表..."></textarea>
+                </div>
+                
+                <!-- NEW: Hidden field to store AI breakdown text for submission -->
+                <!-- 🌟 移除：刪除這個隱藏欄位，使其不會被提交 -->
+                <!-- <textarea id="ai_breakdown_text" name="ai_breakdown_text" class="hidden"></textarea> -->
+                
                 <!-- ================================== -->
-                <!--        ⬆️ AI 圖表生成 (新) ⬆️      -->
+                <!--    ⬆️ AI 內容理解 (已修改) ⬆️      -->
                 <!-- ================================== -->
 
                 <!-- ================================== -->
@@ -310,9 +321,9 @@ AI 評語:"></textarea>
 
     <script>
         // 全域變數
-        const apiKey = ""; // 留空，系統會自動填入
+        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // 留空，系統會自動填入
         const modelName = "gemini-2.5-flash-preview-09-2025"; 
-        const imageModelName = "gemini-2.5-flash-image-preview"; // 🌟 新增 (用於 AI 圖表生成)
+        const imageModelName = "gemini-2.5-flash-image-preview"; // 🌟 (用於 AI 圖表生成)
         
         // -----------------------------------------------------
         // 圖片處理專用變數：新的結構，用於儲存待上傳的圖片並追蹤其來源
@@ -719,25 +730,21 @@ Stack: ${reGetError.message}`);
             return trimmedText;
         }
 
-        /**
-         * 🌟 (新) 使用 Gemini 生成圖表並上傳到 GitHub
-         */
-        async function generateAndUploadChart() {
+        // =================================================================
+        // 🌟 (函數已更新) 
+        // 僅生成 AI Breakdown 文字，並顯示手動貼圖欄位
+        // =================================================================
+        async function generateAIBreakdown() { // 函數已重命名
             const button = document.getElementById('generate-chart-button');
             const status = document.getElementById('chart-generator-status');
             const displayArea = document.getElementById('chart-display-area');
-            const hiddenTextarea = document.getElementById('generated_chart_content');
+            // 🌟 移除：不再需要 hiddenBreakdownTextarea
+            // const hiddenBreakdownTextarea = document.getElementById('ai_breakdown_text'); 
+            const manualPasteContainer = document.getElementById('manual-chart-paste-container'); // 新的貼圖容器
 
-            // 1. 獲取 GitHub 資訊和描述
-            const user = document.getElementById('github_user').value.trim();
-            const repo = document.getElementById('github_repo').value.trim();
-            const token = document.getElementById('github_token').value.trim();
+            // 1. 獲取描述
             const articleContent = document.getElementById('article_content').value.trim();
 
-            if (!user || !repo || !token) {
-                status.textContent = '🚨 錯誤：請先填寫 GitHub 儲存庫設定。';
-                return;
-            }
             if (!articleContent) {
                 status.textContent = '🚨 錯誤：請先在「文章內容與圖表截圖」欄位中填寫文字描述。';
                 return;
@@ -745,124 +752,91 @@ Stack: ${reGetError.message}`);
 
             // 2. 設置加載狀態
             button.disabled = true;
-            button.textContent = '🧠 正在生成圖表...';
-            status.textContent = '請稍候，AI 正在根據您的文字描述繪製圖表...';
-            displayArea.innerHTML = ''; // 清空舊圖表
+            button.textContent = '🧠 正在理解文字...';
+            status.textContent = '請稍候，AI 正在分析您的文字描述...';
+            displayArea.innerHTML = ''; // 清空舊內容
+            manualPasteContainer.classList.add('hidden'); // 隱藏貼圖區
+            // 🌟 移除：不再需要 hiddenBreakdownTextarea
+            // hiddenBreakdownTextarea.value = ''; 
+ 
+            let breakdownText = ""; 
+            const maxRetries = 3;
+            let delay = 1000;
 
             try {
-                // 3. 呼叫 Gemini Image API
-                // ------------------- 變更點 (來自上一輪) -------------------
-                const userPrompt = `根據 ${articleContent},先理解內容,並且break down 輸出所理解的, 接著再畫圖`;
-                // --------------------------------------------------------
+                // ==========================================================
+                // 步驟 1: 呼叫 *文字模型* (modelName) 獲取完整的 Breakdown
+                // ==========================================================
                 
-                const payload = {
-                    contents: [{
-                        parts: [{ text: userPrompt }]
-                    }],
-                    generationConfig: {
-                        // ------------------- 錯誤修復 (來自上一輪) -------------------
-                        responseModalities: ['TEXT', 'IMAGE']
-                        // -------------------------------------------------
-                    },
+                const textPrompt = `你是一個專業的IELTS Task 1 圖表分析師。請詳細閱讀以下的 Task 1 寫作文字，並"break down"你對內容的理解。你的 breakdown 應該包含：
+1.  圖表的主要類型 (例如：line graph, bar chart)。
+2.  圖表描述的關鍵主體和單位 (例如：energy consumption in tonnes, population in millions)。
+3.  描述的關鍵時間範圍 (例如：from 1990 to 2010)。
+4.  描述的關鍵數據點和趨勢 (例如：A started at 50 and rose to 100, while B declined)。
+
+請以清晰、有條理的格式輸出這個 breakdown。
+
+原始文字：
+---
+${articleContent}
+---
+`;
+                
+                const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const textPayload = {
+                    contents: [{ parts: [{ text: textPrompt }] }]
                 };
 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${imageModelName}:generateContent?key=${apiKey}`;
-                
-                let response;
-                let result;
-                const maxRetries = 3;
-                let delay = 1000;
+                let textResponse;
+                let textResult;
 
                 for (let i = 0; i < maxRetries; i++) {
-                    response = await fetch(apiUrl, {
+                    textResponse = await fetch(textApiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(textPayload)
                     });
 
-                    if (response.ok) {
-                        result = await response.json();
-                        break; // 成功，跳出循環
+                    if (textResponse.ok) {
+                        textResult = await textResponse.json();
+                        break; 
                     }
                     
-                    if ((response.status === 429 || response.status === 503) && i < maxRetries - 1) {
-                        console.warn(`[Chart Gen] API Rate Limit hit (${response.status}). Retrying in ${delay / 1000}s...`);
-                        status.textContent = `API 忙碌中 (${response.status})，${delay / 1000} 秒後重試...`;
+                    if ((textResponse.status === 429 || textResponse.status === 503) && i < maxRetries - 1) {
+                        console.warn(`[Chart Gen - Text] API Rate Limit hit (${textResponse.status}). Retrying in ${delay / 1000}s...`);
+                        status.textContent = `API 忙碌中 (${textResponse.status})，${delay / 1000} 秒後重試...`;
                         await new Promise(resolve => setTimeout(resolve, delay));
                         delay *= 2;
                     } else {
-                        // 最終失敗
-                        const errorResult = await response.json();
-                        console.error("[Chart Gen] API Error Response:", errorResult);
-                        throw new Error(`API 請求失敗，狀態碼: ${response.status}. ${errorResult?.error?.message || ''}`);
+                        const errorResult = await textResponse.json();
+                        console.error("[Chart Gen - Text] API Error Response:", errorResult);
+                        throw new Error(`[文字理解] API 請求失敗，狀態碼: ${textResponse.status}. ${errorResult?.error?.message || ''}`);
                     }
                 }
 
-                // 在這裡 console.log(result) 來調試完整的 API 回應
-                console.log("[Chart Gen] Full API Response:", JSON.stringify(result, null, 2));
-
-                // ------------------- NEW FIX START -------------------
-                // 處理多部分回應 (文字 + 圖片)
-                const parts = result?.candidates?.[0]?.content?.parts;
-                if (!parts || parts.length === 0) {
-                    throw new Error('API 回應為空或格式不正確。');
+                // 提取文字 breakdown
+                breakdownText = textResult?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!breakdownText) {
+                    throw new Error('AI 未能返回文字理解 (Breakdown)。');
                 }
 
-                // 1. 尋找文字部分 (breakdown)
-                const textPart = parts.find(p => p.text);
-                if (textPart && textPart.text) {
-                    console.log("[Chart Gen] Found text part:", textPart.text);
-                    // 顯示 breakdown 文字
-                    const breakdownElement = document.createElement('div');
-                    breakdownElement.className = 'p-4 bg-darkBg border border-borderDark rounded-lg mt-4';
-                    // 使用 <pre> 來保留換行和空格，並設置字體
-                    breakdownElement.innerHTML = `<strong class="text-lg text-purple-300">AI 的理解 (Breakdown):</strong><br><pre class="whitespace-pre-wrap text-gray-300 font-sans mt-2">${textPart.text}</pre>`;
-                    displayArea.appendChild(breakdownElement);
-                }
+                // 3. 顯示 Breakdown
+                console.log("[Chart Gen] Found full text part:", breakdownText);
+                const breakdownElement = document.createElement('div');
+                breakdownElement.className = 'p-4 bg-darkBg border border-borderDark rounded-lg mt-4';
+                breakdownElement.innerHTML = `<strong class="text-lg text-purple-300">AI 的理解 (Breakdown):</strong><br><pre class="whitespace-pre-wrap text-gray-300 font-sans mt-2">${breakdownText}</pre>`;
+                displayArea.appendChild(breakdownElement);
 
-                // 2. 尋找圖片部分 (chart)
-                const base64Data = parts.find(p => p.inlineData)?.inlineData?.data;
-
-                if (!base64Data) {
-                    // 增強日誌
-                    console.warn("[Chart Gen] API Response missing base64 data. Returned parts:", parts);
-                    
-                    // 即使沒有圖片，如果我們有文字，也不算完全失敗
-                    if (textPart && textPart.text) {
-                        status.textContent = '⚠️ AI 返回了文字理解，但未能生成圖片。';
-                        // 我們不能繼續上傳，所以在這裡結束
-                        return; // 提前返回，跳過後續的上傳邏輯
-                    } else {
-                        // 如果連文字都沒有，才拋出原始錯誤
-                        throw new Error('API 未能返回有效的圖片數據 (也沒有返回文字)。');
-                    }
-                }
-                // ------------------- NEW FIX END -------------------
-
-                // 4. 顯示圖片
-                status.textContent = '✅ 生成成功！正在顯示圖片...';
-                const imageUrl = `data:image/png;base64,${base64Data}`;
+                // 4. 儲存 Breakdown 到隱藏欄位
+                // 🌟 移除：不再儲存 Breakdown 文字到隱藏欄位
+                // hiddenBreakdownTextarea.value = breakdownText;
                 
-                // 創建一個新的 img 元素並添加到 displayArea
-                const imgElement = document.createElement('img');
-                imgElement.src = imageUrl;
-                imgElement.alt = "AI 生成的圖表";
-                imgElement.className = "w-full rounded-lg border border-borderDark mt-4"; // 增加上邊距
-                displayArea.appendChild(imgElement);
+                // 5. 顯示手動貼圖容器
+                manualPasteContainer.classList.remove('hidden');
+                
+                status.textContent = '✅ AI 理解已生成！請在下方欄位貼上您的圖表。';
 
-
-                // 5. 上傳圖片到 GitHub
-                status.textContent = '🖼️ 正在上傳圖片到 GitHub...';
-                const path = `issue_images/ai_generated_chart_${Date.now()}.png`;
-                const message = "Upload AI-generated chart for Task 1 Issue";
-                
-                const rawUrl = await uploadImageToGithub(user, repo, token, path, base64Data, message);
-                
-                // 6. 儲存 Markdown 到隱藏欄位
-                const markdown = `![AI 生成的圖表 (基於描述)](${rawUrl})`;
-                hiddenTextarea.value = markdown;
-                
-                status.textContent = '✅ 圖表生成並上傳成功！將包含在 Issue 中。';
+                // 6. 移除所有圖片生成相關的程式碼
 
             } catch (error) {
                 console.error('[Chart Gen] Error:', error);
@@ -870,7 +844,7 @@ Stack: ${reGetError.message}`);
             } finally {
                 // 7. 恢復按鈕
                 button.disabled = false;
-                button.textContent = '重新生成圖表';
+                button.textContent = '重新生成 AI 理解';
             }
         }
 
@@ -898,8 +872,11 @@ Stack: ${reGetError.message}`);
             // 🌟 (新 JS 插入點) 為新欄位啟用貼圖
             setupImageUpload('custom_field_1'); 
 
-            // 🌟 (新 JS 插入點) 綁定 AI 圖表生成按鈕
-            document.getElementById('generate-chart-button').addEventListener('click', generateAndUploadChart);
+            // 🌟 (新 JS 插入點) 為*新的手動貼圖欄位*啟用貼圖
+            setupImageUpload('manual_chart_paste'); 
+
+            // 🌟 (新 JS 插入點) 綁定 AI *Breakdown* 生成按鈕
+            document.getElementById('generate-chart-button').addEventListener('click', generateAIBreakdown); // 函數名稱已更新
             
             // 預設寫作日期為今天
             document.getElementById('writing_date').value = new Date().toISOString().split('T')[0];
@@ -956,7 +933,7 @@ Stack: ${reGetError.message}`);
                 try {
                     uploadedImageMap = await uploadAllImages(user, repo, token, submitButton);
                     
-                    submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/10)'; // 🌟 (9 -> 10)
+                    submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
                 } catch (e) {
                     statusMessage.textContent = `❌ 圖片上傳過程中發生嚴重錯誤: ${e.message}`;
                     statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-accentYellow', 'text-black');
@@ -966,7 +943,7 @@ Stack: ${reGetError.message}`);
                     return;
                 }
             } else {
-                 submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/10)'; // 🌟 (9 -> 10)
+                 submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
             }
 
 
@@ -982,8 +959,8 @@ Stack: ${reGetError.message}`);
             }
 
             const processedFields = {};
-            // 🌟 <-- 更新要處理的欄位清單: 增加 'generated_chart_content'
-            for (const key of ['article_content', 'sentence_analysis', 'self_assessment_notes', 'ai_assessment', 'reflection_action', 'additional_notes', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 'self_identified_issues', 'custom_field_1', 'generated_chart_content']) { 
+            // 🌟 <-- 更新要處理的欄位清單: 移除 'ai_breakdown_text'
+            for (const key of ['article_content', 'sentence_analysis', 'self_assessment_notes', 'ai_assessment', 'reflection_action', 'additional_notes', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 'self_identified_issues', 'custom_field_1', 'manual_chart_paste']) { 
                 // 將圖片連結替換到文字中
                 processedFields[key] = replacePlaceholders(data[key] || '', uploadedImageMap);
             }
@@ -1001,42 +978,42 @@ Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
 `.trim();
 
 
-            // 5. 使用 Gemini 轉換評估文本 (現在有 10 個步驟)
+            // 5. 使用 Gemini 轉換評估文本 (現在有 12 個步驟)
             
-            // A. 轉換自我評估 (僅分數)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/10)'; // (1/9 -> 1/10)
+            // A. 轉換自我評估 (僅分數) (1/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; 
             const selfAssessmentFormatted = await formatTextWithGemini(
                 selfAssessmentInput, 
                 "IELTS Task 1 自我評估，包含 TA, CC, LR, GRA 分數。請轉為兩欄 Markdown 表格。",
                 true // Prefer Table
             );
 
-            // B. 轉換 LR Analysis 
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (2/10)'; // (2/9 -> 2/10)
+            // B. 轉換 LR Analysis (2/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (2/12)'; 
             const lrAnalysisFormatted = await formatTextWithGemini(
                 processedFields.self_assessment_lr_analysis, 
                 "IELTS Task 1 詞彙資源 (LR) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
                 true // Prefer Table
             );
 
-            // C. 轉換 GRA Analysis 
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (3/10)'; // (3/9 -> 3/10)
+            // C. 轉換 GRA Analysis (3/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (3/12)'; 
             const graAnalysisFormatted = await formatTextWithGemini(
                 processedFields.self_assessment_gra_analysis, 
                 "IELTS Task 1 文法範圍與準確性 (GRA) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
                 true // Prefer Table
             );
             
-            // D. 轉換 Self Identified Issues (新增)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (4/10)'; // (4/9 -> 4/10)
+            // D. 轉換 Self Identified Issues (新增) (4/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (4/12)'; 
             const selfIdentifiedIssuesFormatted = await formatTextWithGemini(
                 processedFields.self_identified_issues, 
                 "Task 1 寫作的自評辨識出的 TA/CC 準確性問題與盲點。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
                 false // Do NOT prefer table for free-form analysis of issues
             );
 
-            // E. 轉換 新增自訂欄位
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (5/10)'; // (5/9 -> 5/10)
+            // E. 轉換 新增自訂欄位 (5/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (5/12)'; 
             const customField1Formatted = await formatTextWithGemini(
                 processedFields.custom_field_1, 
                 "Task 1 寫作的自訂補充欄位。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
@@ -1044,49 +1021,60 @@ Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
             );
 
             // 🌟 (新 JS 插入點)
-            // F. 轉換 AI 生成的圖表 (它已經是 Markdown，但我們還是要 "格式化" 以防萬一，並保持步驟)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/10)'; // (新步驟 6/10)
-            const generatedChartFormatted = await formatTextWithGemini(
-                processedFields.generated_chart_content, 
-                "AI 生成的圖表連結。保持原樣，作為 Markdown 圖片。",
+            // F. 轉換 AI Breakdown 文字 (6/12)
+            // 🌟 移除：刪除格式化 Breakdown 文字的步驟
+            /*
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/12)'; 
+            const aiBreakdownFormatted = await formatTextWithGemini(
+                processedFields.ai_breakdown_text, 
+                "AI 生成的內容理解 (Breakdown)。請轉換為整潔的 Markdown 段落或列表，保留所有換行。",
+                false // 不使用表格
+            );
+            */
+
+            // 🌟 (新 JS 插入點)
+            // G. 轉換手動貼上的圖表 (7/12) -> F (6/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/11)';
+            const manualChartFormatted = await formatTextWithGemini(
+                processedFields.manual_chart_paste, 
+                "使用者手動貼上的圖表 (Markdown 圖片連結)。保持原樣。",
                 false // 不使用表格
             );
 
-V            // G. 轉換 AI 評分 
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/10)'; // (6/9 -> 7/10)
+            // H. 轉換 AI 評分 (8/12) -> G (7/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/11)'; // 8 -> 7
             const aiAssessmentFormatted = await formatTextWithGemini(
                 processedFields.ai_assessment, 
                 "IELTS Task 1 AI 評分，包含 TR, CC, LR, GRA 分數與 AI 評語建議，可能含有圖片連結。請優先轉為兩欄 Markdown 表格。",
                 true // Prefer Table
             );
             
-            // H. 轉換 逐句解析內容
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (8/10)'; // (7/9 -> 8/10)
+            // I. 轉換 逐句解析內容 (9/12) -> H (8/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (8/11)'; // 9 -> 8
             const sentenceAnalysisFormatted = await formatTextWithGemini(
                 processedFields.sentence_analysis, 
                 "Task 1 寫作的逐句解析內容，包含句子、文法修正、詞彙建議或截圖。請嘗試轉換為兩欄 Markdown 表格 (例如：原始句子 | 修正建議)，若內容不適合表格，則轉換為整潔的列表或段落。",
                 true // Prefer Table
             );
             
-            // I. 轉換 反思與行動
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (9/10)'; // (8/9 -> 9/10)
+            // J. 轉換 反思與行動 (10/12) -> I (9/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (9/11)'; // 10 -> 9
             const reflectionActionFormatted = await formatTextWithGemini(
                 processedFields.reflection_action, 
                 "寫作後的反思與具體修正行動，包含項目符號、任務連結或修正截圖。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的列表或段落。",
                 true // Prefer Table
             );
 
-            // J. 轉換 其他備註
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (10/10)'; // (9/9 -> 10/10)
-            
-            // ⬇️ 修正點：移除這裡多餘的 $ 符號
+            // K. 轉換 其他備註 (11/12) -> J (10/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (10/11)'; // 11 -> 10
             const additionalNotesFormatted = await formatTextWithGemini(
                 processedFields.additional_notes, 
                 "額外備註或寫作心得，可能包含圖片連結。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的段落。",
                 true // Prefer Table
             );
 
-            // K. 處理 checkbox 
+            // L. 處理 checkbox (12/12) -> K (11/11)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (11/11)'; // 12 -> 11
             const checkedDifferences = Array.from(document.querySelectorAll('input[name="difference_analysis"]:checked'))
                                             .map(cb => `- [x] ${cb.value}`)
                                             .join('\n');
@@ -1154,8 +1142,23 @@ ${selfIdentifiedIssuesFormatted}
 ---
 
 <!-- 🌟 (新 JS 插入點) -->
-### 🤖 AI 生成圖表 (基於文字描述)
-${generatedChartFormatted.trim() || '（未生成圖表）'}
+### 🤖 AI 內容理解與手動圖表
+
+<!-- 🌟 移除 Breakdown 內容，並增加提示 -->
+*(AI 的內容理解 (Breakdown) 僅供頁面參考，不會提交至 Issue)*
+
+<!-- 
+<details>
+<summary>點擊此處展開 AI 的內容理解 (Breakdown)</summary>
+<br>
+
+<!-- 🌟 修正：移除了對 aiBreakdownFormatted 變數的引用，該變數已不存在 -->
+
+</details>
+-->
+
+#### 🖼️ 手動貼上的圖表
+${manualChartFormatted.trim() || '（未貼上圖表）'}
 
 ---
 
