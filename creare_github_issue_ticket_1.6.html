@@ -1,1248 +1,877 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" class="dark"> <!-- 預設啟用暗黑模式 --><head>
+<html lang="zh-Hant">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS Task 1 - AI vs Self Assessment</title>
+    <title>寫作校準儀式 SOP - Writing Correction Ritual (Local History)</title>
     
-    <!-- 載入 Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Tailwind 設定：必須緊接在 CDN 載入之後執行 --><script>
-        tailwind.config = {
-            darkMode: 'class', // 啟用 class-based 暗黑模式
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'], // 支援中文
-                    },
-                    colors: {
-                        darkBg: '#1a1a2e', // 深色背景
-                        cardBg: '#2a2a4a', // 卡片 background
-                        primaryBtnStart: '#6a11cb', // 漸層按鈕起始色
-                        primaryBtnEnd: '#2575fc',   // 漸層按鈕結束色
-                        accentGreen: '#34d399',     // 完成提示綠色
-                        accentYellow: '#fbbf24',    // 警告提示黃色
-                        borderDark: '#4a4a6e',      // 深色邊框
-                        successGreen: '#10b981',    // 成功提示綠色
-                        errorRed: '#ef4444',        // 錯誤提示紅色
-                    }
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght{300;400;500;700}&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
+        /* Custom styles for the ritualistic feel */
         body {
-            font-family: 'Inter', 'Noto Sans TC', 'sans-serif';
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-osx-smoothing: grayscale;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a202c 0%, #0d121c 100%); /* Darker gradient background */
         }
-        /* 自訂 placeholder 樣式，使其在暗黑模式下更明顯 */
-        textarea::placeholder, input::placeholder {
-            color: #888; 
-            opacity: 0.7;
+        .header-glow {
+            text-shadow: 0 0 8px rgba(99, 102, 241, 0.6), 0 0 15px rgba(99, 102, 241, 0.4);
         }
-        .gradient-button {
-            background-image: linear-gradient(to right, var(--tw-gradient-stops));
-            background-size: 200% auto;
-            transition: background-position 0.3s ease;
+        .ritual-card {
+            background-color: #1f2937; /* Darker card background */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2); /* Deeper shadow */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother transition */
+            border-left: 5px solid;
+            position: relative;
+            overflow: hidden;
         }
-        .gradient-button:hover {
-            background-position: right center; 
+        .ritual-card:hover:not(.completed):not(.locked) {
+            transform: translateY(-5px); /* More pronounced lift */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            border-left-color: #a78bfa !important; /* Lighter indigo for hover */
+        }
+        .completed {
+            opacity: 0.8; 
+            border-left-color: #34d399 !important; /* Green 400 */
+            filter: grayscale(10%); 
+        }
+        .locked {
+            opacity: 0.5;
+            filter: blur(1px) grayscale(50%);
+            cursor: not-allowed;
+            pointer-events: none; /* Disable click events */
+        }
+        .phase-diagnosis {
+            border-left-color: #6366f1; /* Indigo 500 */
+        }
+        .phase-verification {
+            border-left-color: #f59e0b; /* Amber 500 */
+        }
+        .step-toggle {
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            position: relative;
+            z-index: 10;
+        }
+        .step-toggle:active {
+            transform: scale(0.95);
         }
 
-        /* 隱藏原生日期選擇器箭頭 */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1); /* 反轉顏色以適應暗色模式 */
-            cursor: pointer;
+        /* Gradient for buttons */
+        .btn-gradient {
+            background: linear-gradient(90deg, #6366f1, #8b5cf6); /* Indigo to Violet */
+            border: none;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .btn-gradient:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: 0.5s;
+            z-index: -1;
+        }
+        .btn-gradient:hover:before {
+            left: 100%;
+        }
+        .btn-gradient:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
         }
         
-        /* 隱藏 Number 輸入框的上下箭頭 (Spin Buttons)，確保只能打字 */
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
+        /* New Complete Button Gradient */
+        .btn-complete {
+             background: linear-gradient(90deg, #10b981, #059669); /* Emerald Gradient */
         }
-        input[type="number"] {
-            -moz-appearance: textfield; /* Firefox 兼容 */
+        .btn-complete:hover {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.7);
+        }
+        .btn-complete:disabled {
+            background: #4b5563;
+        }
+
+
+        /* Custom scrollbar for textareas */
+        textarea {
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #6366f1 #1f2937; /* thumb and track */
+        }
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 10px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #6366f1;
+            border-radius: 10px;
+            border: 2px solid #1f2937;
+        }
+        
+        /* Table styles */
+        #history-list th, #history-list td {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            /* Default small width */
+            max-width: 80px; 
+            padding-left: 0.75rem; /* px-3 */
+            padding-right: 0.75rem; /* px-3 */
+        }
+        @media (min-width: 768px) {
+            /* Adjusted widths for desktop view with 5 columns */
+            #history-list th:nth-child(2), #history-list td:nth-child(2) { /* Original (A) */
+                max-width: 180px; 
+            }
+            #history-list th:nth-child(3), #history-list td:nth-child(3) { /* Corrected (B) */
+                max-width: 180px;
+            }
+            #history-list th:nth-child(4), #history-list td:nth-child(4) { /* Principle (Step 7) */
+                 max-width: 220px; 
+            }
+            #history-list th:nth-child(5), #history-list td:nth-child(5) { /* Action */
+                 max-width: 80px; 
+                 width: 80px;
+            }
         }
     </style>
 </head>
-<body class="bg-darkBg text-gray-100 flex flex-col items-center py-12 px-6 min-h-screen">
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-10">
 
-    <!-- 頂部標題與說明 --><div class="text-center mb-10">
-        <h1 class="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500 mb-4 tracking-tight">
-            IELTS Task 1 評估與反思
-        </h1>
-        <p class="text-lg text-gray-300">AI vs 自我評估比較分析 (進階格式化與內容隱藏)</p>
-    </div>
-
-    <!-- 主表單容器 --><div class="max-w-4xl w-full space-y-8">
+    <div class="max-w-4xl mx-auto">
         
-        <!-- GitHub Repo 設定卡片 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-            <h2 class="text-2xl font-semibold text-blue-400 mb-4">⚙️ GitHub 儲存庫與 API 設定</h2>
-            <p class="text-gray-300 mb-5 text-sm md:text-base">
-                要自動建立 Issue，您需要提供具有 `repo` 權限的 Personal Access Token (PAT)。
-            </p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- User Name --><div class="col-span-1">
-                    <label for="github_user" class="block text-sm font-medium text-gray-400 mb-2">GitHub 使用者名稱</label>
-                    <input type="text" id="github_user" name="github_user" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="例如：your-username" value="charliejimi">
-                </div>
-                <!-- Repo Name --><div class="col-span-1">
-                    <label for="github_repo" class="block text-sm font-medium text-gray-400 mb-2">GitHub 儲存庫名稱</label>
-                    <input type="text" id="github_repo" name="github_repo" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="例如：ielts-writing-tracker" value="Git_Practice_Sandbox">
-                </div>
-                <!-- PAT Token --><div class="col-span-1">
-                    <label for="github_token" class="block text-sm font-medium text-gray-400 mb-2">Personal Access Token (PAT)</label>
-                    <input type="password" id="github_token" name="github_token" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="""">
+<header class="text-center mb-10">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-3 tracking-tight header-glow font-orbitron">
+                寫作校準儀式
+            </h1>
+            <p class="text-indigo-300 text-lg md:text-xl font-light">Writing Error Analysis and Correction SOP (本地儲存)</p>
+            <div id="progress-bar" class="w-full bg-gray-700 rounded-full h-3 mt-6 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-20"></div>
+                <div id="progress-fill" class="bg-gradient-to-r from-green-400 to-emerald-500 h-full rounded-full transition-all duration-700 ease-out shadow-lg shadow-green-500/30" style="width: 0%"></div>
+            </div>
+            <p id="progress-text" class="text-sm mt-2 text-gray-400">0 / 8 步驟已完成</p>
+        </header>
+
+        
+<div class="bg-gray-800 p-6 rounded-2xl mb-8 shadow-2xl border border-gray-700">
+            <label for="writing-text" class="block text-xl font-semibold mb-3 text-indigo-200">
+                A. 欲校準的原始句子或段落：
+            </label>
+            <textarea id="writing-text" rows="2" class="w-full p-4 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-inner" placeholder="請輸入您想要校準的句子。"></textarea>
+            
+            
+<button id="diagnosis-btn" onclick="window.handleDiagnosis()" class="w-full mt-4 flex items-center justify-center space-x-2 px-6 py-3 btn-gradient text-white font-bold rounded-xl transition duration-300 shadow-xl hover:shadow-indigo-500/70 active:scale-98" disabled>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span>解鎖：智能診斷與修正建議 (AI Diagnosis & Suggestion)</span>
+            </button>
+            
+            <div id="diagnosis-unlock-message" class="mt-4 text-center text-amber-400 font-semibold bg-gray-900/50 p-3 rounded-lg border border-amber-600/50">
+                🔒 請先完成「第一階段：問題診斷 (步驟 1-4)」才能解鎖智能診斷和後續驗證步驟。
+            </div>
+
+            
+<div id="diagnosis-loading" class="hidden mt-4 text-center">
+                <div class="flex items-center justify-center text-indigo-400">
+                    <svg class="animate-spin -ml-1 mr-3 h-6 w-6 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    正在進行智能診斷... 請稍候片刻。
                 </div>
             </div>
-            <p id="repo-error" class="text-red-400 text-sm mt-4 hidden">🚨 請務必填寫所有 GitHub 欄位，包括 PAT。</p>
+            <div id="diagnosis-result" class="mt-4">
+                
+</div>
+
+            <!-- NEW: Final Corrected Sentence Input -->
+            <div class="mt-8 pt-6 border-t border-gray-700">
+                <label for="final-corrected-text" class="block text-xl font-semibold mb-3 text-green-300">
+                    B. 最終校準後的句子：
+                </label>
+                <textarea id="final-corrected-text" rows="2" class="w-full p-4 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:ring-green-500 focus:border-green-500 transition-all duration-200 shadow-inner" placeholder="請將您根據步驟 1-8 徹底校準後的最終句子輸入於此。"></textarea>
+            </div>
+
+
+            <!-- NEW: Complete Ritual Button -->
+            <button id="complete-ritual-btn" onclick="window.checkRitualCompletion()" class="w-full mt-6 flex items-center justify-center space-x-2 px-6 py-4 btn-complete text-white font-bold text-lg rounded-xl transition duration-300 shadow-xl hover:shadow-green-500/70 active:scale-98" disabled>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span id="complete-ritual-text">完成所有 8 個步驟後，點擊此處記錄歷史</span>
+            </button>
+            
+            <p id="completion-message" class="text-sm text-gray-500 mt-4 text-center">
+                 提示：智能診斷將為您提供一個**直覺修正**的起點。您仍需執行步驟 5-8 進行嚴謹的**驗證**。
+            </p>
         </div>
 
-        <!-- Issue 表單 --><form id="issue-form" class="space-y-8">
+        
+<div id="step-list" class="space-y-6">
+            
+</div>
 
-            <!-- 1. 題目名稱/編號 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="task_name" class="block text-xl font-bold text-gray-200 mb-3">1️⃣ 題目名稱/編號</label>
-                <p class="text-sm text-gray-400 mb-4">請填寫這次練習的題目名稱代號</p>
-                <input type="text" id="task_name" name="task_name" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="例如：WT1_Two_Pies">
-            </div>
-
-            <!-- 2. 文章檔案 -->
-            <div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="task_file" class="block text-xl font-bold text-gray-200 mb-3">📄 文章檔案 (Docx)</label>
-                <p class="text-sm text-gray-400 mb-4">
-                    請填寫您的檔案名稱 (例如：My_Task_1.docx)。
-                    <br>
-                    <strong class="text-accentYellow">重要提示：</strong> 
-                    Issue 建立後，您需要 <strong class="underline">手動將您的 .doc/.docx 檔案</strong> 拖曳到 Issue 留言區才能完成上傳。
+        <!-- UPDATED: History Section -->
+        <section class="mt-12 pt-8 border-t border-gray-700">
+            <h2 class="text-3xl font-bold text-indigo-300 mb-6 header-glow">歷史校準紀錄 (本地儲存)</h2>
+            <div id="history-list">
+                <!-- History Table will be rendered here by JavaScript -->
+                <p class="text-center text-gray-500 p-4 border border-gray-700 rounded-xl bg-gray-800/50">
+                    載入中...
                 </p>
-                <input type="text" id="task_file" name="task_file" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="My_Task_1.docx">
-            </div>
-
-            <!-- 2.5 文章內容 (支援貼圖並傳輸至 GitHub) -->
-            <div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="article_content" class="block text-xl font-bold text-gray-200 mb-3">📝 文章內容與圖表截圖</label>
-                <p class="text-sm text-gray-400 mb-2">
-                    請將您的 Task 1 寫作內容和圖表截圖貼於此處。您可以直接 **貼上 (Ctrl+V)** 截圖或 **拖曳** 圖片檔案。
-                </p>
-                <p id="image-upload-status" class="text-sm text-accentGreen mb-4 hidden">
-                    正在等待上傳的圖片：0 張。
-                </p>
-                <textarea id="article_content" name="article_content" rows="12" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="貼上您的 Task 1 寫作內容和圖表截圖... (例如：The provided line graph illustrates...)"></textarea>
             </div>
             
-            <!-- 2.6 逐句解析內容 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="sentence_analysis" class="block text-xl font-bold text-gray-200 mb-3">📚 逐句解析內容</label>
-                <p class="text-sm text-gray-400 mb-2">
-                    請貼上您對 Task 1 寫作內容進行逐句解析的內容、截圖或表格，例如每個句子的文法或詞彙修正。
-                </p>
-                <textarea id="sentence_analysis" name="sentence_analysis" rows="8" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="貼上逐句解析內容... (例如：[句子 1] - 修正建議 / [句子 2] - 備註)"></textarea>
-            </div>
-
-
-            <!-- 3. 寫作日期 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="writing_date" class="block text-xl font-bold text-gray-200 mb-3">📅 寫作日期</label>
-                <input type="date" id="writing_date" name="writing_date" class="w-full md:w-1/2 px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200">
-            </div>
-
-            <!-- 4. 題型 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="question_type" class="block text-xl font-bold text-gray-200 mb-3">📊 題型</label>
-                <p class="text-sm text-gray-400 mb-4">請選擇這次寫作的圖表題型。</p>
-                <select id="question_type" name="question_type" class="w-full md:w-1/2 px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200">
-                    <option value="" disabled selected class="bg-darkBg text-gray-500">請選擇...</option>
-                    <option value="Line Graph" class="bg-darkBg">Line Graph</option>
-                    <option value="Bar Chart" class="bg-darkBg">Bar Chart</option>
-                    <option value="Pie Chart" class="bg-darkBg">Pie Chart</option>
-                    <option value="Table" class="bg-darkBg">Table</option>
-                    <option value="Map" class="bg-darkBg">Map</option>
-                    <option value="Process Diagram" class="bg-darkBg">Process Diagram</option>
-                    <option value="Mixed" class="bg-darkBg">Mixed</option>
-                </select>
-            </div>
-
-            <!-- 5. 自我評估分數 (四個數字欄位 + 備註區) --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label class="block text-xl font-bold text-gray-200 mb-3">2️⃣ 自我評估分數 (0-9)</label>
-                <p class="text-sm text-gray-400 mb-4">請填寫你對 IELTS 四大核心維度的自評分數 (0~9)。</p>
-                
-                <!-- 四個數字輸入欄位 -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <!-- TA -->
-                    <div>
-                        <label for="self_assessment_ta" class="block text-sm font-medium text-gray-400 mb-2">Task Achievement (TA)</label>
-                        <input type="number" id="self_assessment_ta" name="self_assessment_ta" min="0" max="9" step="0.5" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200" placeholder="例如：6.5">
-                    </div>
-                    <!-- CC -->
-                    <div>
-                        <label for="self_assessment_cc" class="block text-sm font-medium text-gray-400 mb-2">Coherence & Cohesion (CC)</label>
-                        <input type="number" id="self_assessment_cc" name="self_assessment_cc" min="0" max="9" step="0.5" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200" placeholder="例如：7.0">
-                    </div>
-                    <!-- LR -->
-                    <div>
-                        <label for="self_assessment_lr" class="block text-sm font-medium text-gray-400 mb-2">Lexical Resource (LR)</label>
-                        <input type="number" id="self_assessment_lr" name="self_assessment_lr" min="0" max="9" step="0.5" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200" placeholder="例如：6.0">
-                    </div>
-                    <!-- GRA -->
-                    <div>
-                        <label for="self_assessment_gra" class="block text-sm font-medium text-gray-400 mb-2">Grammatical Range & Accuracy (GRA)</label>
-                        <input type="number" id="self_assessment_gra" name="self_assessment_gra" min="0" max="9" step="0.5" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200" placeholder="例如：7.5">
-                    </div>
-                </div>
-
-                <!-- 新增：LR 自評解析 -->
-                <label for="self_assessment_lr_analysis" class="block text-sm font-medium text-gray-400 mb-2 mt-6">詞彙資源 (LR) 自評解析 (支援貼圖/拖曳)</label>
-                <p class="text-xs text-gray-500 mb-2">請貼上您對 LR 分數的自評細節或圖表，將會自動格式化。</p>
-                <textarea id="self_assessment_lr_analysis" name="self_assessment_lr_analysis" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：自評單字庫的使用、同義詞替換的數量與準確性等。"></textarea>
-
-                <!-- 新增：GRA 自評解析 -->
-                <label for="self_assessment_gra_analysis" class="block text-sm font-medium text-gray-400 mb-2 mt-6">文法範圍與準確性 (GRA) 自評解析 (支援貼圖/拖曳)</label>
-                <p class="text-xs text-gray-500 mb-2">請貼上您對 GRA 分數的自評細節或圖表，將會自動格式化。</p>
-                <textarea id="self_assessment_gra_analysis" name="self_assessment_gra_analysis" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：自評複雜句型的使用、時態或主謂一致的錯誤數量等。"></textarea>
-                
-                
-                <!-- 新增：Google Translate Source (TA/CC 語義檢查 - 中文源文) -->
-                <label for="google_translate_source" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-yellow-300">💡 Google 語義檢查 (1/3): 中文源文（TA/CC 意圖）</label>
-                <p class="text-xs text-gray-500 mb-2">請輸入您的原始意圖 (中文)，用於比對 AI 評分和您的實際表達。</p>
-                <textarea id="google_translate_source" name="google_translate_source" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：這張圖表顯示了 A 國在 2000 年到 2020 年之間能源消耗的顯著增長。"></textarea>
-
-                <!-- 新增：Google Translate Output (TA/CC 語義檢查 - 翻譯結果) -->
-                <label for="google_translate_output" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-yellow-300">💡 Google 語義檢查 (2/3): 翻譯結果（反向驗證）</label>
-                <p class="text-xs text-gray-500 mb-2">請將 Google 翻譯結果貼於此處（如：您將中文源文翻譯成英文的結果，或將您的英文寫作反譯回中文的結果）。</p>
-                <textarea id="google_translate_output" name="google_translate_output" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：This chart shows a significant increase in energy consumption in country A between 2000 and 2020."></textarea>
-
-                <!-- 新增：自評辨識出的問題 -->
-                <label for="self_identified_issues" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-red-400">🚨 自評辨識出的問題 (3/3) - 修正盲點 (支援貼圖/拖曳)</label>
-                <p class="text-xs text-gray-500 mb-2">請輸入您比對原文、中文源文和翻譯結果後，自己發現的 TA/CC 用字準確性問題或 AI 未能辨識出的盲點。**（將自動格式化為列表/段落）**</p>
-                <textarea id="self_identified_issues" name="self_identified_issues" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="例如：將 '顯著增長' 寫成了 '快速發展'，導致 TA 準確性不足；或連接詞使用與中文語義不符。"></textarea>
-
-                <!-- ================================== -->
-                <!--    ⬇️ AI 內容理解 (已修改) ⬇️      -->
-                <!-- ================================== -->
-                <label class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-purple-300">🤖 AI 內容理解 (實驗性)</label>
-                <p class="text-xs text-gray-500 mb-2">點擊按鈕，讓 AI 根據您在「文章內容與圖表截圖」欄位中的*文字描述*來生成內容理解 (Breakdown)。</p>
-                <button type="button" id="generate-chart-button" class="w-full px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 transition duration-200 text-white">
-                    生成 AI 理解
+            <!-- === MODIFICATION START: Added wrapper and export button === -->
+            <div class="flex justify-center items-center space-x-4 mt-4">
+                <button onclick="window.exportHistoryAsMarkdown()" class="text-sm text-green-400 hover:text-green-300 transition-colors duration-150 p-2 rounded-md hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block -mt-1 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    匯出為 Markdown
                 </button>
-                <div id="chart-generator-status" class="text-xs text-accentYellow mt-2"></div>
-                
-                <!-- AI Breakdown text will be injected here -->
-                <div id="chart-display-area" class="mt-4">
-                </div>
-                
-                <!-- NEW: Container for manual paste, hidden by default -->
-                <div id="manual-chart-paste-container" class="hidden mt-4">
-                    <label for="manual_chart_paste" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-green-300">🖼️ 手動貼上圖表</label>
-                    <p class="text-xs text-gray-500 mb-2">AI 理解已生成。請在此處貼上您手動製作或修正的圖表（支援貼圖/拖曳）。</p>
-                    <textarea id="manual_chart_paste" name="manual_chart_paste" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="請貼上您的圖表..."></textarea>
-                </div>
-                
-                <!-- NEW: Hidden field to store AI breakdown text for submission -->
-                <!-- 🌟 移除：刪除這個隱藏欄位，使其不會被提交 -->
-                <!-- <textarea id="ai_breakdown_text" name="ai_breakdown_text" class="hidden"></textarea> -->
-                
-                <!-- ================================== -->
-                <!--    ⬆️ AI 內容理解 (已修改) ⬆️      -->
-                <!-- ================================== -->
-
-                <!-- ================================== -->
-                <!--           ⬇️ 新增欄位 ⬇️         -->
-                <!-- ================================== -->
-                <label for="custom_field_1" class="block text-sm font-medium text-gray-400 mb-2 mt-6 text-green-300">💡 新增自訂欄位 (支援貼圖/拖曳)</label>
-                <p class="text-xs text-gray-500 mb-2">請在此處輸入您需要補充的任何資訊或截圖。</p>
-                <textarea id="custom_field_1" name="custom_field_1" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="輸入自訂內容..."></textarea>
-                <!-- ================================== -->
-                <!--           ⬆️ 新增欄位 ⬆️         -->
-                <!-- ================================== -->
-
-                <!-- 備註/其他觀察區塊 -->
-                <label for="self_assessment_notes" class="block text-sm font-medium text-gray-400 mb-2 mt-6">其他觀察/備註 (通用) (支援貼圖/拖曳)</label>
-                <textarea id="self_assessment_notes" name="self_assessment_notes" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="補充其他觀察、自評原因或截圖..."></textarea>
-            </div>
-
-            <!-- 6. AI 評分 (支援貼圖並格式化) --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="ai_assessment" class="block text-xl font-bold text-gray-200 mb-3">3️⃣ AI 評分 (支援貼圖/拖曳 & AI 格式化)</label>
-                <p class="text-sm text-gray-400 mb-4">填入 AI 對四大核心維度的評分與建議評語，或貼上 AI 評分截圖。內容將**自動轉換為表格**。</p>
-                <textarea id="ai_assessment" name="ai_assessment" rows="6" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="Task Response (TR): 
-Coherence & Cohesion (CC): 
-Lexical Resource (LR): 
-Grammatical Range & Accuracy (GRA): 
-AI 評語:"></textarea>
-            </div>
-
-            <!-- 7. 差異判斷 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label class="block text-xl font-bold text-gray-200 mb-3">4️⃣ 差異判斷 (Difference Analysis)</label>
-                <p class="text-sm text-gray-400 mb-4">勾選本篇文章與 AI 評分的差異類型，並補充原因與判斷</p>
-                <div id="difference_analysis" class="space-y-3 mt-2">
-                    <div class="flex items-center">
-                        <input id="diff_1" name="difference_analysis" type="checkbox" value="自評高 / AI 低 → 自我盲點" class="h-5 w-5 text-blue-500 bg-darkBg border-borderDark rounded focus:ring-blue-500 accent-blue-600">
-                        <label for="diff_1" class="ml-3 block text-base text-gray-200">自評高 / AI 低 → 自我盲點</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="diff_2" name="difference_analysis" type="checkbox" value="自評低 / AI 高 → 認知保守" class="h-5 w-5 text-blue-500 bg-darkBg border-borderDark rounded focus:ring-2 focus:ring-blue-500 accent-blue-600">
-                        <label for="diff_2" class="ml-3 block text-base text-gray-200">自評低 / AI 高 → 認知保守</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="diff_3" name="difference_analysis" type="checkbox" value="自評 ≈ AI → 共識問題" class="h-5 w-5 text-blue-500 bg-darkBg border-borderDark rounded focus:ring-2 focus:ring-blue-500 accent-blue-600">
-                        <label for="diff_3" class="ml-3 block text-base text-gray-200">自評 ≈ AI → 共識問題</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="diff_4" name="difference_analysis" type="checkbox" value="分數接近但理由不同 → 認知偏差" class="h-5 w-5 text-blue-500 bg-darkBg border-borderDark rounded focus:ring-2 focus:ring-blue-500 accent-blue-600">
-                        <label for="diff_4" class="ml-3 block text-base text-gray-200">分數接近但理由不同 → 認知偏差</label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 8. 反思與行動 (支援貼圖並格式化) --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="reflection_action" class="block text-xl font-bold text-gray-200 mb-3">5️⃣ 反思與行動 (支援貼圖/拖曳 & AI 格式化)</label>
-                <p class="text-sm text-gray-400 mb-4">針對每個差異類型列出具體修正行動，並可附 Project 或任務連結，或貼上修正的截圖。內容將**自動轉換為表格或列表**。</p>
-                <textarea id="reflection_action" name="reflection_action" rows="8" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="🔹 自我盲點修正 (需重寫或改善段落): 
-🔹 認知保守收錄 (存入最佳範例庫或模板): 
-🔹 共識問題訓練 (指定練習任務或練習題): 
-🔹 理由偏差驗證 (你與 AI 給出不同原因但結果相似時，需比對 AI 評語或高分範文，找出真正原因):"></textarea>
-            </div>
-
-            <!-- 9. 其他備註 (支援貼圖並格式化) --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
-                <label for="additional_notes" class="block text-xl font-bold text-gray-200 mb-3">6️⃣ 其他備註 (支援貼圖/拖曳 & AI 格式化)</label>
-                <p class="text-sm text-gray-400 mb-4">填寫額外備註，例如寫作心得、詞彙卡片、特別觀察或相關圖片。內容將**自動轉換為表格或整潔的段落**。</p>
-                <textarea id="additional_notes" name="additional_notes" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="請填寫備註或心得"></textarea>
-            </div>
-
-            <!-- 提交按鈕 --><div class="pt-8 text-center">
-                <div id="status-message" class="mb-4 p-3 rounded-lg text-sm hidden"></div>
-                <button type="submit" id="submit-button" class="gradient-button w-full md:w-2/3 lg:w-1/Two_Pies px-8 py-4 text-xl font-bold rounded-xl shadow-lg
-                                         text-white bg-gradient-to-r from-primaryBtnStart to-primaryBtnEnd
-                                         hover:from-blue-500 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-darkBg
-                                         transition duration-300 ease-in-out">
-                    ✨ 自動建立 GitHub Issue
+                <button onclick="window.clearHistory()" class="text-sm text-red-400 hover:text-red-300 transition-colors duration-150 p-2 rounded-md hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block -mt-1 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                   清除所有本地紀錄
                 </button>
             </div>
-        </form>
+        </section>
+
+        
+<footer class="mt-12 pt-8 border-t border-gray-700 text-center">
+            <p class="text-gray-400 text-base font-light">
+                流程總結：[寫作] → [步驟 1-4 診斷] → [建立修改 (直覺)] → [步驟 5-8 驗證 (反直覺)] → [確認最終修正，記錄完成]
+            </p>
+        </footer>
     </div>
 
-    <script>
-        // 全域變數
-        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // 留空，系統會自動填入
-        const modelName = "gemini-2.5-flash-preview-09-2025"; 
-        const imageModelName = "gemini-2.5-flash-image-preview"; // 🌟 (用於 AI 圖表生成)
-        
-        // -----------------------------------------------------
-        // 圖片處理專用變數：新的結構，用於儲存待上傳的圖片並追蹤其來源
-        // { 'textareaId': [{file, placeholder}, ...] }
-        // -----------------------------------------------------
-        const pendingImages = {}; 
-        const imageStatusElement = document.getElementById('image-upload-status');
-        
-        /**
-         * 處理貼上和拖曳事件的核心邏輯，用於將圖片儲存為待上傳列表並插入佔位符。
-         * @param {string} textareaId - 目標文字區域的 ID
-         */
-        function setupImageUpload(textareaId) {
-            const textarea = document.getElementById(textareaId);
-            
-            if (!textarea) return; // 確保元素存在
-            
-            // 初始化陣列
-            pendingImages[textareaId] = [];
+    <script type="module">
+        // --- Gemini API Setup ---
+        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; 
+        const modelName = "gemini-2.5-flash";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-            // ------------------ 貼上處理 (Paste) ------------------
-            textarea.addEventListener('paste', function(event) {
-                const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-                let imageFound = false;
-
-                for (let item of items) {
-                    if (item.type.indexOf('image') !== -1) {
-                        event.preventDefault(); 
-                        const file = item.getAsFile();
-                        if (file) {
-                            const timestamp = Date.now();
-                            const mimeType = file.type || 'image/png';
-                            const extension = mimeType.split('/')[1] || 'png';
-                            const placeholderName = `${textareaId}_pasted_${timestamp}.${extension}`;
-                            
-                            // 儲存檔案和佔位符，並標記來源 ID
-                            pendingImages[textareaId].push({ file: file, placeholder: placeholderName });
-                            
-                            // 在文字區塊中插入 Markdown 佔位符
-                            const placeholderText = `\n![Uploading: ${placeholderName}]\n`;
-                            const start = this.selectionStart;
-                            const end = this.selectionEnd;
-                            this.value = this.value.substring(0, start) + placeholderText + this.value.substring(end);
-                            this.setSelectionRange(start + placeholderText.length, start + placeholderText.length);
-                            
-                            imageFound = true;
+        // Function for exponential backoff retry logic
+        async function fetchWithRetry(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (i < retries - 1 && response.status >= 400) {
+                            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000 + Math.random() * 500)); 
+                            continue;
                         }
                     }
-                }
-
-                if (imageFound) {
-                    updateImageStatus();
-                }
-            });
-
-            // ------------------ 拖曳處理 (Drag & Drop) ------------------
-            textarea.addEventListener('dragover', function(event) {
-                event.preventDefault(); 
-                this.classList.add('border-blue-500', 'ring-2', 'ring-blue-500'); // 視覺回饋
-            });
-            
-            textarea.addEventListener('dragleave', function(event) {
-                this.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500');
-            });
-
-            textarea.addEventListener('drop', function(event) {
-                event.preventDefault();
-                this.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500');
-                
-                let imageFound = false;
-                const files = event.dataTransfer.files;
-
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    if (file.type.startsWith('image/')) {
-                        const timestamp = Date.now() + i;
-                        const extension = file.type.split('/')[1] || 'png';
-                        const placeholderName = `${textareaId}_dragged_${timestamp}.${extension}`;
-                        
-                        pendingImages[textareaId].push({ file: file, placeholder: placeholderName });
-
-                        const placeholderText = `\n![Uploading: ${placeholderName}]\n`;
-                        this.value += placeholderText;
-                        imageFound = true;
+                    return response;
+                } catch (error) {
+                    if (i < retries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000 + Math.random() * 500)); 
+                        continue;
                     }
+                    throw error;
                 }
-
-                if (imageFound) {
-                    updateImageStatus();
-                }
-            });
-        }
-        
-        /**
-         * 統計所有欄位中待上傳的圖片總數，並更新狀態提示
-         */
-        function updateImageStatus() {
-            let totalImages = 0;
-            for (const id in pendingImages) {
-                totalImages += pendingImages[id].length;
             }
+            throw new Error('Fetch failed after multiple retries.');
+        }
+
+        // --- Core SOP Data ---
+        const stepsData = [
+            // Phase I: Diagnosis (Steps 1-4) - Indigo Theme
+            { id: 1, phase: 'Diagnosis', title: '朗讀檢查 (Read-Aloud Check)', icon: '🔊', focus: '流暢度/結構', detail: '大聲朗讀句子。哪裡有卡頓、猶豫或需要換氣？', error: '語句過長，結構混亂。', className: 'phase-diagnosis', notePlaceholder: '在此記錄您發現的結構問題' },
+            { id: 2, phase: 'Diagnosis', title: '詞形檢查 (Word Form Check)', icon: '📝', focus: '語法/詞性', detail: '描述「概念」或「事物」時，是否誤用了 V-ing？詞性是否一致？（如：`constructing` → `construction`）', error: '名詞化問題：V-ing $\\rightarrow$ Noun。', className: 'phase-diagnosis', notePlaceholder: '在此記錄詞性轉換的依據' },
+            { id: 3, phase: 'Diagnosis', title: '精確度檢查 (Precision Check)', icon: '🎯', focus: '詞彙/搭配', detail: '每個關鍵詞是否「最準確」？詞語搭配（Collocation）是否自然？（如：`old construction` → `old building`）', error: '詞語選擇不精確。', className: 'phase-diagnosis', notePlaceholder: '在此記錄更替為更精準的詞彙' },
+            { id: 4, phase: 'Diagnosis', title: '連貫性檢查 (Cohesion Check)', icon: '🔗', focus: '連接/重複', detail: '是否「不必要地重複」了前一句的主語？過渡是否彆扭？', error: '不必要的重複主語。', className: 'phase-diagnosis', notePlaceholder: '在此記錄連貫性的改善方法' },
             
-            if (totalImages > 0) {
-                imageStatusElement.textContent = `正在等待上傳的圖片：${totalImages} 張。`;
-                imageStatusElement.classList.remove('hidden');
-            } else {
-                imageStatusElement.classList.add('hidden');
-            }
-        }
-        
-        /**
-         * 將 Base64 數據上傳到 GitHub Repo
-         * @returns {string} The raw content URL for the uploaded file.
-         */
-        async function uploadImageToGithub(user, repo, token, path, base64Content, message) {
-            const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
-            const maxRetries = 5; // Allow retries for 409 conflicts
-            let sha = null;
+            // Phase II: Verification (Steps 5-8) - Amber Theme
+            { id: 5, phase: 'Verification', title: 'Google 語料庫驗證', icon: '🔍', focus: '自然度/規模', detail: '使用雙引號 (`"..."`) 搜索修改後的詞組。檢查結果來源。', error: '修改後無收錄或來源不可靠。', verificationStandard: 'A. 規模：修正後的詞組有顯著更多的搜索結果。B. 來源：結果來自可靠新聞/學術網站。', className: 'phase-verification', notePlaceholder: '在此記錄語料庫驗證結果' },
+            { id: 6, phase: 'Verification', title: 'AI 工具複查', icon: '🤖', focus: '語法/流暢度', detail: '將「整個修改後的句子」貼入專業寫作工具（如 Grammarly）。', error: 'AI 仍標記錯誤。', verificationStandard: 'AI 不再標記修改部分中的語法或流暢性錯誤。', className: 'phase-verification', notePlaceholder: '在此記錄 AI 複查結果（通過/未通過）' },
+            { id: 7, phase: 'Verification', title: '原理推導 (Principle Deduction)', icon: '🧠', focus: '規則/分析', detail: '強迫自己為修正寫下一條簡短的「語法/詞彙規則」作為「備註」。', error: '無法清晰闡述規則。', verificationStandard: '可以清晰闡述規則（例如：「遵循名詞化原則」）。', className: 'phase-verification', notePlaceholder: '（在此處記錄修正的規則，這是分析的證明）' },
+            { id: 8, phase: 'Verification', title: '範文比較', icon: '🏆', focus: '風格/表達', detail: '回憶或搜索高分範文，尋找相似表達或結構。', error: '表達與高分範文不符。', verificationStandard: '您的修改與高分 IELTS 範文中使用的措辭保持一致。', className: 'phase-verification', notePlaceholder: '在此記錄範文參考來源或對比結果' }
+        ];
 
-            // 1. 初次嘗試 GET 現有檔案的 SHA
+        let state = {
+            steps: stepsData.map(s => ({ ...s, completed: false, userNote: '' })),
+            originalWritingText: '', 
+            history: [],
+        };
+
+        const stepList = document.getElementById('step-list');
+        const progressBar = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const diagnosisBtn = document.getElementById('diagnosis-btn');
+        const diagnosisUnlockMsg = document.getElementById('diagnosis-unlock-message');
+        const completeRitualBtn = document.getElementById('complete-ritual-btn');
+        const completeRitualText = document.getElementById('complete-ritual-text');
+        const finalCorrectedTextarea = document.getElementById('final-corrected-text');
+        const originalWritingTextarea = document.getElementById('writing-text');
+        const completionMessage = document.getElementById('completion-message');
+
+        const verificationStepIds = [5, 6, 7, 8];
+        const historyList = document.getElementById('history-list');
+
+        // --- History Functions ---
+
+        function loadHistory() {
             try {
-                const getResponse = await fetch(apiUrl, {
-                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.com/v3+json' }
-                });
-
-                if (getResponse.ok) {
-                    const existingFile = await getResponse.json();
-                    sha = existingFile.sha;
+                const storedHistory = localStorage.getItem('ritualHistory');
+                if (storedHistory) {
+                    state.history = JSON.parse(storedHistory);
                 }
             } catch (e) {
-                console.warn(`[GitHub Upload] Initial attempt to GET SHA failed for ${path}:`, e);
+                console.error("無法從 localStorage 載入歷史紀錄:", e);
+                state.history = []; // Fallback
             }
-
-            // 2. PUT 請求與 409 衝突重試循環
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                console.log(`[GitHub Upload] PUT attempt ${attempt + 1} for ${path}. Current SHA: ${sha || 'new file'}`);
-                
-                // 準備 PUT 請求體
-                const putBody = {
-                    message: sha ? `Update existing image for Task 1 Issue: ${path}` : message,
-                    content: base64Content, 
-                    committer: {
-                        name: user,
-                        email: `${user}@users.noreply.github.com`
-                    }
-                };
-
-                if (sha) {
-                    putBody.sha = sha; // 包含 SHA 以更新現有檔案
-                }
-
-                const response = await fetch(apiUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.com/v3+json'
-                    },
-                    body: JSON.stringify(putBody)
-                });
-
-                const result = await response.json();
-                
-                if (response.ok) {
-                    // 成功
-                    console.log(`[GitHub Upload] Successfully uploaded ${path} on attempt ${attempt + 1}.`);
-                    return result.content.download_url;
-                } 
-                
-                if (response.status === 409) {
-                    // 409 Conflict (SHA mismatch) - 需要重試
-                    console.warn(`[GitHub Upload] Conflict (409) detected for ${path}. Retrying to get latest SHA...`);
-                    
-                    let reGetError = null;
-
-                    // 重新 GET 檔案以取得最新的 SHA
-                    try {
-                        const getResponse = await fetch(apiUrl, {
-                            headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.com/v3+json' }
-                        });
-
-                        if (getResponse.ok) { // 200 OK
-                            const existingFile = await getResponse.json();
-                            sha = existingFile.sha; // 更新 SHA
-                            console.log(`[GitHub Upload] Successfully fetched new SHA: ${sha}. Retrying PUT...`);
-                        } else if (getResponse.status === 404) {
-                            // FIX: 如果重新 GET 得到 404 (Not Found)，表示檔案不存在，應清除 SHA，作為新檔案重試 PUT
-                            sha = null; 
-                            console.warn(`[GitHub Upload] File ${path} not found (404) during SHA re-GET. Retrying PUT as a new file (clearing SHA).`);
-                        } else {
-                            // Non-recoverable error during GET (403, 500, etc.)
-                            const errResult = await getResponse.json();
-                            reGetError = new Error(`GitHub 重新獲取 SHA 失敗 (${path}, Status: ${getResponse.status}): ${errResult.message || 'Unknown error during re-GET'}`);
-                        }
-                    } catch (e) {
-                        // Catches network error
-                        reGetError = new Error(`Fatal network error during re-GET for SHA: ${e.message}`);
-                    }
-                    
-                    // 如果在重新 GET 期間發生錯誤，且不是可忽略的 404，或者達到重試上限但 SHA 仍為舊值，拋出致命錯誤
-                    if (reGetError) {
-                        console.error(`[GitHub Upload] ${reGetError.message}`);
-                        throw new Error(`GitHub 圖片上傳失敗 (${path}, Status: 409): 無法獲取最新的 SHA 進行重試。
-Stack: ${reGetError.message}`); 
-                    }
-
-                    // 延遲重試以避免立即衝突
-                    await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-                    continue; // 進入下一次循環 (重試 PUT)
-                } 
-                
-                // 非 409 錯誤，拋出
-                throw new Error(`GitHub 圖片上傳失敗 (${path}, Status: ${response.status}): ${result.message || 'Unknown error'}`);
-            }
-            
-            // 達到最大重試次數
-            throw new Error(`GitHub 圖片上傳失敗 (${path}): 已達最大重試次數 (${maxRetries})。`);
-        }
-
-        /**
-         * 執行所有圖片上傳並返回佔位符到最終 Markdown 連結的映射。
-         */
-        async function uploadAllImages(user, repo, token, submitButton) {
-            const uploadedMap = {}; // Maps: placeholder -> final URL
-            const allImagesToUpload = [];
-
-            // 將所有欄位的圖片扁平化為一個列表
-            for (const fieldId in pendingImages) {
-                pendingImages[fieldId].forEach(img => {
-                    allImagesToUpload.push({ ...img, fieldId });
-                });
-            }
-            
-            if (allImagesToUpload.length === 0) {
-                console.log("[GitHub Upload] No images to upload.");
-                return uploadedMap;
-            }
-
-            console.log(`[GitHub Upload] Starting upload of ${allImagesToUpload.length} images...`);
-
-            const uploadPromises = allImagesToUpload.map(async (img, index) => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        try {
-                            const base64Content = reader.result.split(',')[1];
-                            const path = `issue_images/${img.placeholder}`; 
-                            const message = `Upload image for Task 1 Issue - Field: ${img.fieldId}`;
-                            
-                            // 更新按鈕文字，讓用戶知道進度
-                            submitButton.textContent = `🖼️ 正在上傳圖片 (${index + 1}/${allImagesToUpload.length})...`;
-
-                            const rawUrl = await uploadImageToGithub(user, repo, token, path, base64Content, message);
-                            uploadedMap[img.placeholder] = rawUrl;
-                            resolve();
-                        } catch (error) {
-                            console.error(`[GitHub Upload] Image Upload Error for ${img.placeholder}:`, error);
-                            // 即使上傳失敗，也將佔位符映射到錯誤訊息，以便在內容中顯示
-                            uploadedMap[img.placeholder] = `[圖片上傳失敗: ${error.message}]`; 
-                            resolve(); 
-                        }
-                    };
-                    reader.readAsDataURL(img.file);
-                });
-            });
-
-            // 使用 Promise.allSettled 等待所有上傳完成，即使有失敗
-            await Promise.allSettled(uploadPromises);
-            
-            // 清空所有待上傳圖片
-            for (const id in pendingImages) {
-                pendingImages[id].length = 0;
-            }
-            updateImageStatus();
-
-            console.log("[GitHub Upload] All image uploads completed.");
-            return uploadedMap;
         }
         
-        // -----------------------------------------------------
-        // Gemini 格式化功能 (DEBUG 強化版)
-        // -----------------------------------------------------
+        function saveHistory() {
+            const completedTime = new Date().toLocaleString('zh-TW', {
+                year: 'numeric', month: '2-digit', day: '2-digit', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            
+            const finalCorrected = finalCorrectedTextarea.value.trim();
+            const original = originalWritingTextarea.value.trim();
+            
+            // 找到步驟 7 (原理推導) 的使用者備註
+            const principleNote = state.steps.find(s => s.id === 7)?.userNote || '無紀錄'; 
+            
+            // NEW: Assign a unique ID (timestamp in ms)
+            const uniqueId = Date.now();
 
-        /**
-         * 使用 Gemini API 將純文字轉換為格式化的 Markdown 表格或整潔段落。
-         * @param {string} text - 待格式化的原始文字 (已替換圖片佔位符)
-         * @param {string} context - 給 AI 的上下文提示
-         * @param {boolean} preferTable - 是否傾向於轉換為 Key:Value 表格
-         */
-        async function formatTextWithGemini(text, context, preferTable = true) {
-            const trimmedText = text.trim();
-            if (!trimmedText) {
-                return '無';
+            const newEntry = {
+                id: uniqueId, // <--- 新增唯一 ID
+                timestamp: completedTime,
+                // Use captured state (from the moment diagnosis was run) or current value as fallback
+                original: state.originalWritingText || original, 
+                corrected: finalCorrected,
+                principle: principleNote
+            };
+            
+            // Check if captured original text is available, or if the current original text is not empty
+            if (newEntry.original === '' || newEntry.corrected === '') {
+                // Prevent saving if either original or corrected are empty
+                console.warn("未完成校準，原始句子或最終修正句子為空。不儲存歷史紀錄。");
+                completionMessage.textContent = '❌ 無法記錄：原始句子或最終修正結果不能為空。';
+                completionMessage.classList.remove('text-gray-500', 'text-green-400');
+                completionMessage.classList.add('text-red-400');
+                return false;
             }
             
-            console.log(`\n--- [Gemini Format] Starting API Call ---`);
-            console.log(`[Gemini Format] Context: '${context}'`);
-            console.log(`[Gemini Format] Input text (first 100 chars):\n${trimmedText.substring(0, 100)}...`);
-
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            state.history.unshift(newEntry); // Add to the beginning
             
-            const tableInstruction = preferTable 
-                ? `請優先嘗試使用兩欄 Markdown 表格 (例如：項目 | 內容) 來呈現 Key:Value 結構或分行項目。如果內容是自由格式的評語或含有圖片連結，則將其轉換為整潔的 Markdown 列表或段落，並確保換行被保留為段落。`
-                : `請將內容轉換為整潔的 Markdown 格式，例如列表、標題或段落，保留所有換行以確保可讀性。不要使用表格。`;
+            try {
+                localStorage.setItem('ritualHistory', JSON.stringify(state.history));
+                completionMessage.textContent = `🎉 儀式圓滿完成！紀錄已儲存，正在重置... (A: ${newEntry.original.substring(0, 20)}... | B: ${newEntry.corrected.substring(0, 20)}...)`;
+                completionMessage.classList.remove('text-gray-500', 'text-red-400');
+                completionMessage.classList.add('text-green-400', 'font-bold');
+                return true;
+            } catch (e) {
+                console.error("無法將歷史紀錄儲存到 localStorage:", e);
+                completionMessage.textContent = '❌ 儲存失敗：本地儲存空間發生錯誤。';
+                completionMessage.classList.remove('text-gray-500', 'text-green-400');
+                completionMessage.classList.add('text-red-400');
+                return false;
+            }
+        }
 
-            const userQuery = `請將以下關於 IELTS Task 1 評估的純文字內容轉換為 GitHub Issue 兼容的 Markdown 格式。
-                ${tableInstruction}
-                
-                上下文/預期用途: ${context}
-                
-                原始輸入:
-                ---
-                ${trimmedText}
-                ---
-                `;
+        // NEW: Function to delete a history entry
+        function deleteHistoryEntry(id) {
+            // Convert id to number as it's a timestamp
+            const entryId = Number(id);
+            
+            if (!confirm('您確定要永久移除這筆歷史紀錄嗎？')) {
+                return;
+            }
 
-            const responseSchema = {
-                type: "OBJECT",
-                properties: {
-                    "markdown_output": { 
-                        "type": "STRING",
-                        "description": "The input text converted into a GitHub compatible Markdown table or clean text string, or the original text if a table is not suitable. Only include the table or text itself, no Markdown code fences."
-                    }
-                },
-                required: ["markdown_output"]
+            const initialLength = state.history.length;
+            
+            // Filter out the entry with the matching ID
+            state.history = state.history.filter(entry => entry.id !== entryId);
+
+            if (state.history.length < initialLength) {
+                // Only update localStorage and re-render if something was actually removed
+                try {
+                    localStorage.setItem('ritualHistory', JSON.stringify(state.history));
+                    renderHistory();
+                    completionMessage.textContent = `🗑️ 紀錄 ID ${id} 已成功移除。`;
+                    completionMessage.classList.remove('text-gray-500', 'text-green-400', 'font-bold', 'text-amber-400');
+                    completionMessage.classList.add('text-red-400');
+                    setTimeout(() => {
+                        completionMessage.textContent = '提示：智能診斷將為您提供一個直覺修正的起點。您仍需執行步驟 5-8 進行嚴謹的驗證。';
+                        completionMessage.classList.remove('text-red-400');
+                        completionMessage.classList.add('text-gray-500');
+                    }, 3000);
+                } catch (e) {
+                    console.error("無法更新 localStorage:", e);
+                }
+            } else {
+                 console.warn(`Attempted to delete ID ${id}, but no matching entry was found.`);
+            }
+        }
+
+
+        function renderHistory() {
+            
+            if (state.history.length === 0) {
+                historyList.innerHTML = '<p class="text-center text-gray-500 p-4 border border-gray-700 rounded-xl bg-gray-800/50">目前沒有已完成的校準紀錄。</p>';
+                return;
+            }
+
+            const tableHtml = `
+                <div class="overflow-x-auto rounded-xl shadow-lg border border-gray-700">
+                    <table id="history-table" class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-1/12">時間</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-3/12">原始句子 (A)</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-3/12">校準後句子 (B)</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-4/12">原理推導 (Step 7)</th>
+                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider w-1/12">操作</th> 
+                            </tr>
+                        </thead>
+                        <tbody class="bg-gray-800 divide-y divide-gray-700">
+                            ${state.history.map(entry => `
+                                <tr class="hover:bg-gray-700 transition-colors duration-150">
+                                    <td class="px-3 py-3 text-sm text-gray-400">${entry.timestamp.split(', ')[1]}<br><span class="text-xs text-gray-500">${entry.timestamp.split(', ')[0]}</span></td>
+                                    <td class="px-3 py-3 text-sm text-indigo-300">${entry.original}</td>
+                                    <td class="px-3 py-3 text-sm text-green-300 font-medium">${entry.corrected}</td>
+                                    <td class="px-3 py-3 text-sm text-yellow-300">${entry.principle || 'N/A'}</td>
+                                    <td class="px-3 py-3 text-center">
+                                         <button onclick="window.deleteHistoryEntry(${entry.id})" class="text-red-400 hover:text-red-300 bg-red-900/30 hover:bg-red-900/50 p-1 rounded-md text-sm transition-colors duration-150 active:scale-95">
+                                            ❌</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            historyList.innerHTML = tableHtml;
+        }
+        
+        function clearHistory() {
+             // Replaced alert() with standard JS confirm() for simple deletion confirmation
+             if (confirm('您確定要永久清除所有本地校準紀錄嗎？此操作不可逆！')) {
+                 console.warn("Clearing all local ritual history. This cannot be undone.");
+                 localStorage.removeItem('ritualHistory');
+                 state.history = [];
+                 
+                 // Provide immediate feedback in the UI
+                 historyList.innerHTML = '<p class="text-center text-red-400 p-4 border border-red-700 rounded-xl bg-red-900/50 font-bold">所有歷史紀錄已清除！</p>';
+                 
+                 setTimeout(() => {
+                     renderHistory(); // Re-render the empty state after a brief delay
+                     completionMessage.textContent = '提示：智能診斷將為您提供一個直覺修正的起點。您仍需執行步驟 5-8 進行嚴謹的驗證。';
+                     completionMessage.classList.remove('text-red-400', 'text-green-400', 'font-bold');
+                     completionMessage.classList.add('text-gray-500');
+                 }, 3000);
+             }
+        }
+        
+        // === MODIFICATION START: Added export function ===
+        /**
+         * Exports the current history state to a Markdown file.
+         */
+        function exportHistoryAsMarkdown() {
+            const history = state.history;
+            
+			// *** 新增此行檢查 ***
+           console.log("History is not empty. Proceeding to generate Markdown.");
+	
+            if (!history || history.length === 0) {
+                completionMessage.textContent = 'ℹ️ 沒有可匯出的歷史紀錄。';
+                completionMessage.classList.remove('text-gray-500', 'text-green-400', 'text-red-400');
+                completionMessage.classList.add('text-amber-400', 'font-bold');
+                setTimeout(() => {
+                    completionMessage.textContent = '提示：智能診斷將為您提供一個直覺修正的起點。您仍需執行步驟 5-8 進行嚴謹的驗證。';
+                    completionMessage.classList.remove('text-amber-400', 'font-bold');
+                    completionMessage.classList.add('text-gray-500');
+                }, 3000);
+                return;
+            }
+
+            // Helper to clean text for Markdown table cells
+            const clean = (str) => {
+                if (!str) return 'N/A';
+                // Escape pipes and replace newlines with <br> for visibility in Markdown tables
+                return str.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
             };
 
-            const systemPrompt = "你是一位專業的 Markdown 格式化助手。你的任務是將非結構化文本轉換為整潔的 Markdown 表格或純文字格式，以方便 GitHub 顯示。你必須以指定的 JSON 格式返回結果，**不要包含任何多餘的解釋或 Markdown 區塊標記**，例如 ```json 或 ```。";
+            let markdownContent = "# 寫作校準紀錄\n\n";
+            markdownContent += "| 錯誤或不當 | 建議的修改或補充 | 註釋 |\n";
+            markdownContent += "|:---|:---|:---|\n";
+
+            // Add each history entry as a table row (history is already unshifted, so it's in reverse chronological order)
+            for (const entry of history) {
+                markdownContent += `| ${clean(entry.original)} | ${clean(entry.corrected)} | ${clean(entry.principle)} |\n`;
+            }
+
+            try {
+                // Create a blob and trigger download
+                const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // Generate a timestamped filename
+                const date = new Date();
+                const filename = `writing-history-${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}.md`;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Show success message
+                completionMessage.textContent = `✅ 成功匯出 ${history.length} 筆紀錄為 ${filename}！`;
+                completionMessage.classList.remove('text-gray-500', 'text-red-400', 'text-amber-400');
+                completionMessage.classList.add('text-green-400', 'font-bold');
+                setTimeout(() => {
+                    completionMessage.textContent = '提示：智能診斷將為您提供一個直覺修正的起點。您仍需執行步驟 5-8 進行嚴謹的驗證。';
+                    completionMessage.classList.remove('text-green-400', 'font-bold');
+                    completionMessage.classList.add('text-gray-500');
+                }, 4000);
+
+            } catch (e) {
+                console.error("無法匯出 Markdown:", e);
+                completionMessage.textContent = '❌ 匯出失敗：無法建立下載檔案。';
+                completionMessage.classList.remove('text-gray-500', 'text-green-400');
+                completionMessage.classList.add('text-red-400', 'font-bold');
+            }
+        }
+        // === MODIFICATION END ===
+        
+        // --- NEW: Check Completion and Save ---
+        function checkRitualCompletion() {
+            if (state.steps.every(s => s.completed)) {
+                // All 8 steps complete, trigger save and reset
+                if (saveHistory()) {
+                    setTimeout(resetRitual, 2000); // Auto-reset after successful saving
+                }
+            } else {
+                completionMessage.textContent = '⚠️ 請先完成所有 8 個校準步驟才能記錄歷史紀錄。';
+                completionMessage.classList.remove('text-gray-500', 'text-green-400');
+                completionMessage.classList.add('text-amber-400', 'font-bold');
+            }
+        }
+        
+        // --- Ritual Core Functions ---
+
+        function resetRitual() {
+            // Reset step completion and notes
+            state.steps = stepsData.map(s => ({ ...s, completed: false, userNote: '', locked: s.id >= 5 }));
+            state.originalWritingText = ''; // Reset original text
+            
+            // Reset text areas and diagnosis result
+            originalWritingTextarea.value = '';
+            finalCorrectedTextarea.value = '';
+            document.getElementById('diagnosis-result').innerHTML = '';
+
+            // Reset completion message
+            completionMessage.textContent = '提示：智能診斷將為您提供一個直覺修正的起點。您仍需執行步驟 5-8 進行嚴謹的驗證。';
+            completionMessage.classList.remove('text-red-400', 'text-green-400', 'font-bold', 'text-amber-400');
+            completionMessage.classList.add('text-gray-500');
+
+
+            // Re-render
+            updateLockStatus(); 
+            renderSteps();
+            updateProgress(); // This will update the button state too
+            renderHistory(); 
+            originalWritingTextarea.focus();
+        }
+
+        // Function to call Gemini for writing diagnosis
+        async function handleDiagnosis() {
+            const writingText = originalWritingTextarea.value.trim();
+            const resultDiv = document.getElementById('diagnosis-result');
+            const loadingDiv = document.getElementById('diagnosis-loading');
+            
+            // Check if Diagnosis Phase is complete
+            if (!isDiagnosisPhaseComplete()) {
+                 resultDiv.innerHTML = '<p class="text-red-400 p-3 rounded-md bg-red-900/20 border border-red-700">🚨 必須先完成步驟 1-4 的手動診斷！</p>';
+                 return;
+            }
+
+            if (!writingText) {
+                resultDiv.innerHTML = '<p class="text-red-400 p-3 rounded-md bg-red-900/20 border border-red-700">🚨 請先在上方輸入您的原始句子或段落。</p>';
+                return;
+            }
+            
+            // Capture the initial text when diagnosis is run. This will be recorded as 'A'.
+            if (state.originalWritingText === '') {
+                 state.originalWritingText = writingText;
+            }
+
+
+            // Show loading state
+            loadingDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '';
+
+            const systemPrompt = `
+                你是一位專業的英文寫作導師。
+                你的任務是根據用戶提供的句子，執行「寫作診斷 SOP」中的前四個診斷步驟，並以 JSON 格式輸出結果。
+                診斷應涵蓋：流暢度/結構 (Fluency/Structure)、語法/詞形 (Grammar/Word Form)、詞彙/搭配 (Lexis/Collocation)、和連貫性 (Cohesion)。
+                
+                請嚴格遵循以下步驟並以 JSON 格式返回結果：
+                1. 檢查並提供一個**修正後的句子** (correctedSentence)。
+                2. 判斷主要的**錯誤類型** (errorType)，必須是以下四種之一：Fluency (流暢度/結構), Grammar (語法/詞形), Lexis (詞彙/搭配), Cohesion (連貫性)。
+                3. 提供**修正的依據** (rationale)，說明為何需要進行此修正。
+            `;
+            
+            const userQuery = `請分析並修正以下句子："${writingText}"`;
 
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
                 generationConfig: {
                     responseMimeType: "application/json",
-                    responseSchema: responseSchema,
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "correctedSentence": { "type": "STRING", description: "修正後的完整句子" },
+                            "errorType": { "type": "STRING", description: "主要的錯誤類型 (Fluency, Grammar, Lexis, Cohesion)" },
+                            "rationale": { "type": "STRING", description: "修正的依據和原因" }
+                        },
+                        "propertyOrdering": ["correctedSentence", "errorType", "rationale"]
+                    }
                 }
             };
 
-            const maxRetries = 3;
-            let delay = 1000;
-            
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (response.ok) {
-                        const result = await response.json();
-                        const candidate = result.candidates?.[0];
-
-                        if (candidate && candidate.content?.parts?.[0]?.text) {
-                            let jsonText = candidate.content.parts[0].text;
-                            
-                            // --- 關鍵修正：清理 Markdown 程式碼區塊標記 ---
-                            jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim(); 
-                            
-                            console.log("[Gemini Format] Raw JSON Text received:", jsonText.substring(0, 500) + '...'); 
-
-                            try {
-                                const parsedJson = JSON.parse(jsonText);
-                                
-                                if (parsedJson && typeof parsedJson.markdown_output === 'string') {
-                                    const finalOutput = parsedJson.markdown_output.trim();
-                                    console.log("[Gemini Format] Success. Formatted output (first 100 chars):\n", finalOutput.substring(0, 100) + '...');
-                                    return finalOutput;
-                                } else {
-                                    console.warn("[Gemini Format] Output JSON structure missing 'markdown_output'. Falling back to original text.");
-                                    return trimmedText; 
-                                }
-                            } catch (jsonError) {
-                                console.error("[Gemini Format] 輸出 JSON 解析失敗:", jsonError, "原始文字:", jsonText.substring(0, 500) + '...');
-                                console.log("[Gemini Format] Falling back to original text due to JSON error.");
-                                return trimmedText; 
-                            }
-                        } else {
-                            console.warn("[Gemini Format] Candidate or content part missing in response.");
-                        }
-                    } else if ((response.status === 429 || response.status === 503) && i < maxRetries - 1) {
-                        console.warn(`[Gemini Format] API Rate Limit hit (${response.status}). Retrying in ${delay / 1000}s...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; 
-                        continue; 
-                    }
-                    
-                    console.error(`[Gemini Format] API call failed with status: ${response.status}. Falling back to original text.`);
-                    return trimmedText; 
-
-                } catch (error) {
-                    console.error("[Gemini Format] Fetch or general API error:", error);
-                    if (i < maxRetries - 1) {
-                         console.warn(`[Gemini Format] General error. Retrying in ${delay / 1000}s...`);
-                         await new Promise(resolve => setTimeout(resolve, delay));
-                         delay *= 2;
-                         continue;
-                    }
-                    console.log("[Gemini Format] Final fallback to original text.");
-                    return trimmedText;
-                }
-            }
-            return trimmedText;
-        }
-
-        // =================================================================
-        // 🌟 (函數已更新) 
-        // 僅生成 AI Breakdown 文字，並顯示手動貼圖欄位
-        // =================================================================
-        async function generateAIBreakdown() { // 函數已重命名
-            const button = document.getElementById('generate-chart-button');
-            const status = document.getElementById('chart-generator-status');
-            const displayArea = document.getElementById('chart-display-area');
-            // 🌟 移除：不再需要 hiddenBreakdownTextarea
-            // const hiddenBreakdownTextarea = document.getElementById('ai_breakdown_text'); 
-            const manualPasteContainer = document.getElementById('manual-chart-paste-container'); // 新的貼圖容器
-
-            // 1. 獲取描述
-            const articleContent = document.getElementById('article_content').value.trim();
-
-            if (!articleContent) {
-                status.textContent = '🚨 錯誤：請先在「文章內容與圖表截圖」欄位中填寫文字描述。';
-                return;
-            }
-
-            // 2. 設置加載狀態
-            button.disabled = true;
-            button.textContent = '🧠 正在理解文字...';
-            status.textContent = '請稍候，AI 正在分析您的文字描述...';
-            displayArea.innerHTML = ''; // 清空舊內容
-            manualPasteContainer.classList.add('hidden'); // 隱藏貼圖區
-            // 🌟 移除：不再需要 hiddenBreakdownTextarea
-            // hiddenBreakdownTextarea.value = ''; 
- 
-            let breakdownText = ""; 
-            const maxRetries = 3;
-            let delay = 1000;
-
             try {
-                // ==========================================================
-                // 步驟 1: 呼叫 *文字模型* (modelName) 獲取完整的 Breakdown
-                // ==========================================================
-                
-                const textPrompt = `你是一個專業的IELTS Task 1 圖表分析師。請詳細閱讀以下的 Task 1 寫作文字，並"break down"你對內容的理解。你的 breakdown 應該包含：
-1.  圖表的主要類型 (例如：line graph, bar chart)。
-2.  圖表描述的關鍵主體和單位 (例如：energy consumption in tonnes, population in millions)。
-3.  描述的關鍵時間範圍 (例如：from 1990 to 2010)。
-4.  描述的關鍵數據點和趨勢 (例如：A started at 50 and rose to 100, while B declined)。
-
-請以清晰、有條理的格式輸出這個 breakdown。
-
-原始文字：
----
-${articleContent}
----
-`;
-                
-                const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                const textPayload = {
-                    contents: [{ parts: [{ text: textPrompt }] }]
-                };
-
-                let textResponse;
-                let textResult;
-
-                for (let i = 0; i < maxRetries; i++) {
-                    textResponse = await fetch(textApiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(textPayload)
-                    });
-
-                    if (textResponse.ok) {
-                        textResult = await textResponse.json();
-                        break; 
-                    }
-                    
-                    if ((textResponse.status === 429 || textResponse.status === 503) && i < maxRetries - 1) {
-                        console.warn(`[Chart Gen - Text] API Rate Limit hit (${textResponse.status}). Retrying in ${delay / 1000}s...`);
-                        status.textContent = `API 忙碌中 (${textResponse.status})，${delay / 1000} 秒後重試...`;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2;
-                    } else {
-                        const errorResult = await textResponse.json();
-                        console.error("[Chart Gen - Text] API Error Response:", errorResult);
-                        throw new Error(`[文字理解] API 請求失敗，狀態碼: ${textResponse.status}. ${errorResult?.error?.message || ''}`);
-                    }
-                }
-
-                // 提取文字 breakdown
-                breakdownText = textResult?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!breakdownText) {
-                    throw new Error('AI 未能返回文字理解 (Breakdown)。');
-                }
-
-                // 3. 顯示 Breakdown
-                console.log("[Chart Gen] Found full text part:", breakdownText);
-                const breakdownElement = document.createElement('div');
-                breakdownElement.className = 'p-4 bg-darkBg border border-borderDark rounded-lg mt-4';
-                breakdownElement.innerHTML = `<strong class="text-lg text-purple-300">AI 的理解 (Breakdown):</strong><br><pre class="whitespace-pre-wrap text-gray-300 font-sans mt-2">${breakdownText}</pre>`;
-                displayArea.appendChild(breakdownElement);
-
-                // 4. 儲存 Breakdown 到隱藏欄位
-                // 🌟 移除：不再儲存 Breakdown 文字到隱藏欄位
-                // hiddenBreakdownTextarea.value = breakdownText;
-                
-                // 5. 顯示手動貼圖容器
-                manualPasteContainer.classList.remove('hidden');
-                
-                status.textContent = '✅ AI 理解已生成！請在下方欄位貼上您的圖表。';
-
-                // 6. 移除所有圖片生成相關的程式碼
-
-            } catch (error) {
-                console.error('[Chart Gen] Error:', error);
-                status.textContent = `❌ 生成失敗：${error.message}`;
-            } finally {
-                // 7. 恢復按鈕
-                button.disabled = false;
-                button.textContent = '重新生成 AI 理解';
-            }
-        }
-
-
-        // -----------------------------------------------------
-        // 表單提交邏輯
-        // -----------------------------------------------------
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // 在 DOMContentLoaded 時為所有需要的 Textarea 啟用圖片上傳功能
-            setupImageUpload('article_content');
-            setupImageUpload('sentence_analysis'); 
-            setupImageUpload('self_assessment_notes'); 
-            setupImageUpload('ai_assessment');
-            setupImageUpload('reflection_action');
-            setupImageUpload('additional_notes');
-
-            // LR/GRA 解析欄位
-            setupImageUpload('self_assessment_lr_analysis');
-            setupImageUpload('self_assessment_gra_analysis');
-            
-            // 新增的自評問題辨識欄位 (支援貼圖)
-            setupImageUpload('self_identified_issues'); // <-- 新增
-            
-            // 🌟 (新 JS 插入點) 為新欄位啟用貼圖
-            setupImageUpload('custom_field_1'); 
-
-            // 🌟 (新 JS 插入點) 為*新的手動貼圖欄位*啟用貼圖
-            setupImageUpload('manual_chart_paste'); 
-
-            // 🌟 (新 JS 插入點) 綁定 AI *Breakdown* 生成按鈕
-            document.getElementById('generate-chart-button').addEventListener('click', generateAIBreakdown); // 函數名稱已更新
-            
-            // 預設寫作日期為今天
-            document.getElementById('writing_date').value = new Date().toISOString().split('T')[0];
-        });
-
-
-        document.getElementById('issue-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); 
-            
-            console.log("Starting Issue Submission Process...");
-
-            // 獲取 GitHub 資訊
-            const user = document.getElementById('github_user').value.trim();
-            const repo = document.getElementById('github_repo').value.trim();
-            const token = document.getElementById('github_token').value.trim();
-            const repoError = document.getElementById('repo-error');
-            const statusMessage = document.getElementById('status-message');
-            const submitButton = document.getElementById('submit-button');
-
-            statusMessage.classList.add('hidden');
-            statusMessage.textContent = '';
-            
-            // 檢查 GitHub 資訊
-            if (!user || !repo || !token) {
-                repoError.classList.remove('hidden');
-                statusMessage.textContent = '🚨 錯誤：請填寫 GitHub 使用者名稱、儲存庫名稱和 PAT。';
-                statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-errorRed');
-                statusMessage.classList.add('bg-accentYellow', 'text-black');
-                return;
-            }
-            repoError.classList.add('hidden'); 
-            
-            // 禁用按鈕並顯示載入狀態
-            submitButton.disabled = true;
-            
-            // 1. 獲取表單數據
-            const formData = new FormData(event.target);
-            const data = Object.fromEntries(formData.entries());
-            const taskName = data.task_name || '未命名練習';
-            const writingDate = data.writing_date || new Date().toISOString().split('T')[0];
-            const title = `Task 1 寫作評估 - ${taskName} (${writingDate})`;
-            const labels = ['ielts-writing', 'task-1', data.question_type || 'unclassified'];
-
-            
-            // 2. 處理圖片上傳
-            let uploadedImageMap = {};
-            // 檢查是否有圖片需要上傳
-            let totalImagesToUpload = 0;
-            for (const id in pendingImages) {
-                totalImagesToUpload += pendingImages[id].length;
-            }
-
-            if (totalImagesToUpload > 0) {
-                try {
-                    uploadedImageMap = await uploadAllImages(user, repo, token, submitButton);
-                    
-                    submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
-                } catch (e) {
-                    statusMessage.textContent = `❌ 圖片上傳過程中發生嚴重錯誤: ${e.message}`;
-                    statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-accentYellow', 'text-black');
-                    statusMessage.classList.add('bg-errorRed', 'text-white');
-                    submitButton.disabled = false;
-                    submitButton.textContent = '✨ 自動建立 GitHub Issue';
-                    return;
-                }
-            } else {
-                 submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
-            }
-
-
-            // 3. 替換所有欄位中的圖片佔位符
-            function replacePlaceholders(content, uploadedMap) {
-                let newContent = content;
-                for (const placeholder in uploadedMap) {
-                    const finalUrl = uploadedMap[placeholder];
-                    // 替換所有的 ![Uploading: <placeholder>]
-                    newContent = newContent.replace(new RegExp(`!\\[Uploading: ${placeholder}\\]`, 'g'), `![${placeholder}](${finalUrl})`);
-                }
-                return newContent;
-            }
-
-            const processedFields = {};
-            // 🌟 <-- 更新要處理的欄位清單: 移除 'ai_breakdown_text'
-            for (const key of ['article_content', 'sentence_analysis', 'self_assessment_notes', 'ai_assessment', 'reflection_action', 'additional_notes', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 'self_identified_issues', 'custom_field_1', 'manual_chart_paste']) { 
-                // 將圖片連結替換到文字中
-                processedFields[key] = replacePlaceholders(data[key] || '', uploadedImageMap);
-            }
-            
-            // 獲取新的 Google Translate 欄位內容 (不需要替換佔位符，因為它們不支援貼圖)
-            const googleTranslateSource = data.google_translate_source || '';
-            const googleTranslateOutput = data.google_translate_output || '';
-
-            // 4. 準備分數 (通用備註將單獨處理)
-            const selfAssessmentInput = `
-Task Achievement (TA): ${data.self_assessment_ta || 'N/A'}
-Coherence & Cohesion (CC): ${data.self_assessment_cc || 'N/A'}
-Lexical Resource (LR): ${data.self_assessment_lr || 'N/A'}
-Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
-`.trim();
-
-
-            // 5. 使用 Gemini 轉換評估文本 (現在有 12 個步驟)
-            
-            // A. 轉換自我評估 (僅分數) (1/12)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; 
-            const selfAssessmentFormatted = await formatTextWithGemini(
-                selfAssessmentInput, 
-                "IELTS Task 1 自我評估，包含 TA, CC, LR, GRA 分數。請轉為兩欄 Markdown 表格。",
-                true // Prefer Table
-            );
-
-            // B. 轉換 LR Analysis (2/12)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (2/12)'; 
-            const lrAnalysisFormatted = await formatTextWithGemini(
-                processedFields.self_assessment_lr_analysis, 
-                "IELTS Task 1 詞彙資源 (LR) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
-                true // Prefer Table
-            );
-
-            // C. 轉換 GRA Analysis (3/12)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (3/12)'; 
-            const graAnalysisFormatted = await formatTextWithGemini(
-                processedFields.self_assessment_gra_analysis, 
-                "IELTS Task 1 文法範圍與準確性 (GRA) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
-                true // Prefer Table
-            );
-            
-            // D. 轉換 Self Identified Issues (新增) (4/12)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (4/12)'; 
-            const selfIdentifiedIssuesFormatted = await formatTextWithGemini(
-                processedFields.self_identified_issues, 
-                "Task 1 寫作的自評辨識出的 TA/CC 準確性問題與盲點。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
-                false // Do NOT prefer table for free-form analysis of issues
-            );
-
-            // E. 轉換 新增自訂欄位 (5/12)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (5/12)'; 
-            const customField1Formatted = await formatTextWithGemini(
-                processedFields.custom_field_1, 
-                "Task 1 寫作的自訂補充欄位。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
-                false // 不優先使用表格
-            );
-
-            // 🌟 (新 JS 插入點)
-            // F. 轉換 AI Breakdown 文字 (6/12)
-            // 🌟 移除：刪除格式化 Breakdown 文字的步驟
-            /*
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/12)'; 
-            const aiBreakdownFormatted = await formatTextWithGemini(
-                processedFields.ai_breakdown_text, 
-                "AI 生成的內容理解 (Breakdown)。請轉換為整潔的 Markdown 段落或列表，保留所有換行。",
-                false // 不使用表格
-            );
-            */
-
-            // 🌟 (新 JS 插入點)
-            // G. 轉換手動貼上的圖表 (7/12) -> F (6/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/11)';
-            const manualChartFormatted = await formatTextWithGemini(
-                processedFields.manual_chart_paste, 
-                "使用者手動貼上的圖表 (Markdown 圖片連結)。保持原樣。",
-                false // 不使用表格
-            );
-
-            // H. 轉換 AI 評分 (8/12) -> G (7/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/11)'; // 8 -> 7
-            const aiAssessmentFormatted = await formatTextWithGemini(
-                processedFields.ai_assessment, 
-                "IELTS Task 1 AI 評分，包含 TR, CC, LR, GRA 分數與 AI 評語建議，可能含有圖片連結。請優先轉為兩欄 Markdown 表格。",
-                true // Prefer Table
-            );
-            
-            // I. 轉換 逐句解析內容 (9/12) -> H (8/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (8/11)'; // 9 -> 8
-            const sentenceAnalysisFormatted = await formatTextWithGemini(
-                processedFields.sentence_analysis, 
-                "Task 1 寫作的逐句解析內容，包含句子、文法修正、詞彙建議或截圖。請嘗試轉換為兩欄 Markdown 表格 (例如：原始句子 | 修正建議)，若內容不適合表格，則轉換為整潔的列表或段落。",
-                true // Prefer Table
-            );
-            
-            // J. 轉換 反思與行動 (10/12) -> I (9/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (9/11)'; // 10 -> 9
-            const reflectionActionFormatted = await formatTextWithGemini(
-                processedFields.reflection_action, 
-                "寫作後的反思與具體修正行動，包含項目符號、任務連結或修正截圖。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的列表或段落。",
-                true // Prefer Table
-            );
-
-            // K. 轉換 其他備註 (11/12) -> J (10/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (10/11)'; // 11 -> 10
-            const additionalNotesFormatted = await formatTextWithGemini(
-                processedFields.additional_notes, 
-                "額外備註或寫作心得，可能包含圖片連結。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的段落。",
-                true // Prefer Table
-            );
-
-            // L. 處理 checkbox (12/12) -> K (11/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (11/11)'; // 12 -> 11
-            const checkedDifferences = Array.from(document.querySelectorAll('input[name="difference_analysis"]:checked'))
-                                            .map(cb => `- [x] ${cb.value}`)
-                                            .join('\n');
-            
-
-            // 6. 建立 body 內容 (將新的解析欄位加入)
-            const body = `
-### ⚠️ 文章內容 (遵循不直接顯示內容的原則)
-
-文章內容和任何相關圖片已上傳至 GitHub 儲存庫，但不會直接顯示在 Issue 本體中，以保持整潔。
-請參考您手動上傳的 **\`${data.task_file || '未填寫檔案名稱'}\`** 檔案，或點擊下方可收合區塊查看原始寫作截圖與文字。
-
----
-<details>
-<summary>點擊此處展開原始文章內容截圖與文字</summary>
-<br>
-
-${processedFields.article_content.trim() || '（原始文章內容欄位為空）'}
-
-</details>
----
-
-### 📚 逐句解析內容
-${sentenceAnalysisFormatted}
-
----
-
-### 1️⃣ 題目名稱/編號
-${data.task_name || '未填寫'}
-
-### 文章檔案
-**檔案名稱：** ${data.task_file || '未填寫'}
-*(⚠️ **重要提醒：** 檔案 ${data.task_file || '未填寫'} 未能自動上傳。請在 Issue 建立後，手動拖曳檔案到此處來完成上傳。)*
-
-### 📅 寫作日期
-${data.writing_date || '未填寫'}
-
-### 📊 題型
-${data.question_type || '未選擇'}
-
-### 2️⃣ 自我評估分數 (Self Assessment)
-
-#### 📝 評分項目
-${selfAssessmentFormatted}
-
-#### 📝 詞彙資源 (LR) 自評解析
-${lrAnalysisFormatted}
-
-#### 📝 文法範圍與準確性 (GRA) 自評解析
-${graAnalysisFormatted}
-
----
-
-### 💡 Google 語義檢查 (TA/CC 準確性評估)
-
-#### 🇨🇳 中文源文（您的原始意圖）
-> ${googleTranslateSource.trim().replace(/\n/g, '\n> ') || '（未提供）'}
-
-#### 🇬🇧 翻譯結果（反向驗證）
-> ${googleTranslateOutput.trim().replace(/\n/g, '\n> ') || '（未提供）'}
-
-#### 🚨 自評辨識出的問題 (修正盲點)
-${selfIdentifiedIssuesFormatted}
-
----
-
-<!-- 🌟 (新 JS 插入點) -->
-### 🤖 AI 內容理解與手動圖表
-
-<!-- 🌟 移除 Breakdown 內容，並增加提示 -->
-*(AI 的內容理解 (Breakdown) 僅供頁面參考，不會提交至 Issue)*
-
-<!-- 
-<details>
-<summary>點擊此處展開 AI 的內容理解 (Breakdown)</summary>
-<br>
-
-<!-- 🌟 修正：移除了對 aiBreakdownFormatted 變數的引用，該變數已不存在 -->
-
-</details>
--->
-
-#### 🖼️ 手動貼上的圖表
-${manualChartFormatted.trim() || '（未貼上圖表）'}
-
----
-
-<!-- 🌟 (新 JS 插入點) -->
-### 💡 新增自訂欄位
-${customField1Formatted.trim() || '（未填寫自訂欄位）'}
-
----
-
-### 📝 其他觀察/備註 (通用)
-${processedFields.self_assessment_notes.trim() || '（未填寫通用備註）'}
-
----
-
-### 3️⃣ AI 評分 (AI Scoring)
-${aiAssessmentFormatted}
-
-### 4️⃣ 差異判斷 (Difference Analysis)
-${checkedDifferences || '未選擇'}
-
-### 5️⃣ 反思與行動 (Reflection & Action)
-${reflectionActionFormatted}
-
-### 6️⃣ 其他備註 (Optional Notes)
-${additionalNotesFormatted}
-`;
-            
-            // 7. 發送 API 請求自動建立 Issue
-            submitButton.textContent = '🚀 正在建立 GitHub Issue...';
-            const apiUrl = `https://api.github.com/repos/${user}/${repo}/issues`;
-            
-            try {
-                const response = await fetch(apiUrl, {
+                const response = await fetchWithRetry(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.com/v3+json' 
-                    },
-                    body: JSON.stringify({
-                        title: title,
-                        body: body,
-                        labels: labels
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
 
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Response Error:", response.status, errorBody);
+                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                }
+                
                 const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-                if (response.ok) {
-                    statusMessage.textContent = `✅ Issue 建立成功！Issue #${result.number} 已建立。`;
-                    statusMessage.classList.remove('hidden', 'bg-errorRed', 'bg-accentYellow', 'text-black');
-                    statusMessage.classList.add('bg-successGreen', 'text-white');
-                    
-                    // 成功後，開啟新 Issue 頁面
-                    setTimeout(() => {
-                         window.open(result.html_url, '_blank');
-                    }, 1000); 
-
-                } else {
-                    let errorMessage = '建立 Issue 失敗。';
-                    if (result.message) {
-                        errorMessage += ` GitHub 錯誤訊息：${result.message}`;
-                    }
-                    if (response.status === 401 || response.status === 403) {
-                        errorMessage += " (請檢查 PAT 是否有效或權限是否足夠 - 需要 'repo' 權限)";
-                    } else if (response.status === 404) {
-                        errorMessage += " (請檢查使用者名稱或儲存庫名稱是否正確)";
-                    }
-                    statusMessage.textContent = `❌ ${errorMessage}`;
-                    statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-accentYellow', 'text-black');
-                    statusMessage.classList.add('bg-errorRed', 'text-white');
+                if (!jsonText) {
+                    console.error("Invalid API response structure:", result);
+                    throw new Error("API returned no content or an unexpected structure.");
                 }
 
+                const data = JSON.parse(jsonText);
+                
+                // Update the final correction box with the suggested correction for convenience
+                finalCorrectedTextarea.value = data.correctedSentence;
+
+                resultDiv.innerHTML = `
+                    <div class="space-y-3 p-4 rounded-xl bg-indigo-900/40 border border-indigo-700 shadow-md">
+                        <p class="font-bold text-indigo-300 text-lg flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            智能診斷結果與修正建議:
+                        </p>
+                        <div class="bg-gray-700 p-3 rounded-md border border-gray-600 shadow-inner">
+                            <p class="text-sm text-gray-400 mb-1">AI 建議修正:</p>
+                            <p class="text-white font-medium text-lg">${data.correctedSentence}</p>
+                        </div>
+                        <p class="text-sm">
+                            <span class="font-semibold text-amber-300">主要錯誤類型:</span> 
+                            <span class="bg-amber-800 text-amber-100 px-2 py-0.5 rounded-full text-xs font-semibold">${data.errorType}</span>
+                        </p>
+                        <p class="text-sm">
+                            <span class="font-semibold text-indigo-300">修正依據:</span> ${data.rationale}
+                        </p>
+                        <p class="text-xs text-gray-400 mt-2 text-center">
+                            * AI 建議已自動填入下方的**「最終校準後的句子」**編輯框。您現在可以根據步驟 5-8 進行驗證並自由修改。
+                        </p>
+                    </div>
+                `;
+
             } catch (error) {
-                statusMessage.textContent = `❌ 網路或未知錯誤：${error.message}`;
-                statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-accentYellow', 'text-black');
-                statusMessage.classList.add('bg-errorRed', 'text-white');
+                console.error("Gemini API Error:", error);
+                resultDiv.innerHTML = `<p class="text-red-400 mt-4 p-3 rounded-md bg-red-900/20 border border-red-700">🚨 LLM 診斷失敗：無法獲取修正建議。請檢查您的 API Key、帳戶餘額或稍後重試。(${error.message})</p>`;
             } finally {
-                // 恢復按鈕狀態
-                submitButton.disabled = false;
-                submitButton.textContent = '✨ 自動建立 GitHub Issue';
+                loadingDiv.classList.add('hidden');
             }
+        }
+
+        // Helper function to check if all diagnosis steps (1-4) are complete
+        function isDiagnosisPhaseComplete() {
+            return state.steps.slice(0, 4).every(s => s.completed);
+        }
+        
+        // Helper function to check if all 8 steps are complete
+        function isRitualComplete() {
+            return state.steps.every(s => s.completed);
+        }
+
+
+        // Function to update the lock/unlock state
+        function updateLockStatus() {
+            const isDiagnosisPhaseDone = isDiagnosisPhaseComplete();
+            const isAllComplete = isRitualComplete();
+            
+            // 1. Toggle Diagnosis Button (AI)
+            diagnosisBtn.disabled = !isDiagnosisPhaseDone;
+            diagnosisUnlockMsg.classList.toggle('hidden', isDiagnosisPhaseDone);
+            
+            if (isDiagnosisPhaseDone) {
+                 diagnosisBtn.querySelector('span').textContent = '✨ 智能診斷與修正建議 (AI Diagnosis & Suggestion)';
+            } else {
+                 diagnosisBtn.querySelector('span').textContent = '解鎖：智能診斷與修正建議 (AI Diagnosis & Suggestion)';
+            }
+            
+            // 2. Toggle Complete Ritual Button
+            completeRitualBtn.disabled = !isAllComplete;
+            if (isAllComplete) {
+                completeRitualText.textContent = '✅ 完成儀式並記錄歷史 (點擊此處)';
+                completeRitualBtn.classList.add('shadow-green-500/70');
+            } else {
+                 completeRitualText.textContent = '完成所有 8 個步驟後，點擊此處記錄歷史';
+                 completeRitualBtn.classList.remove('shadow-green-500/70');
+            }
+            
+            // 3. Toggle Verification Steps (5-8) lock status
+            state.steps.forEach(step => {
+                if (verificationStepIds.includes(step.id)) {
+                    step.locked = !isDiagnosisPhaseDone;
+                }
+            });
+        }
+
+        // Function to update the progress bar and text
+        function updateProgress() {
+            const completedCount = state.steps.filter(s => s.completed).length;
+            const totalCount = state.steps.length;
+            const percentage = (completedCount / totalCount) * 100;
+
+            progressBar.style.width = `${percentage}%`;
+
+            if (completedCount === totalCount) {
+                progressText.innerHTML = '<span class="text-green-400 font-bold text-lg">🎉 所有步驟已完成！請在下方點擊「完成儀式並記錄」按鈕。</span>';
+            } else {
+                 progressText.textContent = `${completedCount} / ${totalCount} 步驟已完成 ${isDiagnosisPhaseComplete() ? '(已完成診斷)' : ''}`;
+            }
+            
+            updateLockStatus(); // Ensure button states reflect progress
+        }
+
+        // Function to toggle the completion status of a step
+        function toggleStepCompletion(id) {
+            const stepIndex = state.steps.findIndex(s => s.id === id);
+            if (stepIndex !== -1) {
+                // Prevent toggling locked steps
+                if (state.steps[stepIndex].locked) return;
+
+                state.steps[stepIndex].completed = !state.steps[stepIndex].completed;
+                
+                // Crucial: Update lock status before rendering
+                updateLockStatus(); 
+                
+                renderSteps();
+                updateProgress();
+            }
+        }
+        
+        // Function to handle note input changes
+        function handleNoteChange(id, value) {
+            const stepIndex = state.steps.findIndex(s => s.id === id);
+            if (stepIndex !== -1) {
+                state.steps[stepIndex].userNote = value;
+            }
+        }
+
+        // Main rendering function
+        function renderSteps() {
+            // First ensure the lock status is up to date for rendering classes
+            updateLockStatus(); 
+
+            stepList.innerHTML = state.steps.map(step => {
+                const isCompleted = step.completed;
+                const isLocked = step.locked; 
+                const phaseTitle = step.phase === 'Diagnosis' ? '第一階段：問題診斷' : '第二階段：錯誤驗證';
+                const phaseBgColor = step.phase === 'Diagnosis' ? 'bg-indigo-500' : 'bg-amber-500';
+
+                const cardClasses = `ritual-card ${step.className} ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''} p-5 rounded-2xl transition-all duration-300 relative`;
+                const toggleClass = `step-toggle flex-shrink-0 w-12 h-12 rounded-full ${isCompleted ? 'bg-green-500 hover:bg-green-600' : (isLocked ? 'bg-gray-800' : 'bg-gray-700 hover:bg-indigo-600')} flex items-center justify-center`;
+                
+                return `
+                    <div id="step-${step.id}" class="${cardClasses}">
+                         <!--${isCompleted ? `<div class="absolute top-0 right-0 m-4 text-green-400 text-3xl opacity-90"><svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>` : ''}
+                         -->
+                        ${isLocked ? `<div class="absolute inset-0 flex items-center justify-center bg-gray-900/70 z-20">
+                            <svg class="w-12 h-12 text-amber-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2h2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2h2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                        </div>` : ''}
+
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3 w-full">
+                                
+                                <!-- Step Icon -->
+                                <div class="flex-shrink-0 w-10 h-10 rounded-full ${phaseBgColor} text-white font-bold flex items-center justify-center text-xl">
+                                    ${step.icon}
+                                </div>
+                                
+                                <div class="flex-grow">
+                                    <!-- Phase Tag -->
+                                    <span class="inline-block px-2 py-0.5 text-xs font-bold uppercase rounded-full tracking-wider 
+                                        ${step.phase === 'Diagnosis' ? 'text-indigo-300 bg-indigo-900/50 border border-indigo-700' : 'text-amber-300 bg-amber-900/50 border border-amber-700'}">
+                                        ${phaseTitle}
+                                    </span>
+                                    <h2 class="text-xl font-bold ${isCompleted ? 'text-gray-400 line-through' : 'text-white'} mt-1">
+                                        ${step.id}. ${step.title}
+                                    </h2>
+                                </div>
+                                
+                                
+                                <div class="${toggleClass}" onclick="window.toggleStepCompletion(${step.id})">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isCompleted ? 'M5 13l4 4L19 7' : 'M12 4v16m8-8H4'}"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="mt-4 pl-14 text-gray-300">
+                            <p class="mb-2 text-sm"><strong>專注領域:</strong> <span class="text-indigo-200">${step.focus}</span></p>
+                            <p class="mb-2 text-sm"><strong>執行細節:</strong> <span class="math-tex">${step.detail}</span></p>
+                            ${step.verificationStandard ? `<p class="mb-2 text-sm"><strong>驗證標準:</strong> <span class="text-amber-200">${step.verificationStandard}</span></p>` : `<p class="mb-2 text-sm"><strong>錯誤類型（範例）:</strong> <span class="text-red-300">${step.error}</span></p>`}
+                            
+                            
+                            <label for="note-${step.id}" class="block text-sm font-medium mt-3 ${isCompleted ? 'text-gray-500' : 'text-gray-300'}">
+                                儀式紀錄（備註）：
+                            </label>
+                            <textarea id="note-${step.id}" rows="2" class="w-full p-2 mt-1 rounded-lg ${isCompleted ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-700 border border-gray-600 text-white'} focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-inner" placeholder="${step.notePlaceholder}" oninput="window.handleNoteChange(${step.id}, this.value)" ${isCompleted || isLocked ? 'readonly' : ''}>${step.userNote}</textarea>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Re-render MathJax after inserting new HTML
+            if (window.MathJax) {
+                window.MathJax.typeset();
+            }
+        }
+
+        // --- Expose functions to the global scope for HTML attributes ---
+        window.handleDiagnosis = handleDiagnosis;
+        window.toggleStepCompletion = toggleStepCompletion;
+        window.handleNoteChange = handleNoteChange;
+        window.clearHistory = clearHistory; 
+        window.checkRitualCompletion = checkRitualCompletion; // Expose new completion function
+        window.deleteHistoryEntry = deleteHistoryEntry; // <--- Expose new delete function
+        window.exportHistoryAsMarkdown = exportHistoryAsMarkdown; // <-- MODIFICATION: Added export function
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory(); // Load history first
+            // Initialize the ritual state
+            resetRitual(); 
         });
     </script>
-
 </body>
 </html>
