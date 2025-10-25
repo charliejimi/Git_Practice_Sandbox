@@ -1,4 +1,8 @@
-t</title>
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark"> <!-- 預設啟用暗黑模式 --><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Task 1 - AI vs Self Assessment</title>
     
     <!-- 載入 Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
     
@@ -756,8 +760,7 @@ Stack: ${reGetError.message}`);
                         parts: [{ text: userPrompt }]
                     }],
                     generationConfig: {
-                        // ------------------- 錯誤修復 -------------------
-                        // 允許 API 返回文字 (用於 break down) 和圖片 (用於畫圖)
+                        // ------------------- 錯誤修復 (來自上一輪) -------------------
                         responseModalities: ['TEXT', 'IMAGE']
                         // -------------------------------------------------
                     },
@@ -798,19 +801,55 @@ Stack: ${reGetError.message}`);
                 // 在這裡 console.log(result) 來調試完整的 API 回應
                 console.log("[Chart Gen] Full API Response:", JSON.stringify(result, null, 2));
 
-                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                // ------------------- NEW FIX START -------------------
+                // 處理多部分回應 (文字 + 圖片)
+                const parts = result?.candidates?.[0]?.content?.parts;
+                if (!parts || parts.length === 0) {
+                    throw new Error('API 回應為空或格式不正確。');
+                }
+
+                // 1. 尋找文字部分 (breakdown)
+                const textPart = parts.find(p => p.text);
+                if (textPart && textPart.text) {
+                    console.log("[Chart Gen] Found text part:", textPart.text);
+                    // 顯示 breakdown 文字
+                    const breakdownElement = document.createElement('div');
+                    breakdownElement.className = 'p-4 bg-darkBg border border-borderDark rounded-lg mt-4';
+                    // 使用 <pre> 來保留換行和空格，並設置字體
+                    breakdownElement.innerHTML = `<strong class="text-lg text-purple-300">AI 的理解 (Breakdown):</strong><br><pre class="whitespace-pre-wrap text-gray-300 font-sans mt-2">${textPart.text}</pre>`;
+                    displayArea.appendChild(breakdownElement);
+                }
+
+                // 2. 尋找圖片部分 (chart)
+                const base64Data = parts.find(p => p.inlineData)?.inlineData?.data;
 
                 if (!base64Data) {
-                    // 增強日誌，顯示 parts 裡到底有什麼
-                    const returnedParts = result?.candidates?.[0]?.content?.parts;
-                    console.warn("[Chart Gen] API Response missing base64 data. Returned parts:", returnedParts);
-                    throw new Error('API 未能返回有效的圖片數據。');
+                    // 增強日誌
+                    console.warn("[Chart Gen] API Response missing base64 data. Returned parts:", parts);
+                    
+                    // 即使沒有圖片，如果我們有文字，也不算完全失敗
+                    if (textPart && textPart.text) {
+                        status.textContent = '⚠️ AI 返回了文字理解，但未能生成圖片。';
+                        // 我們不能繼續上傳，所以在這裡結束
+                        return; // 提前返回，跳過後續的上傳邏輯
+                    } else {
+                        // 如果連文字都沒有，才拋出原始錯誤
+                        throw new Error('API 未能返回有效的圖片數據 (也沒有返回文字)。');
+                    }
                 }
+                // ------------------- NEW FIX END -------------------
 
                 // 4. 顯示圖片
                 status.textContent = '✅ 生成成功！正在顯示圖片...';
                 const imageUrl = `data:image/png;base64,${base64Data}`;
-                displayArea.innerHTML = `<img src="${imageUrl}" alt="AI 生成的圖表" class="w-full rounded-lg border border-borderDark">`;
+                
+                // 創建一個新的 img 元素並添加到 displayArea
+                const imgElement = document.createElement('img');
+                imgElement.src = imageUrl;
+                imgElement.alt = "AI 生成的圖表";
+                imgElement.className = "w-full rounded-lg border border-borderDark mt-4"; // 增加上邊距
+                displayArea.appendChild(imgElement);
+
 
                 // 5. 上傳圖片到 GitHub
                 status.textContent = '🖼️ 正在上傳圖片到 GitHub...';
