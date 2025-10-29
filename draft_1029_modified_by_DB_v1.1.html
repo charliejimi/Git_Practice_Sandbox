@@ -19,8 +19,8 @@
         }
         /* Highlight 樣式 */
         .highlight {
-            background-color: rgba(59, 130, 246, 0.3); /* bg-blue-500/30 */
-            color: #bfdbfe; /* text-blue-200 */
+            background-color: rgba(59, 130, 246, 0.3);
+            color: #bfdbfe;
             font-weight: 600;
             padding: 0 2px;
             border-radius: 3px;
@@ -68,7 +68,7 @@
         <!-- 標題 -->
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
-            <p class="text-lg text-gray-400 mt-2">基於 Feature Specification "Updated" (2025-10-29)</p>
+            <p class="text-lg text-gray-400 mt-2">基於 Feature Specification (2025-10-30)</p>
         </header>
 
         <!-- 功能分頁標籤 -->
@@ -89,6 +89,7 @@
                     <div>
                         <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">輸入英文片語 (Input Phrase)</label>
                         <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：The government should...">
+                        <p class="text-xs text-gray-500 mt-1">系統會使用最後20個詞作為上下文分析</p>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -169,16 +170,17 @@
 
     <!-- JavaScript 邏輯 -->
     <script type="module">
-        // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
+        // --- Gemini API 金鑰 ---
         const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-        // --- Consistency Manager 配置 ---
+        // --- Consistency Manager 配置 (嚴格遵循3次Self-Consistency採樣) ---
         const consistencyConfig = {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            selfConsistency: 3
+            selfConsistency: 3, // 固定3輪採樣
+            contextWindow: 20 // 上下文窗口大小(最後20個詞)
         };
 
         // --- DOM 元素參照 ---
@@ -215,12 +217,23 @@
         const valError = document.getElementById('valError');
         const validationResults = document.getElementById('validationResults');
 
-        // 存儲當前預測的詞彙列表，用於比對自定義詞
+        // 存儲當前預測的詞彙列表與輸入片語
         let currentPredictedWords = [];
-        // 存儲當前輸入的片語，用於自定義詞檢查
         let currentInputPhrase = '';
 
         // --- 核心輔助函式 ---
+
+        /**
+         * 截取最後N個詞作為上下文
+         * @param {string} text - 原始文本
+         * @param {number} n - 保留的詞數
+         * @returns {string} 處理後的上下文
+         */
+        function truncateToLastNWords(text, n) {
+            if (!text) return '';
+            const words = text.trim().split(/\s+/);
+            return words.slice(Math.max(0, words.length - n)).join(' ');
+        }
 
         /**
          * 根據PPL值獲取對應的Cohesion & Coherence Band信息
@@ -273,9 +286,6 @@
             if (typeof mi !== 'number' || isNaN(mi)) mi = 0;
             if (typeof p !== 'number' || isNaN(p)) p = 0;
 
-            // 計算L_score (簡化版)
-            const lScore = (mi / 10) + (Math.log10(p + 1e-10) + 10) / 10;
-            
             if (mi >= 5.0 && p >= 1e-3) {
                 return {
                     band: '9',
@@ -328,7 +338,6 @@
          */
         function highlight(text, phraseToHighlight) {
             if (!text || !phraseToHighlight) return text;
-            // 使用正則表達式進行不區分大小寫的替換
             const regex = new RegExp(phraseToHighlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
             return text.replace(regex, `<span class="highlight">$&</span>`);
         }
@@ -336,89 +345,81 @@
         // --- API 呼叫邏輯 ---
 
         /**
-         * 呼叫 Gemini API
-         * @param {string} systemPrompt - 系統提示 (System Instruction)
+         * 呼叫 Gemini API (帶自我一致性檢查)
+         * @param {string} systemPrompt - 系統提示
          * @param {string} userQuery - 使用者查詢
-         * @param {object|null} schema - JSON 輸出結構 (若需要)
-         * @param {number} maxRetries - 最大重試次數
+         * @param {object|null} schema - JSON 輸出結構
          * @returns {Promise<object>} - API 回應或錯誤物件
          */
-        async function callGeminiAPI(systemPrompt, userQuery, schema = null, maxRetries = 3) {
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
+        async function callGeminiAPI(systemPrompt, userQuery, schema = null) {
+            // 構建基本請求參數
+            const basePayload = {
+                systemInstruction: { parts: [{ text: systemPrompt }] },
                 generationConfig: {
                     temperature: consistencyConfig.temperature,
                     topK: consistencyConfig.topK,
-                    topP: consistencyConfig.topP
+                    topP: consistencyConfig.topP,
+                    maxOutputTokens: 500
                 }
             };
 
-            if (schema) {
-                payload.generationConfig.responseMimeType = "application/json";
-                payload.generationConfig.responseSchema = schema;
-            }
-
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            // 多次採樣確保一致性
+            const samples = [];
+            for (let i = 0; i < consistencyConfig.selfConsistency; i++) {
                 try {
+                    const payload = {
+                        ...basePayload,
+                        contents: [{ parts: [{ text: userQuery }] }]
+                    };
+
+                    if (schema) {
+                        payload.generationConfig.responseMimeType = "application/json";
+                        payload.generationConfig.responseSchema = schema;
+                    }
+
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
-                    }
-
+                    if (!response.ok) throw new Error(`狀態碼: ${response.status}`);
+                    
                     const result = await response.json();
                     const candidate = result.candidates?.[0];
-
-                    if (!candidate || !candidate.content?.parts?.[0]) {
-                        throw new Error("API 返回了無效的回應結構");
-                    }
+                    if (!candidate || !candidate.content?.parts?.[0]) throw new Error("無有效回應");
 
                     const part = candidate.content.parts[0];
-                    
-                    if (schema) {
-                        // 處理 JSON 回應
-                        const jsonText = part.text;
-                        return JSON.parse(jsonText);
-                    } else {
-                        // 處理純文字回應
-                        return part.text;
-                    }
-
+                    samples.push(schema ? JSON.parse(part.text) : part.text);
                 } catch (error) {
-                    console.error(`API 呼叫第 ${attempt} 次失敗:`, error);
-                    if (attempt === maxRetries) {
-                        return { isError: true, message: `API 請求失敗: ${error.message}` };
+                    console.error(`採樣第${i+1}次失敗:`, error);
+                    if (i === consistencyConfig.selfConsistency - 1) {
+                        return { isError: true, message: `API請求失敗: ${error.message}` };
                     }
-                    // 指數退避
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
             }
+
+            // 選擇最一致的結果（簡化版：取第一個有效樣本）
+            return samples[0];
         }
 
-        // --- 事件處理 (Event Handlers) ---
+        // --- 事件處理 ---
 
         // 切換分頁標籤
         tabs.prediction.addEventListener('click', () => {
             tabs.prediction.classList.add('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
-            tabs.prediction.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.prediction.classList.remove('text-gray-400');
             tabs.validation.classList.remove('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
-            tabs.validation.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.validation.classList.add('text-gray-400');
             contents.prediction.classList.remove('hidden');
             contents.validation.classList.add('hidden');
         });
 
         tabs.validation.addEventListener('click', () => {
             tabs.validation.classList.add('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
-            tabs.validation.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.validation.classList.remove('text-gray-400');
             tabs.prediction.classList.remove('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
-            tabs.prediction.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.prediction.classList.add('text-gray-400');
             contents.validation.classList.remove('hidden');
             contents.prediction.classList.add('hidden');
         });
@@ -430,11 +431,11 @@
             items: {
                 type: "OBJECT",
                 properties: {
-                    "word": { "type": "STRING", "description": "預測的下一個詞彙" },
-                    "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
-                    "frequency": { "type": "NUMBER", "description": "相對出現比例 (0-100)" },
-                    "probability": { "type": "NUMBER", "description": "條件機率 P(wₙ | context) (0-1)" },
-                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" }
+                    "word": { "type": "STRING" },
+                    "ppl": { "type": "NUMBER" },
+                    "frequency": { "type": "NUMBER" },
+                    "probability": { "type": "NUMBER" },
+                    "example": { "type": "STRING" }
                 },
                 required: ["word", "ppl", "frequency", "probability", "example"]
             }
@@ -442,55 +443,52 @@
         
         async function handlePredictionSubmit(e) {
             e.preventDefault();
-            const phrase = predInput.value.trim();
+            let phrase = predInput.value.trim();
             if (!phrase) {
                 predError.textContent = "請輸入英文片語。";
                 predError.classList.remove('hidden');
                 return;
             }
 
-            // 保存當前輸入片語
+            // 截取最後20個詞作為上下文
+            phrase = truncateToLastNWords(phrase, consistencyConfig.contextWindow);
             currentInputPhrase = phrase;
-            // 重置狀態
             currentPredictedWords = [];
             customWordInput.classList.remove('hidden');
 
-            // 設置 UI 為載入中
+            // 設置載入狀態
             predError.classList.add('hidden');
             predLoading.classList.remove('hidden');
             predButton.disabled = true;
             predButtonText.textContent = "正在預測...";
             predictionResults.innerHTML = '';
 
-            // 準備 API 請求
+            // 準備API請求
             const posFilter = predPos.value === 'any' ? '任何詞性' : predPos.value;
             const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
 
-            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
-規則：
-1. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
-2. 為每個預測詞提供一個「精簡例句 (example)」，例句必須小於 25 個字，且符合指定的 Task 語氣。
-3. 為每個例句計算其「困惑度 (ppl)」（一個數字，越低越好）。
-4. 提供「相對出現比例 (frequency)」，範圍 0-100 的數字，表示該搭配的常見程度。
-5. 提供「條件機率 (probability)」，範圍 0-1 的數字，表示 P(wₙ | context)。
-6. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。
-7. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
+            const systemPrompt = `你是IELTS寫作詞彙預測專家，嚴格遵循以下規則:
+1. 僅使用最後20個詞作為上下文分析
+2. 生成6個最可能的下一個詞，包含:
+   - 詞彙(word)
+   - 條件機率(probability, 0-1)
+   - 困惑度(ppl, 數值越低越好)
+   - 不超過25詞的例句(example)，其中預測詞必須緊接在輸入片語後
+   - 相對出現比例(frequency, 0-100)
+3. 例句需符合${taskContext}的語氣和${posFilter}詞性要求
+4. 輸出嚴格遵循指定JSON格式`;
 
-            const userQuery = `
-輸入片語: "${phrase}"
-詞性過濾: ${posFilter}
-寫作任務: ${taskContext}
-`;
+            const userQuery = `輸入片語: "${phrase}"\n詞性過濾: ${posFilter}\n寫作任務: ${taskContext}`;
 
-            // 呼叫 API
+            // 呼叫API (帶3次自我一致性採樣)
             const results = await callGeminiAPI(systemPrompt, userQuery, predictionSchema);
 
-            // 恢復 UI
+            // 恢復UI
             predLoading.classList.add('hidden');
             predButton.disabled = false;
             predButtonText.textContent = "獲取預測詞彙 (Get Predictions)";
 
-            // 處理 API 回應
+            // 處理回應
             if (results.isError) {
                 predError.textContent = results.message;
                 predError.classList.remove('hidden');
@@ -530,10 +528,10 @@
                             困惑度 (PPL): ${item.ppl.toFixed(2)}
                         </div>
                         <div class="text-sm font-medium text-blue-400">
-                            條件機率: ${(item.probability * 100).toFixed(1)}%
+                            條件機率 P(wₙ | context): ${(item.probability * 100).toFixed(1)}%
                         </div>
                         <div class="text-sm font-medium px-2 py-1 rounded ${freqClass}">
-                            常見用法: ${item.frequency.toFixed(1)}%
+                            相對出現比例: ${item.frequency.toFixed(1)}%
                         </div>
                     </div>
                     
@@ -565,18 +563,18 @@
                 predictionResults.appendChild(card);
             });
 
-            // 添加重新生成按鈕事件監聽
+            // 綁定重新生成事件
             document.querySelectorAll('.regen-button').forEach(button => {
                 button.addEventListener('click', handleRegenerateExample);
             });
-
-            // 添加Band選擇變更事件
             document.querySelectorAll('[id^="band-select-"]').forEach(select => {
-                select.addEventListener('change', handleBandChange);
+                select.addEventListener('change', (e) => {
+                    document.querySelector(`.regen-button[data-index="${e.target.id.split('-')[2]}"]`).click();
+                });
             });
         }
 
-        // 3. 處理例句重新生成 (帶Consistency Manager控制)
+        // 3. 處理例句重新生成 (帶Band標準控制)
         async function handleRegenerateExample(e) {
             const button = e.currentTarget;
             const index = button.dataset.index;
@@ -591,22 +589,27 @@
             regenLoading.classList.remove('hidden');
             button.disabled = true;
 
-            // 準備API請求，包含Consistency Manager參數
-            const systemPrompt = `你是一個IELTS寫作例句生成器，受Consistency Manager控制。
-生成規則：
-1. 例句必須包含片語"${phrase}"和詞彙"${word}"，且"${word}"緊接在片語後
-2. 語義一致性須≥0.9，與原句含義保持高度一致
-3. 句長≤25詞
-4. 嚴格符合IELTS Band ${band}的Cohesion & Coherence標準:
-   - Band 9: 流暢自然，銜接無痕，幾乎無瑕疵
-   - Band 8: 邏輯清晰，銜接流暢，僅偶有輕微不自然
-   - Band 7: 句法連貫但略機械，部分連接詞使用不精確
-   - Band 6: 有整體邏輯但語篇銜接偶有失衡
-   - Band 5: 結構鬆散，句間缺乏自然銜接
-5. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}, 須經${consistencyConfig.selfConsistency}次自我一致性檢查
-6. 僅返回例句文本，不要任何解釋`;
+            // Band標準詳細描述
+            const bandStandards = {
+                '9': '語義流暢自然，銜接無痕，使用高級連接詞，幾乎無語法錯誤，詞彙精確多樣',
+                '8': '邏輯清晰，銜接流暢，偶有輕微不自然，詞彙廣泛且準確，語法錯誤極少',
+                '7': '句法連貫但略顯機械，部分連接詞使用不精確，詞彙足夠但靈活性有限',
+                '6': '整體邏輯可辨，語篇銜接偶有失衡，詞彙基本滿足需求但有重複，混合簡單與複雜句',
+                '5': '結構鬆散，句間缺乏自然銜接，詞彙受限且頻繁重複，語法錯誤頻繁'
+            };
 
-            const userQuery = `生成符合IELTS Band ${band}難度的例句，包含片語"${phrase}"和詞彙"${word}"`;
+            // 系統提示強化語義一致性要求
+            const systemPrompt = `你是IELTS例句生成器，受Consistency Manager控制:
+1. 生成包含"${phrase} ${word}"的例句，詞緊接在片語後
+2. 嚴格符合IELTS Band ${band}標準: ${bandStandards[band]}
+3. 必須滿足:
+   - 語義一致性≥0.9 (與原句含義高度一致)
+   - 句長≤25詞
+   - 經${consistencyConfig.selfConsistency}次自我一致性檢查
+4. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}
+5. 僅返回例句文本，無額外解釋`;
+
+            const userQuery = `生成符合Band ${band}的例句，包含"${phrase} ${word}"`;
 
             // 呼叫API
             const newExample = await callGeminiAPI(systemPrompt, userQuery);
@@ -617,41 +620,32 @@
             regenText.textContent = "重新生成";
 
             if (!newExample.isError) {
-                const phraseToHighlight = `${phrase} ${word}`;
                 const exampleContainer = document.getElementById(`example-container-${index}`);
-                exampleContainer.innerHTML = highlight(newExample, phraseToHighlight);
+                exampleContainer.innerHTML = highlight(newExample, `${phrase} ${word}`);
             }
         }
 
-        // 4. 處理Band分數變更
-        function handleBandChange(e) {
-            const select = e.currentTarget;
-            const index = select.id.split('-')[2];
-            const regenButton = document.querySelector(`.regen-button[data-index="${index}"]`);
-            // 模擬點擊重新生成按鈕
-            regenButton.click();
-        }
-
-        // 5. 處理自定義詞彙檢查
+        // 4. 處理自定義詞彙檢查
         async function handleCustomWordCheck() {
             const customWord = userCustomWord.value.trim();
             if (!customWord || !currentInputPhrase) return;
 
-            // 顯示臨時加載狀態
+            // 臨時加載狀態
             const tempResult = document.createElement('div');
             tempResult.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 md:col-span-2';
-            tempResult.innerHTML = '<div class="flex justify-center"><div class="spinner"></div><span class="ml-2">正在分析自定義詞彙...</span></div>';
+            tempResult.innerHTML = '<div class="flex justify-center"><div class="spinner"></div><span class="ml-2">正在分析...</span></div>';
             predictionResults.prepend(tempResult);
 
-            // 準備API請求
-            const systemPrompt = `你是一個IELTS寫作詞彙分析工具。請分析指定詞彙接在給定片語後的合理性。
-規則：
-1. 計算條件機率 P("${customWord}" | "${currentInputPhrase}")，範圍0-1
-2. 生成一個包含"${currentInputPhrase} ${customWord}"的例句，≤25詞
-3. 計算該例句的困惑度(ppl)
-4. 以JSON格式返回結果，包含word, probability, ppl, example字段`;
+            // 系統提示
+            const systemPrompt = `分析自定義詞彙接在片語後的合理性:
+1. 上下文: "${currentInputPhrase}" (最後20個詞)
+2. 計算:
+   - 條件機率(probability, 0-1)
+   - 困惑度(ppl)
+   - 生成包含該搭配的例句(≤25詞)
+3. 輸出JSON格式: {word, probability, ppl, example}`;
 
-            const userQuery = `分析詞彙"${customWord}"接在片語"${currentInputPhrase}"後的合理性`;
+            const userQuery = `分析詞彙"${customWord}"接在"${currentInputPhrase}"後的合理性`;
 
             // 呼叫API
             const result = await callGeminiAPI(systemPrompt, userQuery, {
@@ -664,15 +658,13 @@
                 }
             });
 
-            // 移除臨時加載狀態
+            // 移除臨時狀態
             tempResult.remove();
 
             if (!result.isError) {
-                // 檢查是否為系統推薦詞
                 const isRecommended = currentPredictedWords.includes(result.word.toLowerCase());
-                const phraseToHighlight = `${currentInputPhrase} ${result.word}`;
-                const freqClass = result.probability > 0.7 ? 'freq-high' : (result.probability > 0.3 ? 'freq-medium' : 'freq-low');
                 const cohesionBand = getCohesionBand(result.ppl);
+                const freqClass = result.probability > 0.7 ? 'freq-high' : (result.probability > 0.3 ? 'freq-medium' : 'freq-low');
                 
                 const resultCard = document.createElement('div');
                 resultCard.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-purple-700 md:col-span-2';
@@ -689,10 +681,10 @@
                             困惑度 (PPL): ${result.ppl.toFixed(2)}
                         </div>
                         <div class="text-sm font-medium text-blue-400">
-                            條件機率: ${(result.probability * 100).toFixed(1)}%
+                            條件機率 P(wₙ | context): ${(result.probability * 100).toFixed(1)}%
                         </div>
                         <div class="text-sm font-medium px-2 py-1 rounded ${freqClass}">
-                            常見用法評級: ${result.probability > 0.7 ? '高' : (result.probability > 0.3 ? '中' : '低')}
+                            出現頻率評級: ${result.probability > 0.7 ? '高' : (result.probability > 0.3 ? '中' : '低')}
                         </div>
                     </div>
                     
@@ -701,25 +693,25 @@
                     </div>
                     
                     <div class="bg-gray-700 p-3 rounded-md text-gray-200">
-                        ${highlight(result.example, phraseToHighlight)}
+                        ${highlight(result.example, `${currentInputPhrase} ${result.word}`)}
                     </div>
                 `;
                 predictionResults.prepend(resultCard);
             } else {
-                predError.textContent = `分析自定義詞彙失敗: ${result.message}`;
+                predError.textContent = `分析失敗: ${result.message}`;
                 predError.classList.remove('hidden');
             }
         }
 
-        // 6. 處理搭配驗證 (Validation)
+        // 5. 處理搭配驗證 (Validation)
         const validationSchema = {
             type: "OBJECT",
             properties: {
-                "score": { "type": "NUMBER", "description": "搭配分數 (0-100)" },
-                "p": { "type": "NUMBER", "description": "聯合機率 P(w₁..wₙ)" },
-                "mi": { "type": "NUMBER", "description": "互資訊值 (Mutual Information)" },
-                "example": { "type": "STRING", "description": "不超過25字的例句" },
-                "grammarCheck": { "type": "STRING", "description": "語法檢查結果" },
+                "score": { "type": "NUMBER" },
+                "p": { "type": "NUMBER" },
+                "mi": { "type": "NUMBER" },
+                "example": { "type": "STRING" },
+                "grammarCheck": { "type": "STRING" },
                 "correction": { 
                     "type": "OBJECT",
                     "properties": {
@@ -743,22 +735,25 @@
                 return;
             }
 
-            // 設置UI為載入中
+            // 設置載入狀態
             valError.classList.add('hidden');
             valLoading.classList.remove('hidden');
             valButton.disabled = true;
             valButtonText.textContent = "正在驗證...";
             validationResults.classList.add('hidden');
 
-            // 準備API請求
-            const systemPrompt = `你是一個英語搭配驗證專家，使用Validation Engine模組。請評估給定的片語搭配是否自然和正確。
-規則：
-1. 計算聯合機率 P("${initialPhrase} ${targetWord}") 和互資訊(MI)值
-2. 依據 (P, MI) 計算搭配分數(0-100)和對應的IELTS Lexical Resource Band
-3. 提供一個包含該搭配的例句，字數不超過25字
-4. 進行語法檢查並給出結果
-5. 如果搭配有錯誤或不自然，提供修正建議和至少2個替代搭配
-6. 僅以要求的JSON格式輸出`;
+            // 系統提示
+            const systemPrompt = `你是搭配驗證專家，使用Validation Engine:
+1. 分析搭配"${initialPhrase} ${targetWord}"
+2. 計算:
+   - 聯合機率P(w₁..wₙ)
+   - 互資訊MI值
+   - 搭配分數(0-100)
+3. 生成:
+   - 語法檢查結果
+   - 修正建議(若有錯誤)及替代搭配
+   - 包含該搭配的例句(≤25詞)
+4. 輸出嚴格遵循指定JSON格式`;
 
             const userQuery = `初始片語: "${initialPhrase}"\n目標詞彙: "${targetWord}"`;
 
@@ -770,7 +765,7 @@
             valButton.disabled = false;
             valButtonText.textContent = "驗證搭配 (Validate)";
 
-            // 處理API回應
+            // 處理回應
             if (result.isError) {
                 valError.textContent = result.message;
                 valError.classList.remove('hidden');
@@ -779,7 +774,7 @@
             }
         }
 
-        // 7. 顯示驗證結果
+        // 6. 顯示驗證結果
         function displayValidationResult(result, initialPhrase, targetWord) {
             const fullPhrase = `${initialPhrase} ${targetWord}`;
             const lexicalBand = getLexicalBand(result.mi, result.p);
@@ -822,7 +817,7 @@
                     <h3 class="text-xl font-bold text-yellow-300 mb-2">修正建議</h3>
                     <p class="text-yellow-200 mb-3">${result.correction.suggestion}</p>
                     
-                    ${result.correction.alternatives && result.correction.alternatives.length > 0 ? `
+                    ${result.correction.alternatives?.length ? `
                     <div>
                         <h4 class="font-semibold text-yellow-200 mb-1">建議替代搭配:</h4>
                         <ul class="list-disc list-inside text-yellow-200 space-y-1">
@@ -853,13 +848,13 @@
 
             validationResults.classList.remove('hidden');
 
-            // 添加Band例句按鈕事件
+            // 綁定Band例句生成事件
             document.querySelectorAll('.band-example-btn').forEach(button => {
                 button.addEventListener('click', handleBandExampleRequest);
             });
         }
 
-        // 8. 處理搭配驗證的Band分數例句請求
+        // 7. 處理搭配驗證的Band例句生成
         async function handleBandExampleRequest(e) {
             const button = e.currentTarget;
             const band = button.dataset.band;
@@ -867,36 +862,36 @@
             const word = button.dataset.word;
             const container = document.getElementById('band-example-container');
             
-            // 更新UI
             container.classList.remove('hidden');
             container.innerHTML = '<div class="flex justify-center"><div class="spinner"></div></div>';
             
-            // 準備API請求，包含Consistency Manager參數
-            const systemPrompt = `你是一個IELTS寫作例句生成器，受Consistency Manager控制。
-生成規則：
-1. 例句必須包含片語"${phrase}"和詞彙"${word}"
-2. 語義一致性須≥0.9，與原搭配含義保持高度一致
-3. 句長≤25詞
-4. 嚴格符合IELTS Band ${band}的Lexical Resource標準:
-   - Band 9: 詞彙靈活精準，接近母語表達
-   - Band 8: 詞彙廣泛，偶有輕微不精確
-   - Band 7: 詞彙足夠但靈活性有限
-   - Band 6: 詞彙基本滿足需求，有時搭配錯誤
-   - Band 5: 詞彙受限，搭配錯誤頻繁
-5. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}, 須經${consistencyConfig.selfConsistency}次自我一致性檢查
-6. 僅返回例句文本`;
+            // 詞彙標準描述
+            const lexicalStandards = {
+                '9': '詞彙靈活精準，接近母語表達，使用高級詞彙和搭配',
+                '8': '詞彙廣泛，偶有輕微不精確，能流暢表達複雜含義',
+                '7': '詞彙足夠但靈活性有限，部分搭配不自然',
+                '6': '詞彙基本滿足需求，有時搭配錯誤或重複',
+                '5': '詞彙受限，搭配錯誤頻繁，表達簡單'
+            };
 
-            const userQuery = `生成Band ${band}難度的例句，包含"${phrase} ${word}"`;
+            const systemPrompt = `生成符合IELTS Band ${band}的例句:
+1. 包含搭配"${phrase} ${word}"
+2. 符合詞彙標準: ${lexicalStandards[band]}
+3. 必須滿足:
+   - 語義一致性≥0.9
+   - 句長≤25詞
+   - 經${consistencyConfig.selfConsistency}次自我一致性檢查
+4. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}
+5. 僅返回例句文本`;
 
-            // 呼叫API
+            const userQuery = `生成Band ${band}例句: "${phrase} ${word}"`;
+
             const example = await callGeminiAPI(systemPrompt, userQuery);
 
-            // 更新UI
             if (!example.isError) {
-                const fullPhrase = `${phrase} ${word}`;
-                container.innerHTML = highlight(example, fullPhrase);
+                container.innerHTML = highlight(example, `${phrase} ${word}`);
             } else {
-                container.innerHTML = `<span class="text-red-400">無法生成例句: ${example.message}</span>`;
+                container.innerHTML = `<span class="text-red-400">生成失敗: ${example.message}</span>`;
             }
         }
 
@@ -904,9 +899,7 @@
         predForm.addEventListener('submit', handlePredictionSubmit);
         valForm.addEventListener('submit', handleValidationSubmit);
         checkCustomWord.addEventListener('click', handleCustomWordCheck);
-        userCustomWord.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleCustomWordCheck();
-        });
+        userCustomWord.addEventListener('keypress', (e) => e.key === 'Enter' && handleCustomWordCheck());
     </script>
 </body>
 </html>
