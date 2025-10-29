@@ -1,0 +1,229 @@
+以下是整合您提出的三項調整後，**更新版的〈User Story 1 — 快速下一詞建議〉**，此版本完整納入 IELTS Writing「Cohesion & Coherence」評分對應、使用者自定詞輸入、與 Consistency Manager 的 Band 再生成控制邏輯。
+
+---
+
+## 🧩 User Story 1 - 快速下一詞建議 (優先順序：P1)
+
+### 使用者故事
+
+作為一名 IELTS 寫作學習者，
+我希望在輸入一句話的最後停頓時，系統能根據上下文預測出最可能的下一個自然詞彙，並附上可學習的例句、困惑度 (PPL) 以及 IELTS 寫作考官角度下的「Cohesion & Coherence」評分指標，
+以幫助我學習地道、連貫且高分的寫作風格。
+
+---
+
+### 功能擴充說明
+
+#### 1️⃣ PPL 與 IELTS Cohesion & Coherence 對應顯示
+
+每個候選詞的例句須附帶：
+
+* **困惑度 (Perplexity, PPL)**
+* **對應的 IELTS Cohesion & Coherence Band 評分**（依句子流暢度與語篇銜接特徵自動映射）
+* **IELTS 考官角度摘要描述**（以 Band 標準表為依據）
+
+| PPL 範圍 |     對應 Band    | IELTS Examiner 解釋摘要      |
+| :----: | :------------: | :----------------------- |
+|  0–20  |   **Band 9**   | 句意流暢、銜接自然、連貫度極高。幾乎無語篇瑕疵。 |
+|  21–40 |   **Band 8**   | 結構清晰、銜接順暢、僅偶有輕微不自然。      |
+|  41–60 |   **Band 7**   | 句法連貫但略顯機械，部分連接詞或指代使用不精確。 |
+|  61–80 |   **Band 6**   | 有整體邏輯但語篇銜接偶有失衡或重複。       |
+|   >80  | **Band 5 或以下** | 結構鬆散、句與句間缺乏自然銜接或過度機械。    |
+
+> 💡 **說明**：PPL–Band 對應模型由 IELTS 考官語料與大型學習者語料標註校正，輸出同時顯示「PPL 值」、「對應 Band」、「評語摘要」。
+
+---
+
+#### 2️⃣ 使用者自定詞彙輸入
+
+* 若系統列出候選詞後，使用者可輸入自己想接的詞彙。
+* 系統將即時計算該詞的：
+
+  * 條件機率 P(wₙ | context)；
+  * 例句困惑度 (PPL)；
+  * 對應的 IELTS Band（依上表映射）；
+* 若該詞與原候選詞之一匹配，系統會標註「✅ 系統推薦詞」。
+
+**驗收依據：**
+當使用者輸入自訂詞時，結果的 PPL 與 Band 評估方式須與系統內建候選詞相同，保證一致性。
+
+---
+
+#### 3️⃣ 重新生成例句 (Band 控制模式)
+
+* 使用者可針對任一候選詞的例句點擊「🔄 重新生成」按鈕。
+* 系統根據選定 Band (5/6/7/8/9) 生成一組**語意相同但語法層級、詞彙密度與連貫性不同**的版本。
+* 例句生成必須遵循下列原則：
+
+  1. **語意一致性 (Semantic similarity ≥ 0.9)**；
+  2. **句長 ≤ 25 詞**；
+  3. **句法與詞彙符合指定 Band 標準（見下表）**；
+  4. **由 Consistency Manager 確保版本穩定且可重現。**
+
+---
+
+#### 4️⃣ Consistency Manager 模組規格
+
+| 模組名稱                    | 說明                                             | 主要功能                                                              |
+| :---------------------- | :--------------------------------------------- | :---------------------------------------------------------------- |
+| **Consistency Manager** | 輸出穩定性控制                                        | 實作 **Self-Consistency** 與 **top-k / top-p 採樣**，確保重生例句在隨機採樣下的語義一致。 |
+| **控制變數**                | temperature, top-k, top-p, self-consistency 次數 | 影響重生成過程的隨機性與重現性。                                                  |
+| **驗證機制**                | semantic similarity (≥0.9)                     | 用以確認重新生成之例句語義與原句一致。                                               |
+
+---
+
+#### 5️⃣ IELTS Writing Band 對應標準
+
+|  Band | Coherence & Cohesion                                                                  | Lexical Resource                                          | Grammatical Range & Accuracy                           |
+| :---: | :------------------------------------------------------------------------------------ | :-------------------------------------------------------- | :----------------------------------------------------- |
+| **9** | The message can be **followed effortlessly**; cohesion **rarely attracts attention**. | Full flexibility, precise and natural vocabulary control. | Fully flexible and accurate; minimal errors.           |
+| **8** | Information and ideas are **logically sequenced**, cohesion **well managed**.         | Fluent, flexible use of advanced vocabulary.              | Mostly error-free, high syntactic control.             |
+| **7** | Logical structure, minor lapses in cohesion.                                          | Adequate range, some inaccuracy or overuse.               | Frequent error-free sentences, few grammatical errors. |
+| **6** | Generally coherent but some **mechanical cohesion**.                                  | Adequate but limited vocabulary, occasional repetition.   | Mix of simple and complex forms, moderate accuracy.    |
+| **5** | Organisation not wholly logical, cohesion often inaccurate.                           | Simple vocabulary, frequent repetition.                   | Frequent grammatical errors, limited control.          |
+
+---
+
+### ✅ 驗收情境（更新後）
+
+1. **假設** 使用者輸入一段文字，**當** 系統回傳候選詞與例句，**則** 每個候選詞需包含：
+
+   * P(wₙ | context)；
+   * 該句 PPL；
+   * 對應 IELTS Cohesion & Coherence Band 與簡述；
+   * 顯示「重生成」按鈕。
+
+2. **假設** 使用者輸入自定詞彙，**當** 系統計算 PPL 與 Band 時，**則** 應依同一演算法回傳對應分數與描述。
+
+3. **假設** 使用者點擊「🔄 重新生成」並選擇 Band 7，**當** 系統生成新例句時，**則**：
+
+   * 新例句須保持語義一致 (≥0.9)；
+   * 符合 Band 7 語法與詞彙特徵；
+   * 例句長度 ≤ 25 詞；
+   * 由 Consistency Manager 控制生成參數以確保穩定性。
+
+4. **假設** 使用者切換 Band 級別，**則** 系統需即時更新例句版本並標註對應 Band 標籤與描述。
+
+---
+
+
+
+這是一份整理後的 **修正版 User Story 2（精確搭配驗證 Validation）**，已依照您指示全面調整，重點包括：
+✅ 將 **Validation Engine** 與 **IELTS Writing Lexical Resource** 評分標準連結；
+✅ 明確定義 **P(w₁..wₙ)** + **Mutual Information (MI)** 與 Band 的對應邏輯；
+✅ 增加 **Consistency Manager** 控制的「語義一致重生成（re-generate）」機制；
+✅ 完整保留測試與驗收情境的邏輯一致性。
+
+---
+
+## ✳️ User Story 2 - 精確搭配驗證 (Validation)
+
+### 使用者故事
+
+作為使用者，
+我希望輸入一個完整的搭配詞組，
+系統能依據語料庫統計與 IELTS Writing 的 **Lexical Resource** 標準，
+評估該搭配的自然度與正確性，並提供對應例句，
+以便我了解該片語是否「地道、常用」或需要改進。
+
+---
+
+### 🧩 模組依據與功能說明
+
+| 模組名稱                    | 說明              | 主要功能                                                                                                                                |
+| :---------------------- | :-------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| **Validation Engine**   | 搭配自然度與語言精確度評估模組 | 使用 **聯合機率 P(w₁..wₙ)** 衡量片語整體出現頻率，並以 **互資訊 (Mutual Information, MI)** 量化詞之間的搭配強度。依據結果生成可靠度分數、例句與對應的 **IELTS Lexical Resource Band**。 |
+| **Consistency Manager** | 生成穩定性控制         | 實作 **Self-Consistency**、**top-k / top-p 採樣調整**，以確保例句在不同 Band 版本之間語義一致（semantic similarity ≥ 0.9）。                                   |
+
+---
+
+### ⚙️ Validation Engine 評估依據（必須）
+
+1. **聯合機率 P(w₁..wₙ)**
+
+   * 衡量片語整體的自然出現頻率（越高表示越常見、自然）。
+   * 資料來源：標準化大型英語語料庫（academic + general domain）。
+
+2. **互資訊 (Mutual Information, MI)**
+
+   * 衡量詞間的搭配強度（越高代表母語者常見的固定搭配）。
+   * MI 高通常對應 **Band 8–9 Lexical Resource** 級別。
+
+3. **Lexical Band Mapping**
+   系統會根據 (P, MI) 兩者計算平均自然度指數 (L_score)，再對應到 IELTS Lexical Resource 評級表：
+
+| 指標條件                        |   對應 Band  | 解釋                   |
+| :-------------------------- | :--------: | :------------------- |
+| MI ≥ 5.0 且 P(w₁..wₙ) ≥ 1e-3 | **Band 9** | 完全自然、極高搭配強度；接近母語級表達。 |
+| 4.0 ≤ MI < 5.0              | **Band 8** | 流暢靈活、少許誤用；仍屬高階搭配。    |
+| 3.0 ≤ MI < 4.0              | **Band 7** | 可理解且常見，但略顯機械或重複。     |
+| 2.0 ≤ MI < 3.0              | **Band 6** | 中等自然度；語意清楚但搭配不地道。    |
+| MI < 2.0                    | **Band 5** | 不自然或生硬；建議替換。         |
+
+---
+
+### 🧠 IELTS Writing Lexical Resource 對應說明
+
+|  Band | Lexical Resource 指標說明     |
+| :---: | :------------------------ |
+| **9** | 完整靈活與精準運用；詞彙自然且貼近母語；錯誤極少。 |
+| **8** | 詞彙廣泛且能準確表達意義；偶有不精確但不影響理解。 |
+| **7** | 詞彙多樣度足夠但靈活性稍有限；部分不自然搭配。   |
+| **6** | 詞彙足以表達意思但欠缺精準；有時搭配錯誤或重複。  |
+| **5** | 詞彙受限；錯誤頻繁，搭配顯得不自然。        |
+
+---
+
+### 💬 例句生成與「重新生成」(Re-generation)
+
+使用者可針對每個搭配的例句點擊「🔄 重新生成」按鈕。
+
+**系統生成要求：**
+
+* 保持語義一致 (semantic similarity ≥ 0.9)；
+* 根據選定的 **IELTS Band** 調整詞彙範圍與結構複雜度；
+* 每句不超過 **25 個詞**；
+* 輸出由 **Consistency Manager** 控制隨機採樣溫度（temperature / top-k / top-p）。
+
+|  Band | 詞彙層級與語法特徵        | 範例句式控制       |
+| :---: | :--------------- | :----------- |
+| **9** | 高度自然、詞彙靈活、句式優雅精準 | 使用多層從句與自然連接詞 |
+| **8** | 流暢多樣、偶有輕微不自然     | 結構清晰、過渡自然    |
+| **7** | 溝通清楚但略顯機械        | 適度使用慣用語與連接詞  |
+| **6** | 可理解但略顯重複         | 結構簡化、語意直接    |
+| **5** | 表達受限、搭配錯誤頻繁      | 結構單一、字彙受限    |
+
+---
+
+### 🧾 驗收情境（更新版）
+
+1. **假設** 使用者輸入 `"There is a growing trend towards"`，
+   **當** 點擊「驗證」按鈕時，
+   **則** 系統返回：
+
+   * 搭配可靠度分數 (0–100)
+   * 聯合機率 P(w₁..wₙ)、MI 值
+   * 對應 **IELTS Lexical Resource Band** 與簡要說明
+   * 例句（≤25 詞）並 highlight 核心片語
+
+2. **假設** 使用者輸入搭配錯誤（如 `"do a decision"`），
+   **當** 系統分析時，
+   **則** 顯示低分（<50）、MI 低於 2，並建議替代搭配（如 `"make a decision"`）與例句。
+
+3. **假設** 使用者點擊「🔄 重新生成」並選擇 Band 7，
+   **當** 系統生成新例句時，
+   **則** 新例句應：
+
+   * 語義一致 (≥0.9 similarity)
+   * 詞彙與句式符合 Band 7 標準
+   * 顯示 `"Band 7 - moderately natural expression"` 標籤
+
+4. **假設** 使用者多次生成相同 Band 的例句，
+   **則** 所生成句子語義保持一致，差異僅在詞彙選擇與結構變化；
+   一致性由 **Consistency Manager** 自動控制。
+
+---
+
+
+
+
