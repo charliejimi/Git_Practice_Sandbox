@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS 智慧詞彙與搭配系統</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Inter 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基本樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Highlight 樣式 */
+        .highlight {
+            background-color: rgba(59, 130, 246, 0.3); /* bg-blue-500/30 */
+            color: #bfdbfe; /* text-blue-200 */
+            font-weight: 600;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+        /* 隱藏元素 */
+        .hidden {
+            display: none;
+        }
+        /* 簡易 Spinner 動畫 */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* 頻率顏色樣式 */
+        .freq-high {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        .freq-medium {
+            background-color: rgba(234, 179, 8, 0.2);
+            color: #fbbf24;
+        }
+        .freq-low {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        /* Band 標籤樣式 */
+        .band-9 { background-color: rgba(79, 70, 229, 0.2); color: #818cf8; }
+        .band-8 { background-color: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        .band-7 { background-color: rgba(34, 197, 94, 0.2); color: #a7f3d0; }
+        .band-6 { background-color: rgba(234, 179, 8, 0.2); color: #fde68a; }
+        .band-5 { background-color: rgba(239, 68, 68, 0.2); color: #fecaca; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- 標題 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
+            <p class="text-lg text-gray-400 mt-2">基於 Feature Specification "Updated" (2025-10-29)</p>
+        </header>
+
+        <!-- 功能分頁標籤 -->
+        <div class="flex justify-center mb-6 border-b border-gray-700">
+            <button id="tabPrediction" class="tab-button px-6 py-3 font-semibold text-white bg-gray-800 rounded-t-lg -mb-px border-t border-l border-r border-gray-700">
+                1. 詞彙預測 (Prediction)
+            </button>
+            <button id="tabValidation" class="tab-button px-6 py-3 font-semibold text-gray-400 hover:bg-gray-800/50 rounded-t-lg">
+                2. 搭配驗證 (Validation)
+            </button>
+        </div>
+
+        <!-- 主要內容區域 -->
+        <main>
+            <!-- 1. 詞彙預測 (Prediction) 內容 -->
+            <div id="predictionContent">
+                <form id="predictionForm" class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
+                    <div>
+                        <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">輸入英文片語 (Input Phrase)</label>
+                        <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：The government should...">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">指定詞性 (POS Filter)</label>
+                            <select id="predPos" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="any">所有詞性 (Any)</option>
+                                <option value="N">名詞 (Noun)</option>
+                                <option value="Pro">代名詞 (Pronoun)</option>
+                                <option value="V">動詞 (Verb)</option>
+                                <option value="Adj">形容詞 (Adjective)</option>
+                                <option value="Adv">副詞 (Adverb)</option>
+                                <option value="Prep">介系詞 (Preposition)</option>
+                                <option value="Conj">連接詞 (Conjunction)</option>
+                                <option value="Interj">感歎詞 (Interjection)</option>
+                                <option value="Det/Art">限定詞/冠詞 (Determiner/Article)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="predTask" class="block text-sm font-medium text-gray-300 mb-2">寫作任務 (IELTS Task)</label>
+                            <select id="predTask" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="general">通用 (General)</option>
+                                <option value="task1">Task 1 (學術/一般)</option>
+                                <option value="task2">Task 2 (學術/一般)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="predButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                        <span id="predButtonText">獲取預測詞彙 (Get Predictions)</span>
+                        <div id="predLoading" class="spinner hidden"></div>
+                    </button>
+                </form>
+
+                <!-- 自定義詞彙輸入區域 -->
+                <div id="customWordInput" class="bg-gray-800 p-4 rounded-lg mt-6 hidden">
+                    <div class="flex gap-3">
+                        <input type="text" id="userCustomWord" class="flex-1 bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="輸入您想使用的下一個詞...">
+                        <button id="checkCustomWord" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200">
+                            檢查
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 預測結果區域 -->
+                <div id="predError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                <div id="predictionResults" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 預測結果卡片將動態插入此處 -->
+                </div>
+            </div>
+
+            <!-- 2. 搭配驗證 (Validation) 內容 -->
+            <div id="validationContent" class="hidden">
+                <form id="validationForm" class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
+                    <div>
+                        <label for="valInput1" class="block text-sm font-medium text-gray-300 mb-2">初始片語 (Initial Phrase)</label>
+                        <input type="text" id="valInput1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：There is a growing trend">
+                    </div>
+                    <div>
+                        <label for="valInput2" class="block text-sm font-medium text-gray-300 mb-2">目標詞彙 (Target Word/Phrase)</label>
+                        <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：towards">
+                    </div>
+                    
+                    <button type="submit" id="valButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                        <span id="valButtonText">驗證搭配 (Validate)</span>
+                        <div id="valLoading" class="spinner hidden"></div>
+                    </button>
+                </form>
+
+                <!-- 驗證結果區域 -->
+                <div id="valError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                <div id="validationResults" class="mt-8 bg-gray-800 p-6 rounded-lg shadow-xl hidden">
+                    <!-- 驗證結果將動態插入此處 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script type="module">
+        // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
+        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // --- Consistency Manager 配置 ---
+        const consistencyConfig = {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            selfConsistency: 3
+        };
+
+        // --- DOM 元素參照 ---
+        const tabs = {
+            prediction: document.getElementById('tabPrediction'),
+            validation: document.getElementById('tabValidation')
+        };
+        const contents = {
+            prediction: document.getElementById('predictionContent'),
+            validation: document.getElementById('validationContent')
+        };
+        
+        // 預測 (Prediction) 相關元素
+        const predForm = document.getElementById('predictionForm');
+        const predInput = document.getElementById('predInput');
+        const predPos = document.getElementById('predPos');
+        const predTask = document.getElementById('predTask');
+        const predButton = document.getElementById('predButton');
+        const predButtonText = document.getElementById('predButtonText');
+        const predLoading = document.getElementById('predLoading');
+        const predError = document.getElementById('predError');
+        const predictionResults = document.getElementById('predictionResults');
+        const customWordInput = document.getElementById('customWordInput');
+        const userCustomWord = document.getElementById('userCustomWord');
+        const checkCustomWord = document.getElementById('checkCustomWord');
+
+        // 驗證 (Validation) 相關元素
+        const valForm = document.getElementById('validationForm');
+        const valInput1 = document.getElementById('valInput1');
+        const valInput2 = document.getElementById('valInput2');
+        const valButton = document.getElementById('valButton');
+        const valButtonText = document.getElementById('valButtonText');
+        const valLoading = document.getElementById('valLoading');
+        const valError = document.getElementById('valError');
+        const validationResults = document.getElementById('validationResults');
+
+        // 存儲當前預測的詞彙列表，用於比對自定義詞
+        let currentPredictedWords = [];
+        // 存儲當前輸入的片語，用於自定義詞檢查
+        let currentInputPhrase = '';
+
+        // --- 核心輔助函式 ---
+
+        /**
+         * 根據PPL值獲取對應的Cohesion & Coherence Band信息
+         * @param {number} ppl - 困惑度值
+         * @returns {object} - Band信息 { band, description, class }
+         */
+        function getCohesionBand(ppl) {
+            if (typeof ppl !== 'number' || isNaN(ppl)) ppl = 100;
+            
+            if (ppl <= 20) {
+                return {
+                    band: '9',
+                    description: '句意流暢、銜接自然、連貫度極高。幾乎無語篇瑕疵。',
+                    class: 'band-9'
+                };
+            } else if (ppl <= 40) {
+                return {
+                    band: '8',
+                    description: '結構清晰、銜接順暢、僅偶有輕微不自然。',
+                    class: 'band-8'
+                };
+            } else if (ppl <= 60) {
+                return {
+                    band: '7',
+                    description: '句法連貫但略顯機械，部分連接詞或指代使用不精確。',
+                    class: 'band-7'
+                };
+            } else if (ppl <= 80) {
+                return {
+                    band: '6',
+                    description: '有整體邏輯但語篇銜接偶有失衡或重複。',
+                    class: 'band-6'
+                };
+            } else {
+                return {
+                    band: '5或以下',
+                    description: '結構鬆散、句與句間缺乏自然銜接或過度機械。',
+                    class: 'band-5'
+                };
+            }
+        }
+
+        /**
+         * 根據MI和P值計算Lexical Resource Band
+         * @param {number} mi - 互資訊值
+         * @param {number} p - 聯合機率值
+         * @returns {object} - Band信息 { band, description, class }
+         */
+        function getLexicalBand(mi, p) {
+            if (typeof mi !== 'number' || isNaN(mi)) mi = 0;
+            if (typeof p !== 'number' || isNaN(p)) p = 0;
+
+            // 計算L_score (簡化版)
+            const lScore = (mi / 10) + (Math.log10(p + 1e-10) + 10) / 10;
+            
+            if (mi >= 5.0 && p >= 1e-3) {
+                return {
+                    band: '9',
+                    description: '完全自然、極高搭配強度；接近母語級表達。',
+                    class: 'band-9'
+                };
+            } else if (mi >= 4.0) {
+                return {
+                    band: '8',
+                    description: '流暢靈活、少許誤用；仍屬高階搭配。',
+                    class: 'band-8'
+                };
+            } else if (mi >= 3.0) {
+                return {
+                    band: '7',
+                    description: '可理解且常見，但略顯機械或重複。',
+                    class: 'band-7'
+                };
+            } else if (mi >= 2.0) {
+                return {
+                    band: '6',
+                    description: '中等自然度；語意清楚但搭配不地道。',
+                    class: 'band-6'
+                };
+            } else {
+                return {
+                    band: '5',
+                    description: '不自然或生硬；建議替換。',
+                    class: 'band-5'
+                };
+            }
+        }
+
+        /**
+         * 獲取頻率顏色樣式
+         * @param {number} frequency - 頻率百分比 (0-100)
+         * @returns {string} - CSS 類名
+         */
+        function getFrequencyClass(frequency) {
+            if (frequency >= 70) return 'freq-high';
+            if (frequency >= 30) return 'freq-medium';
+            return 'freq-low';
+        }
+
+        /**
+         * 高亮顯示例句中的片語
+         * @param {string} text - 完整的例句
+         * @param {string} phraseToHighlight - 需要高亮的片語
+         * @returns {string} - 包含 HTML <span class="highlight"> 的字串
+         */
+        function highlight(text, phraseToHighlight) {
+            if (!text || !phraseToHighlight) return text;
+            // 使用正則表達式進行不區分大小寫的替換
+            const regex = new RegExp(phraseToHighlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+            return text.replace(regex, `<span class="highlight">$&</span>`);
+        }
+
+        // --- API 呼叫邏輯 ---
+
+        /**
+         * 呼叫 Gemini API
+         * @param {string} systemPrompt - 系統提示 (System Instruction)
+         * @param {string} userQuery - 使用者查詢
+         * @param {object|null} schema - JSON 輸出結構 (若需要)
+         * @param {number} maxRetries - 最大重試次數
+         * @returns {Promise<object>} - API 回應或錯誤物件
+         */
+        async function callGeminiAPI(systemPrompt, userQuery, schema = null, maxRetries = 3) {
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    temperature: consistencyConfig.temperature,
+                    topK: consistencyConfig.topK,
+                    topP: consistencyConfig.topP
+                }
+            };
+
+            if (schema) {
+                payload.generationConfig.responseMimeType = "application/json";
+                payload.generationConfig.responseSchema = schema;
+            }
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (!candidate || !candidate.content?.parts?.[0]) {
+                        throw new Error("API 返回了無效的回應結構");
+                    }
+
+                    const part = candidate.content.parts[0];
+                    
+                    if (schema) {
+                        // 處理 JSON 回應
+                        const jsonText = part.text;
+                        return JSON.parse(jsonText);
+                    } else {
+                        // 處理純文字回應
+                        return part.text;
+                    }
+
+                } catch (error) {
+                    console.error(`API 呼叫第 ${attempt} 次失敗:`, error);
+                    if (attempt === maxRetries) {
+                        return { isError: true, message: `API 請求失敗: ${error.message}` };
+                    }
+                    // 指數退避
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                }
+            }
+        }
+
+        // --- 事件處理 (Event Handlers) ---
+
+        // 切換分頁標籤
+        tabs.prediction.addEventListener('click', () => {
+            tabs.prediction.classList.add('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
+            tabs.prediction.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.validation.classList.remove('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
+            tabs.validation.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+            contents.prediction.classList.remove('hidden');
+            contents.validation.classList.add('hidden');
+        });
+
+        tabs.validation.addEventListener('click', () => {
+            tabs.validation.classList.add('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
+            tabs.validation.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+            tabs.prediction.classList.remove('bg-gray-800', 'text-white', 'border-t', 'border-l', 'border-r', 'border-gray-700', '-mb-px');
+            tabs.prediction.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+            contents.validation.classList.remove('hidden');
+            contents.prediction.classList.add('hidden');
+        });
+
+        // 1. 處理詞彙預測 (Prediction)
+        const predictionSchema = {
+            type: "ARRAY",
+            maxItems: 6,
+            items: {
+                type: "OBJECT",
+                properties: {
+                    "word": { "type": "STRING", "description": "預測的下一個詞彙" },
+                    "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
+                    "frequency": { "type": "NUMBER", "description": "相對出現比例 (0-100)" },
+                    "probability": { "type": "NUMBER", "description": "條件機率 P(wₙ | context) (0-1)" },
+                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" }
+                },
+                required: ["word", "ppl", "frequency", "probability", "example"]
+            }
+        };
+        
+        async function handlePredictionSubmit(e) {
+            e.preventDefault();
+            const phrase = predInput.value.trim();
+            if (!phrase) {
+                predError.textContent = "請輸入英文片語。";
+                predError.classList.remove('hidden');
+                return;
+            }
+
+            // 保存當前輸入片語
+            currentInputPhrase = phrase;
+            // 重置狀態
+            currentPredictedWords = [];
+            customWordInput.classList.remove('hidden');
+
+            // 設置 UI 為載入中
+            predError.classList.add('hidden');
+            predLoading.classList.remove('hidden');
+            predButton.disabled = true;
+            predButtonText.textContent = "正在預測...";
+            predictionResults.innerHTML = '';
+
+            // 準備 API 請求
+            const posFilter = predPos.value === 'any' ? '任何詞性' : predPos.value;
+            const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
+
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
+規則：
+1. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
+2. 為每個預測詞提供一個「精簡例句 (example)」，例句必須小於 25 個字，且符合指定的 Task 語氣。
+3. 為每個例句計算其「困惑度 (ppl)」（一個數字，越低越好）。
+4. 提供「相對出現比例 (frequency)」，範圍 0-100 的數字，表示該搭配的常見程度。
+5. 提供「條件機率 (probability)」，範圍 0-1 的數字，表示 P(wₙ | context)。
+6. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。
+7. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
+
+            const userQuery = `
+輸入片語: "${phrase}"
+詞性過濾: ${posFilter}
+寫作任務: ${taskContext}
+`;
+
+            // 呼叫 API
+            const results = await callGeminiAPI(systemPrompt, userQuery, predictionSchema);
+
+            // 恢復 UI
+            predLoading.classList.add('hidden');
+            predButton.disabled = false;
+            predButtonText.textContent = "獲取預測詞彙 (Get Predictions)";
+
+            // 處理 API 回應
+            if (results.isError) {
+                predError.textContent = results.message;
+                predError.classList.remove('hidden');
+            } else if (Array.isArray(results)) {
+                currentPredictedWords = results.map(item => item.word.toLowerCase());
+                displayPredictionResults(results, phrase);
+            } else {
+                predError.textContent = "收到非預期的回應格式。";
+                predError.classList.remove('hidden');
+            }
+        }
+
+        // 2. 顯示預測結果
+        function displayPredictionResults(results, inputPhrase) {
+            if (results.length === 0) {
+                predictionResults.innerHTML = `<p class="text-gray-400 md:col-span-2 text-center">找不到符合條件的預測詞彙。</p>`;
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const phraseToHighlight = `${inputPhrase} ${item.word}`;
+                const freqClass = getFrequencyClass(item.frequency);
+                const cohesionBand = getCohesionBand(item.ppl);
+                
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold text-white">${item.word}</h3>
+                        <div class="px-2 py-1 rounded text-sm font-medium ${cohesionBand.class}">
+                            Band ${cohesionBand.band}
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 mb-3">
+                        <div class="text-sm font-medium text-yellow-400">
+                            困惑度 (PPL): ${item.ppl.toFixed(2)}
+                        </div>
+                        <div class="text-sm font-medium text-blue-400">
+                            條件機率: ${(item.probability * 100).toFixed(1)}%
+                        </div>
+                        <div class="text-sm font-medium px-2 py-1 rounded ${freqClass}">
+                            常見用法: ${item.frequency.toFixed(1)}%
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-700 p-3 rounded-md text-gray-200 text-sm mb-3">
+                        <strong>考官評語:</strong> ${cohesionBand.description}
+                    </div>
+                    
+                    <div id="example-container-${index}" class="bg-gray-700 p-3 rounded-md text-gray-200">
+                        ${highlight(item.example, phraseToHighlight)}
+                    </div>
+                    
+                    <div class="flex gap-2 mt-4">
+                        <select id="band-select-${index}" class="w-2/3 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white focus:ring-1 focus:ring-blue-500">
+                            <option value="5">Band 5</option>
+                            <option value="6">Band 6</option>
+                            <option value="7" selected>Band 7</option>
+                            <option value="8">Band 8</option>
+                            <option value="9">Band 9</option>
+                        </select>
+                        <button class="regen-button w-1/3 bg-gray-500 hover:bg-gray-400 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 disabled:opacity-50"
+                                data-index="${index}"
+                                data-phrase="${inputPhrase}"
+                                data-word="${item.word}">
+                            <span class="regen-text">重新生成</span>
+                            <div class="spinner regen-loading hidden"></div>
+                        </button>
+                    </div>
+                `;
+                predictionResults.appendChild(card);
+            });
+
+            // 添加重新生成按鈕事件監聽
+            document.querySelectorAll('.regen-button').forEach(button => {
+                button.addEventListener('click', handleRegenerateExample);
+            });
+
+            // 添加Band選擇變更事件
+            document.querySelectorAll('[id^="band-select-"]').forEach(select => {
+                select.addEventListener('change', handleBandChange);
+            });
+        }
+
+        // 3. 處理例句重新生成 (帶Consistency Manager控制)
+        async function handleRegenerateExample(e) {
+            const button = e.currentTarget;
+            const index = button.dataset.index;
+            const phrase = button.dataset.phrase;
+            const word = button.dataset.word;
+            const band = document.getElementById(`band-select-${index}`).value;
+            
+            // 更新按鈕狀態
+            const regenText = button.querySelector('.regen-text');
+            const regenLoading = button.querySelector('.regen-loading');
+            regenText.textContent = "生成中...";
+            regenLoading.classList.remove('hidden');
+            button.disabled = true;
+
+            // 準備API請求，包含Consistency Manager參數
+            const systemPrompt = `你是一個IELTS寫作例句生成器，受Consistency Manager控制。
+生成規則：
+1. 例句必須包含片語"${phrase}"和詞彙"${word}"，且"${word}"緊接在片語後
+2. 語義一致性須≥0.9，與原句含義保持高度一致
+3. 句長≤25詞
+4. 嚴格符合IELTS Band ${band}的Cohesion & Coherence標準:
+   - Band 9: 流暢自然，銜接無痕，幾乎無瑕疵
+   - Band 8: 邏輯清晰，銜接流暢，僅偶有輕微不自然
+   - Band 7: 句法連貫但略機械，部分連接詞使用不精確
+   - Band 6: 有整體邏輯但語篇銜接偶有失衡
+   - Band 5: 結構鬆散，句間缺乏自然銜接
+5. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}, 須經${consistencyConfig.selfConsistency}次自我一致性檢查
+6. 僅返回例句文本，不要任何解釋`;
+
+            const userQuery = `生成符合IELTS Band ${band}難度的例句，包含片語"${phrase}"和詞彙"${word}"`;
+
+            // 呼叫API
+            const newExample = await callGeminiAPI(systemPrompt, userQuery);
+
+            // 更新UI
+            regenLoading.classList.add('hidden');
+            button.disabled = false;
+            regenText.textContent = "重新生成";
+
+            if (!newExample.isError) {
+                const phraseToHighlight = `${phrase} ${word}`;
+                const exampleContainer = document.getElementById(`example-container-${index}`);
+                exampleContainer.innerHTML = highlight(newExample, phraseToHighlight);
+            }
+        }
+
+        // 4. 處理Band分數變更
+        function handleBandChange(e) {
+            const select = e.currentTarget;
+            const index = select.id.split('-')[2];
+            const regenButton = document.querySelector(`.regen-button[data-index="${index}"]`);
+            // 模擬點擊重新生成按鈕
+            regenButton.click();
+        }
+
+        // 5. 處理自定義詞彙檢查
+        async function handleCustomWordCheck() {
+            const customWord = userCustomWord.value.trim();
+            if (!customWord || !currentInputPhrase) return;
+
+            // 顯示臨時加載狀態
+            const tempResult = document.createElement('div');
+            tempResult.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 md:col-span-2';
+            tempResult.innerHTML = '<div class="flex justify-center"><div class="spinner"></div><span class="ml-2">正在分析自定義詞彙...</span></div>';
+            predictionResults.prepend(tempResult);
+
+            // 準備API請求
+            const systemPrompt = `你是一個IELTS寫作詞彙分析工具。請分析指定詞彙接在給定片語後的合理性。
+規則：
+1. 計算條件機率 P("${customWord}" | "${currentInputPhrase}")，範圍0-1
+2. 生成一個包含"${currentInputPhrase} ${customWord}"的例句，≤25詞
+3. 計算該例句的困惑度(ppl)
+4. 以JSON格式返回結果，包含word, probability, ppl, example字段`;
+
+            const userQuery = `分析詞彙"${customWord}"接在片語"${currentInputPhrase}"後的合理性`;
+
+            // 呼叫API
+            const result = await callGeminiAPI(systemPrompt, userQuery, {
+                type: "OBJECT",
+                properties: {
+                    "word": { "type": "STRING" },
+                    "probability": { "type": "NUMBER" },
+                    "ppl": { "type": "NUMBER" },
+                    "example": { "type": "STRING" }
+                }
+            });
+
+            // 移除臨時加載狀態
+            tempResult.remove();
+
+            if (!result.isError) {
+                // 檢查是否為系統推薦詞
+                const isRecommended = currentPredictedWords.includes(result.word.toLowerCase());
+                const phraseToHighlight = `${currentInputPhrase} ${result.word}`;
+                const freqClass = result.probability > 0.7 ? 'freq-high' : (result.probability > 0.3 ? 'freq-medium' : 'freq-low');
+                const cohesionBand = getCohesionBand(result.ppl);
+                
+                const resultCard = document.createElement('div');
+                resultCard.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-purple-700 md:col-span-2';
+                resultCard.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold text-purple-300">${result.word} ${isRecommended ? '<span class="text-green-400 text-sm">(✅ 系統推薦詞)</span>' : ''}</h3>
+                        <div class="px-2 py-1 rounded text-sm font-medium ${cohesionBand.class}">
+                            Band ${cohesionBand.band}
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 mb-3">
+                        <div class="text-sm font-medium text-yellow-400">
+                            困惑度 (PPL): ${result.ppl.toFixed(2)}
+                        </div>
+                        <div class="text-sm font-medium text-blue-400">
+                            條件機率: ${(result.probability * 100).toFixed(1)}%
+                        </div>
+                        <div class="text-sm font-medium px-2 py-1 rounded ${freqClass}">
+                            常見用法評級: ${result.probability > 0.7 ? '高' : (result.probability > 0.3 ? '中' : '低')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-700 p-3 rounded-md text-gray-200 text-sm mb-3">
+                        <strong>考官評語:</strong> ${cohesionBand.description}
+                    </div>
+                    
+                    <div class="bg-gray-700 p-3 rounded-md text-gray-200">
+                        ${highlight(result.example, phraseToHighlight)}
+                    </div>
+                `;
+                predictionResults.prepend(resultCard);
+            } else {
+                predError.textContent = `分析自定義詞彙失敗: ${result.message}`;
+                predError.classList.remove('hidden');
+            }
+        }
+
+        // 6. 處理搭配驗證 (Validation)
+        const validationSchema = {
+            type: "OBJECT",
+            properties: {
+                "score": { "type": "NUMBER", "description": "搭配分數 (0-100)" },
+                "p": { "type": "NUMBER", "description": "聯合機率 P(w₁..wₙ)" },
+                "mi": { "type": "NUMBER", "description": "互資訊值 (Mutual Information)" },
+                "example": { "type": "STRING", "description": "不超過25字的例句" },
+                "grammarCheck": { "type": "STRING", "description": "語法檢查結果" },
+                "correction": { 
+                    "type": "OBJECT",
+                    "properties": {
+                        "hasError": { "type": "BOOLEAN" },
+                        "suggestion": { "type": "STRING" },
+                        "alternatives": { "type": "ARRAY", "items": { "type": "STRING" } }
+                    }
+                }
+            },
+            required: ["score", "p", "mi", "example", "grammarCheck", "correction"]
+        };
+
+        async function handleValidationSubmit(e) {
+            e.preventDefault();
+            const initialPhrase = valInput1.value.trim();
+            const targetWord = valInput2.value.trim();
+            
+            if (!initialPhrase || !targetWord) {
+                valError.textContent = "請輸入初始片語和目標詞彙。";
+                valError.classList.remove('hidden');
+                return;
+            }
+
+            // 設置UI為載入中
+            valError.classList.add('hidden');
+            valLoading.classList.remove('hidden');
+            valButton.disabled = true;
+            valButtonText.textContent = "正在驗證...";
+            validationResults.classList.add('hidden');
+
+            // 準備API請求
+            const systemPrompt = `你是一個英語搭配驗證專家，使用Validation Engine模組。請評估給定的片語搭配是否自然和正確。
+規則：
+1. 計算聯合機率 P("${initialPhrase} ${targetWord}") 和互資訊(MI)值
+2. 依據 (P, MI) 計算搭配分數(0-100)和對應的IELTS Lexical Resource Band
+3. 提供一個包含該搭配的例句，字數不超過25字
+4. 進行語法檢查並給出結果
+5. 如果搭配有錯誤或不自然，提供修正建議和至少2個替代搭配
+6. 僅以要求的JSON格式輸出`;
+
+            const userQuery = `初始片語: "${initialPhrase}"\n目標詞彙: "${targetWord}"`;
+
+            // 呼叫API
+            const result = await callGeminiAPI(systemPrompt, userQuery, validationSchema);
+
+            // 恢復UI
+            valLoading.classList.add('hidden');
+            valButton.disabled = false;
+            valButtonText.textContent = "驗證搭配 (Validate)";
+
+            // 處理API回應
+            if (result.isError) {
+                valError.textContent = result.message;
+                valError.classList.remove('hidden');
+            } else {
+                displayValidationResult(result, initialPhrase, targetWord);
+            }
+        }
+
+        // 7. 顯示驗證結果
+        function displayValidationResult(result, initialPhrase, targetWord) {
+            const fullPhrase = `${initialPhrase} ${targetWord}`;
+            const lexicalBand = getLexicalBand(result.mi, result.p);
+            
+            validationResults.innerHTML = `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-white mb-3">搭配評分</h3>
+                    <div class="inline-block px-4 py-2 rounded-md ${lexicalBand.class} font-medium">
+                        IELTS Lexical Resource Band ${lexicalBand.band}
+                    </div>
+                    <p class="mt-2 text-gray-300">${lexicalBand.description}</p>
+                    <p class="mt-1 text-gray-400">數值分數: ${result.score.toFixed(1)}/100</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-700 p-3 rounded-md">
+                        <h4 class="font-semibold text-blue-300 mb-1">聯合機率 P(w₁..wₙ)</h4>
+                        <p class="text-gray-200">${result.p.toExponential(4)}</p>
+                    </div>
+                    <div class="bg-gray-700 p-3 rounded-md">
+                        <h4 class="font-semibold text-purple-300 mb-1">互資訊 (MI)</h4>
+                        <p class="text-gray-200">${result.mi.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-white mb-3">示例句</h3>
+                    <div class="bg-gray-700 p-3 rounded-md text-gray-200">
+                        ${highlight(result.example, fullPhrase)}
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-white mb-3">語法檢查</h3>
+                    <p class="text-gray-300">${result.grammarCheck}</p>
+                </div>
+
+                ${result.correction.hasError ? `
+                <div class="mb-6 bg-yellow-900/30 p-4 rounded-md">
+                    <h3 class="text-xl font-bold text-yellow-300 mb-2">修正建議</h3>
+                    <p class="text-yellow-200 mb-3">${result.correction.suggestion}</p>
+                    
+                    ${result.correction.alternatives && result.correction.alternatives.length > 0 ? `
+                    <div>
+                        <h4 class="font-semibold text-yellow-200 mb-1">建議替代搭配:</h4>
+                        <ul class="list-disc list-inside text-yellow-200 space-y-1">
+                            ${result.correction.alternatives.map(alt => `<li>${alt}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold text-white mb-3">不同Band分數例句</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        ${['5', '6', '7', '8', '9'].map(band => `
+                            <button class="band-example-btn bg-gray-700 hover:bg-gray-600 text-white py-2 px-3 rounded-md text-sm transition-colors"
+                                    data-band="${band}"
+                                    data-phrase="${initialPhrase}"
+                                    data-word="${targetWord}">
+                                Band ${band}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="band-example-container" class="mt-4 bg-gray-700 p-3 rounded-md text-gray-200 hidden">
+                        <!-- Band例句將在這裡顯示 -->
+                    </div>
+                </div>
+            `;
+
+            validationResults.classList.remove('hidden');
+
+            // 添加Band例句按鈕事件
+            document.querySelectorAll('.band-example-btn').forEach(button => {
+                button.addEventListener('click', handleBandExampleRequest);
+            });
+        }
+
+        // 8. 處理搭配驗證的Band分數例句請求
+        async function handleBandExampleRequest(e) {
+            const button = e.currentTarget;
+            const band = button.dataset.band;
+            const phrase = button.dataset.phrase;
+            const word = button.dataset.word;
+            const container = document.getElementById('band-example-container');
+            
+            // 更新UI
+            container.classList.remove('hidden');
+            container.innerHTML = '<div class="flex justify-center"><div class="spinner"></div></div>';
+            
+            // 準備API請求，包含Consistency Manager參數
+            const systemPrompt = `你是一個IELTS寫作例句生成器，受Consistency Manager控制。
+生成規則：
+1. 例句必須包含片語"${phrase}"和詞彙"${word}"
+2. 語義一致性須≥0.9，與原搭配含義保持高度一致
+3. 句長≤25詞
+4. 嚴格符合IELTS Band ${band}的Lexical Resource標準:
+   - Band 9: 詞彙靈活精準，接近母語表達
+   - Band 8: 詞彙廣泛，偶有輕微不精確
+   - Band 7: 詞彙足夠但靈活性有限
+   - Band 6: 詞彙基本滿足需求，有時搭配錯誤
+   - Band 5: 詞彙受限，搭配錯誤頻繁
+5. 生成參數: temperature=${consistencyConfig.temperature}, topK=${consistencyConfig.topK}, 須經${consistencyConfig.selfConsistency}次自我一致性檢查
+6. 僅返回例句文本`;
+
+            const userQuery = `生成Band ${band}難度的例句，包含"${phrase} ${word}"`;
+
+            // 呼叫API
+            const example = await callGeminiAPI(systemPrompt, userQuery);
+
+            // 更新UI
+            if (!example.isError) {
+                const fullPhrase = `${phrase} ${word}`;
+                container.innerHTML = highlight(example, fullPhrase);
+            } else {
+                container.innerHTML = `<span class="text-red-400">無法生成例句: ${example.message}</span>`;
+            }
+        }
+
+        // 註冊事件監聽器
+        predForm.addEventListener('submit', handlePredictionSubmit);
+        valForm.addEventListener('submit', handleValidationSubmit);
+        checkCustomWord.addEventListener('click', handleCustomWordCheck);
+        userCustomWord.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleCustomWordCheck();
+        });
+    </script>
+</body>
+</html>
