@@ -112,7 +112,8 @@
                                 </label>
                                 <label class="block">
                                     <span class="text-xs text-gray-400">上下文詞數 (Context Words)</span>
-                                    <input type="number" id="predContextLen" value="20" min="5" max="50" disabled class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-500 text-sm">
+                                    <!-- T1.4 Fix: 移除 disabled -->
+                                    <input type="number" id="predContextLen" value="20" min="5" max="50" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
                                 </label>
                                 <label class="block">
                                     <span class="text-xs text-gray-400">Self-Consistency Iterations</span>
@@ -200,6 +201,7 @@
         const predTask = document.getElementById('predTask');
         const predTemp = document.getElementById('predTemp');
         const predTopP = document.getElementById('predTopP');
+        const predContextLen = document.getElementById('predContextLen'); // T1.4 抓取 DOM
         const predButton = document.getElementById('predButton');
         const predButtonText = document.getElementById('predButtonText');
         const predLoading = document.getElementById('predLoading');
@@ -224,7 +226,28 @@
         const valError = document.getElementById('valError');
         const validationResults = document.getElementById('validationResults');
 
+        // T1.8 / T2.8 Fix: 重新生成歷史紀錄
+        const regenerationHistory = {};
+
         // --- 核心輔助函式 ---
+
+        /**
+         * T1.4 Fix: 截斷上下文以符合最後 N 個詞
+         * @param {string} text - 完整輸入文字
+         * @param {number} wordCount - 需要保留的最後詞彙數量
+         * @returns {string} - 截斷後的文字
+         */
+        function truncateContext(text, wordCount) {
+            if (!text) return "";
+            const words = text.trim().split(/\s+/); // 按空白拆分
+            const count = parseInt(wordCount, 10) || 20; // 預設 20
+            
+            if (words.length <= count) {
+                return text.trim(); // 不需要截斷
+            }
+            
+            return words.slice(-count).join(' '); // 取最後 N 個詞
+        }
 
         /**
          * 根據PPL獲取 Band 評語 (Cohesion & Coherence)
@@ -394,6 +417,9 @@
             const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
             const temp = predTemp.value;
             const topP = predTopP.value;
+            // T1.4 Fix: 讀取並截斷上下文
+            const contextLen = predContextLen.value;
+            const truncatedPhrase = truncateContext(phrase, contextLen);
 
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
 規則：
@@ -406,7 +432,7 @@
 7. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
 
             const userQuery = `
-輸入片語: "${phrase}"
+輸入片語 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
 詞性過濾: ${posFilter}
 寫作任務: ${taskContext}
 採樣參數 (T=${temp}, TopP=${topP})
@@ -422,7 +448,7 @@
             if (results.isError) {
                 displayError(predError, results.message);
             } else if (Array.isArray(results)) {
-                displayPredictionResults(results, phrase);
+                displayPredictionResults(results, truncatedPhrase); // T1.4 Fix: 傳遞截斷後的片語
             } else {
                 displayError(predError, "收到非預期的回應格式。");
             }
@@ -446,9 +472,13 @@
             customButtonText.textContent = "Checking...";
 
             // 準備 API 請求 (使用單詞模式)
-            const fullPhrase = `${phrase} ${customWord}`;
+            // T1.4 Fix: 讀取並截斷上下文
             const temp = predTemp.value;
             const topP = predTopP.value;
+            const contextLen = predContextLen.value;
+            const truncatedPhrase = truncateContext(phrase, contextLen);
+            const fullPhrase = `${truncatedPhrase} ${customWord}`;
+            
             const customSchema = {
                 type: "OBJECT",
                 properties: {
@@ -462,7 +492,7 @@
                 required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score"]
             };
 
-            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${phrase}」之後的自然度。
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${truncatedPhrase}」之後的自然度。
 規則：
 1. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 2. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
@@ -472,7 +502,7 @@
 6. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
-上下文: "${phrase}"
+上下文 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
 自定詞彙: "${customWord}"
 採樣參數 (T=${temp}, TopP=${topP})
 `;
@@ -600,11 +630,15 @@
             const regenText = button.querySelector('.regen-text');
             const regenLoading = button.querySelector('.regen-loading');
 
+            // T1.8 Fix: 檢查這是否為自動重試
+            const isAutoRetry = button.dataset.isAutoRetry === 'true';
+
             // 設置 UI 為載入中
             button.disabled = true;
             regenText.classList.add('hidden');
             regenLoading.classList.remove('hidden');
-            exampleContainer.innerHTML = `<span class="text-gray-400">正在生成 Band ${band} 例句... (Self-Consistency 3x)</span>`;
+            // T1.8 Fix: 更新載入訊息
+            exampleContainer.innerHTML = `<span class="text-gray-400">正在生成 Band ${band} 例句... ${isAutoRetry ? '(自動回溯重試...)' : '(Self-Consistency 3x)'}</span>`;
 
             // 獲取 Consistency Manager 參數
             const temp = predTemp.value;
@@ -640,10 +674,10 @@ Band 規則: ${bandRules}
 採樣參數 (T=${temp}, TopP=${topP})
 `;
 
-            // 呼叫 API (純文字回應)
+            // 呼叫 API
             const result = await callGeminiAPI(systemPrompt, userQuery, regenSchema, temp, topP);
 
-            // 恢復 UI
+            // 恢復 UI (在 T1.8 檢查前先恢復，以免按鈕卡住)
             button.disabled = false;
             regenText.classList.remove('hidden');
             regenLoading.classList.add('hidden');
@@ -652,13 +686,46 @@ Band 規則: ${bandRules}
             if (result.isError) {
                 exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: ${result.message || '未知錯誤'}</span>`;
             } else if (result.example && result.consistency_score !== undefined) {
+                
+                // T1.8 / T2.8 Fix: 儲存歷史紀錄
+                const historyKey = `${type}-${index}`;
+                if (!regenerationHistory[historyKey]) {
+                    regenerationHistory[historyKey] = [];
+                }
+                regenerationHistory[historyKey].push(result.consistency_score);
+                if (regenerationHistory[historyKey].length > 5) { // 保留最近 5 次
+                    regenerationHistory[historyKey].shift();
+                }
+
+                // T1.8 / T2.8 Fix: Semantic Traceback 模擬
+                // 如果分數低，且這不是一次自動重試
+                if (result.consistency_score < 85 && !isAutoRetry) {
+                    console.warn(`Semantic Traceback (T1.8) 觸發於 ${historyKey}. 分數: ${result.consistency_score}. 自動重試中...`);
+                    
+                    const consistencyContainer = document.getElementById(type === 'prediction' ? `consistency-container-${index}` : `val-consistency-container`);
+                    if (consistencyContainer) {
+                        consistencyContainer.innerHTML = `Consistency: ${result.consistency_score} (<span class="text-yellow-400">低分! 自動回溯重試...</span>)`;
+                    }
+
+                    // 標記並重試一次
+                    button.dataset.isAutoRetry = 'true';
+                    await handleRegeneration(button, band, context, word, type);
+                    
+                    // 重試後，清除標記並退出
+                    button.dataset.isAutoRetry = 'false';
+                    return; // 終止此函數，防止顯示低分結果
+                }
+
+                // --- 正常顯示結果 (分數 $\ge$ 85 或已重試過) ---
+                
                 // 更新例句
                 exampleContainer.innerHTML = highlight(result.example, fullPhrase);
                 
                 // 更新一致性分數顯示
                 const consistencyContainer = document.getElementById(type === 'prediction' ? `consistency-container-${index}` : `val-consistency-container`);
                 if (consistencyContainer) {
-                    consistencyContainer.innerHTML = `Consistency: ${result.consistency_score} (${result.consistency_score >= 85 ? 'Stable' : 'Check'})`;
+                    const status = result.consistency_score >= 85 ? 'Stable' : 'Check';
+                    consistencyContainer.innerHTML = `Consistency: ${result.consistency_score} (${status})`;
                 }
             } else {
                 exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式。</span>`;
@@ -672,7 +739,8 @@ Band 規則: ${bandRules}
 
             e.preventDefault();
             const index = button.dataset.index;
-            const context = button.dataset.context;
+            // T1.4 Fix: 確保傳遞截斷後的 context
+            const context = truncateContext(button.dataset.context, predContextLen.value);
             const word = button.dataset.word;
             
             const bandSelect = document.getElementById(`band-select-${index}`);
@@ -716,6 +784,7 @@ Band 規則: ${bandRules}
             validationResults.innerHTML = '';
             
             // 準備 API 請求
+            // T2.1 / T2.3 Fix: Prompt 保持不變，要求 MI 和 P(w1..wn)，我們將在客戶端計算 L_score
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性。
 規則：
 1. 評估該搭配的自然度，給出一個「可靠度分數 (score)」 (0-100)。
@@ -751,6 +820,9 @@ Band 規則: ${bandRules}
         function displayValidationResult(result, fullPhrase) {
             const { score, p_w_n, mi, lexical_band, lexical_summary, example, grammarCheck, spellingSuggestion, consistency_score } = result;
             
+            // T2.1 / T2.3 Fix: 在客戶端計算 L_score
+            const l_score = (0.7 * mi) + (0.3 * p_w_n);
+
             // 使用本地函數獲取顏色 (因為模型返回的 Band 可能是數字，我們需要顏色來渲染)
             const bandInfo = getLexicalBandDetails(mi);
 
@@ -774,9 +846,11 @@ Band 規則: ${bandRules}
                 </div>
 
                 <div class="space-y-4">
-                    <div class="grid grid-cols-2 text-sm text-gray-300 bg-gray-700/50 p-4 rounded-md">
+                    <!-- T2.1 / T2.3 Fix: 顯示 L_score -->
+                    <div class="grid grid-cols-3 text-sm text-gray-300 bg-gray-700/50 p-4 rounded-md">
                         <p><strong>聯合機率 P(w₁..wₙ):</strong> <span class="text-green-300">${p_w_n.toFixed(6)}</span></p>
                         <p><strong>互資訊 MI:</strong> <span class="text-green-300">${mi.toFixed(3)}</span></p>
+                        <p><strong>L_score (70%MI+30%P):</strong> <span class="text-green-300">${l_score.toFixed(4)}</span></p>
                     </div>
                     
                     <div>
