@@ -370,9 +370,10 @@
                     "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
                     "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
                     "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
-                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" }
+                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
+                    "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" }
                 },
-                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example"]
+                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score"]
             }
         };
         
@@ -401,7 +402,8 @@
 3. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
 4. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。
 5. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
-6. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
+6. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+7. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
 
             const userQuery = `
 輸入片語: "${phrase}"
@@ -454,9 +456,10 @@
                     "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
                     "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
                     "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
-                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" }
+                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
+                    "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" }
                 },
-                required: ["p_w_n", "ppl", "band", "band_summary", "example"]
+                required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score"]
             };
 
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${phrase}」之後的自然度。
@@ -465,7 +468,8 @@
 2. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
 3. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。
 4. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
-5. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+5. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+6. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 上下文: "${phrase}"
@@ -494,9 +498,10 @@
                         </div>
                         <p class="text-sm text-gray-400">${result.band_summary}</p>
                         <hr class="border-gray-600">
-                        <div class="grid grid-cols-2 text-sm text-gray-300">
+                        <div class="grid grid-cols-3 text-sm text-gray-300">
                             <p><strong>P(wₙ|context):</strong> <span class="text-yellow-300">${result.p_w_n.toFixed(4)}</span></p>
                             <p><strong>PPL:</strong> <span class="text-yellow-300">${result.ppl.toFixed(2)}</span></p>
+                            <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
                         </div>
                         <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
                             ${highlight(result.example, fullPhrase)}
@@ -538,6 +543,9 @@
 
                     <div id="example-container-${index}" class="bg-gray-700 p-3 rounded-md text-gray-200">
                         ${highlight(item.example, fullPhrase)}
+                    </div>
+                    <div id="consistency-container-${index}" class="text-xs text-gray-400 text-right mt-1">
+                        Consistency: ${item.consistency_score} (${item.consistency_score >= 85 ? 'Stable' : 'Check'})
                     </div>
                     
                     <!-- Band Control Regeneration -->
@@ -604,6 +612,16 @@
 
             // 準備 API 請求
             const bandRules = `Band ${band} - 詞彙與句式特徵: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
+            
+            // 定義重新生成專用的 Schema
+            const regenSchema = {
+                type: "OBJECT",
+                properties: {
+                    "example": { "type": "STRING", "description": "新生成的例句, $\le 25$ 詞" },
+                    "consistency_score": { "type": "NUMBER", "description": "新例句的語義一致性分數 (0-100)" }
+                },
+                required: ["example", "consistency_score"]
+            };
 
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」和「目標 Band」，生成一個「單一、精簡（最多 25 詞）」的例句。
 原則：
@@ -612,7 +630,8 @@
 3. **搭配完整:** 確保例句中包含完整的搭配「${fullPhrase}」。
 4. **連續性:** 確保搭配中的詞彙是連續且不被標點符號分隔。
 5. **Self-Consistency:** 模擬執行三輪 Self-Consistency 採樣，以確保輸出的穩定性。
-6. 僅輸出該例句，不要包含任何額外說明。`;
+6. 輸出「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+7. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
@@ -622,7 +641,7 @@ Band 規則: ${bandRules}
 `;
 
             // 呼叫 API (純文字回應)
-            const result = await callGeminiAPI(systemPrompt, userQuery, null, temp, topP);
+            const result = await callGeminiAPI(systemPrompt, userQuery, regenSchema, temp, topP);
 
             // 恢復 UI
             button.disabled = false;
@@ -630,10 +649,19 @@ Band 規則: ${bandRules}
             regenLoading.classList.add('hidden');
 
             // 顯示結果
-            if (typeof result === 'string') {
-                exampleContainer.innerHTML = highlight(result, fullPhrase);
-            } else {
+            if (result.isError) {
                 exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: ${result.message || '未知錯誤'}</span>`;
+            } else if (result.example && result.consistency_score !== undefined) {
+                // 更新例句
+                exampleContainer.innerHTML = highlight(result.example, fullPhrase);
+                
+                // 更新一致性分數顯示
+                const consistencyContainer = document.getElementById(type === 'prediction' ? `consistency-container-${index}` : `val-consistency-container`);
+                if (consistencyContainer) {
+                    consistencyContainer.innerHTML = `Consistency: ${result.consistency_score} (${result.consistency_score >= 85 ? 'Stable' : 'Check'})`;
+                }
+            } else {
+                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式。</span>`;
             }
         }
 
@@ -665,9 +693,10 @@ Band 規則: ${bandRules}
                 "lexical_summary": { "type": "STRING", "description": "Lexical Resource 評語摘要" },
                 "example": { "type": "STRING", "description": "不超過 25 個詞的例句" },
                 "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明" },
-                "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" }
+                "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" },
+                "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" }
             },
-            required: ["score", "p_w_n", "mi", "lexical_band", "lexical_summary", "example", "grammarCheck", "spellingSuggestion"]
+            required: ["score", "p_w_n", "mi", "lexical_band", "lexical_summary", "example", "grammarCheck", "spellingSuggestion", "consistency_score"]
         };
 
         async function handleValidationSubmit(e) {
@@ -695,7 +724,8 @@ Band 規則: ${bandRules}
 4. 提供一個「精簡例句 (example)」（最多 25 詞）。
 5. 提供「語法驗證 (grammarCheck)」的簡短結果。
 6. 如果搭配不自然或有明顯拼寫錯誤，提供「替代搭配 (spellingSuggestion)」或修正建議；若無，則返回空字串。
-7. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+8. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
             
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
@@ -719,7 +749,7 @@ Band 規則: ${bandRules}
 
         // 顯示驗證結果
         function displayValidationResult(result, fullPhrase) {
-            const { score, p_w_n, mi, lexical_band, lexical_summary, example, grammarCheck, spellingSuggestion } = result;
+            const { score, p_w_n, mi, lexical_band, lexical_summary, example, grammarCheck, spellingSuggestion, consistency_score } = result;
             
             // 使用本地函數獲取顏色 (因為模型返回的 Band 可能是數字，我們需要顏色來渲染)
             const bandInfo = getLexicalBandDetails(mi);
@@ -764,6 +794,9 @@ Band 規則: ${bandRules}
                         <div id="val-example-container" class="bg-gray-700 p-4 rounded-md text-gray-200 text-lg">
                             ${highlight(example, fullPhrase)}
                         </div>
+                    </div>
+                    <div id="val-consistency-container" class="text-xs text-gray-400 text-right mt-1">
+                        Consistency: ${consistency_score} (${consistency_score >= 85 ? 'Stable' : 'Check'})
                     </div>
 
                     <!-- Band Control Regeneration for Validation -->
