@@ -56,8 +56,8 @@
         <!-- 標題 -->
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
-            <!-- v2.2 更新 -->
-            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness (v2.2) 與 IELTS Band 評估</p>
+            <!-- v3.0 更新 -->
+            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness 與 Grammar Validation Layer (v3.0)</p>
         </header>
 
         <!-- 功能分頁標籤 -->
@@ -230,6 +230,73 @@
         // T1.8 / T2.8 Fix: 重新生成歷史紀錄
         const regenerationHistory = {};
 
+        // --- v3.0 Grammar Validation Layer Schema ---
+        // 根據使用者提供的規格 (I-IV) 定義的共用 Schema
+        const grammarValidationSchemaObject = {
+            "type": "OBJECT",
+            "description": "Grammar Validation Layer v3.0 的詳細分析結果",
+            "properties": {
+                "correctness": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "errors": {
+                            "type": "ARRAY",
+                            "description": "所有文法、拼寫、標點錯誤",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '語境拼寫')" },
+                                    "original": { "type": "STRING", "description": "錯誤的原文" },
+                                    "correction": { "type": "STRING", "description": "修正建議" },
+                                    "explanation": { "type": "STRING", "description": "簡短解釋" }
+                                },
+                                "required": ["type", "original", "correction"]
+                            }
+                        }
+                    },
+                    "required": ["errors"]
+                },
+                "clarity": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "feedback": { "type": "ARRAY", "description": "清晰度問題 (e.g., '流水句', '贅詞')", "items": { "type": "STRING" } },
+                        "rewrite_suggestion": { "type": "STRING", "description": "針對複雜句子的完整重寫建議 (若無則為空字串)" },
+                        "passive_voice_warning": { "type": "BOOLEAN", "description": "是否過度使用被動語態" }
+                    },
+                    "required": ["feedback", "rewrite_suggestion", "passive_voice_warning"]
+                },
+                "engagement": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "feedback": { "type": "ARRAY", "description": "參與度問題 (e.g., '詞彙單調', '句子結構重複')", "items": { "type": "STRING" } },
+                        "vocab_suggestions": {
+                            "type": "ARRAY",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "original": { "type": "STRING" },
+                                    "suggestion": { "type": "STRING" }
+                                },
+                                "required": ["original", "suggestion"]
+                            }
+                        }
+                    },
+                    "required": ["feedback", "vocab_suggestions"]
+                },
+                "delivery": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "detected_tone": { "type": "STRING", "description": "偵測到的語氣" },
+                        "formality": { "type": "STRING", "description": "正式程度 (e.g., '正式', '非正式', '口語化')" },
+                        "inclusive_language_warning": { "type": "BOOLEAN", "description": "是否包含不具包容性的語言" }
+                    },
+                    "required": ["detected_tone", "formality", "inclusive_language_warning"]
+                }
+            },
+            "required": ["correctness", "clarity", "engagement", "delivery"]
+        };
+
+
         // --- 核心輔助函式 ---
 
         /**
@@ -310,6 +377,64 @@
             });
         }
 
+        /**
+         * v3.0: 渲染 Grammar Validation Layer 的 HTML 報告
+         * @param {object} validation - grammar_validation 物件
+         * @returns {string} - 格式化後的 HTML
+         */
+        function renderGrammarValidation(validation) {
+            if (!validation) {
+                return '<div class="text-xs text-red-400">文法驗證資料缺失。</div>';
+            }
+
+            let html = '<div class="space-y-2 mt-2 pt-2 border-t border-gray-600 text-xs text-left">'; // 改為 text-left
+            
+            // I. 正確性
+            const { correctness, clarity, engagement, delivery } = validation;
+            html += '<h5 class="font-semibold text-gray-300">文法驗證報告 (v3.0)</h5>';
+            
+            if (correctness && correctness.errors && correctness.errors.length > 0) {
+                html += `<div class="text-yellow-400">I. 正確性: ${correctness.errors.length} 個問題</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                correctness.errors.slice(0, 2).forEach(err => { // 最多顯示 2 個
+                    html += `<li>[${err.type}] <strong>"${err.original}"</strong> &rarr; <strong>"${err.correction}"</strong></li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<div class="text-green-400">I. 正確性: 檢查通過。</div>';
+            }
+
+            // II. 清晰度
+            if (clarity && (clarity.feedback.length > 0 || clarity.rewrite_suggestion || clarity.passive_voice_warning)) {
+                html += `<div class="text-blue-300 mt-1">II. 清晰度:</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                clarity.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`); // 最多 1 個
+                if (clarity.passive_voice_warning) html += '<li>提醒: 過度使用被動語態。</li>';
+                if (clarity.rewrite_suggestion) html += `<li>重寫建議: <span class="text-blue-200">${clarity.rewrite_suggestion}</span></li>`;
+                html += '</ul>';
+            } else {
+                html += '<div class="text-green-400">II. 清晰度: 檢查通過。</div>';
+            }
+
+            // III. 參與度
+            if (engagement && (engagement.feedback.length > 0 || engagement.vocab_suggestions.length > 0)) {
+                html += `<div class="text-purple-300 mt-1">III. 參與度:</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                engagement.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`);
+                engagement.vocab_suggestions.slice(0, 1).forEach(vs => html += `<li>詞彙建議: ${vs.original} &rarr; ${vs.suggestion}</li>`);
+                html += '</ul>';
+            }
+
+            // IV. 傳遞性
+            if (delivery) {
+                html += `<div class="text-gray-300 mt-1">IV. 語氣: ${delivery.detected_tone} | 正式度: ${delivery.formality}</div>`;
+                if(delivery.inclusive_language_warning) html += '<div class="text-yellow-400">提醒: 包含不具包容性的語言。</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
         // --- API 呼叫邏輯 ---
 
         /**
@@ -385,7 +510,7 @@
 
         // --- Prediction Tab 邏輯 ---
 
-        // v2.2 更新: 新增 grammar_error_count 和 clarity_score
+        // v3.0 更新: 使用 v3.0 Grammar Validation Layer Schema
         const predictionSchema = {
             type: "ARRAY",
             maxItems: 6,
@@ -399,10 +524,9 @@
                     "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
                     "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
                     "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
-                    "grammar_error_count": { "type": "NUMBER", "description": "Grammarly 語法錯誤計數 (應為 0)" },
-                    "clarity_score": { "type": "NUMBER", "description": "Grammarly 清晰度分數 (應 $\ge 90$)" }
+                    "grammar_validation": grammarValidationSchemaObject // v3.0 替換
                 },
-                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_error_count", "clarity_score"]
+                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
             }
         };
         
@@ -427,7 +551,7 @@
             const contextLen = predContextLen.value;
             const truncatedPhrase = truncateContext(phrase, contextLen);
 
-            // v2.2 更新: 新增 Grammar Validation Layer 規則
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
 規則：
 1. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
@@ -436,9 +560,12 @@
 4. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。
 5. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
 6. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
-7. 【Grammar Validation v2.2】: 所有生成的 'example' 必須通過 Grammarly Premium 驗證 (Error Count = 0, Clarity Score $\ge 90$)。
-8. 為 'example' 提供 'grammar_error_count' 和 'clarity_score'。
-9. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
+7. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤 (e.g., 主謂一致, 懸垂修飾語, 語境拼寫)。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone' (e.g., '中性', '學術'), 'formality' (e.g., '正式')，並檢查 'inclusive_language_warning'。
+8. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
 
             const userQuery = `
 輸入片語 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
@@ -463,6 +590,21 @@
             }
         }
         
+        // v3.0: 更新 customSchema
+        const customSchema = {
+            type: "OBJECT",
+            properties: {
+                "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
+                "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
+                "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
+                "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
+                "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
+                "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+            },
+            required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
+        };
+
         // 處理自定詞彙驗證
         async function handleCustomWordCheck(e) {
             e.preventDefault();
@@ -487,24 +629,8 @@
             const contextLen = predContextLen.value;
             const truncatedPhrase = truncateContext(phrase, contextLen);
             const fullPhrase = `${truncatedPhrase} ${customWord}`;
-            
-            // v2.2 更新: 新增 grammar_error_count 和 clarity_score
-            const customSchema = {
-                type: "OBJECT",
-                properties: {
-                    "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
-                    "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
-                    "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
-                    "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
-                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
-                    "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
-                    "grammar_error_count": { "type": "NUMBER", "description": "Grammarly 語法錯誤計數 (應為 0)" },
-                    "clarity_score": { "type": "NUMBER", "description": "Grammarly 清晰度分數 (應 $\ge 90$)" }
-                },
-                required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_error_count", "clarity_score"]
-            };
 
-            // v2.2 更新: 新增 Grammar Validation Layer 規則
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${truncatedPhrase}」之後的自然度。
 規則：
 1. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
@@ -512,9 +638,12 @@
 3. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。
 4. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
 5. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
-6. 【Grammar Validation v2.2】: 生成的 'example' 必須通過 Grammarly Premium 驗證 (Error Count = 0, Clarity Score $\ge 90$)。
-7. 為 'example' 提供 'grammar_error_count' 和 'clarity_score'。
-8. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+6. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+7. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 上下文 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
@@ -535,7 +664,7 @@
                 // 獲取 Band 資訊 (雖然模型已返回，但我們使用本地函數來標準化顏色)
                 const bandInfo = getCohesionBandDetails(result.ppl);
                 
-                // v2.2 更新: 顯示 grammar/clarity
+                // v3.0 更新: 顯示 Grammar Validation Layer
                 customResults.innerHTML = `
                     <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
                         <div class="flex items-center justify-between">
@@ -549,13 +678,11 @@
                             <p><strong>PPL:</strong> <span class="text-yellow-300">${result.ppl.toFixed(2)}</span></p>
                             <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
                         </div>
-                        <div class="grid grid-cols-2 text-sm text-gray-300 mt-1">
-                            <p><strong>Grammar Errors:</strong> <span class="text-yellow-300">${result.grammar_error_count}</span></p>
-                            <p><strong>Clarity Score:</strong> <span class="text-yellow-300">${result.clarity_score}</span></p>
-                        </div>
                         <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
                             ${highlight(result.example, fullPhrase)}
                         </div>
+                        <!-- v3.0 Grammar Validation Layer 注入點 -->
+                        ${renderGrammarValidation(result.grammar_validation)}
                     </div>
                 `;
             } else {
@@ -564,7 +691,7 @@
         }
 
 
-        // 顯示預測結果
+        // v3.0: 更新顯示預測結果
         function displayPredictionResults(results, inputPhrase) {
             if (results.length === 0) {
                 predictionResults.innerHTML = `<p class="text-gray-400 md:col-span-2 text-center">找不到符合條件的預測詞彙。</p>`;
@@ -573,11 +700,10 @@
 
             results.forEach((item, index) => {
                 const fullPhrase = `${inputPhrase} ${item.word}`;
-                // 使用本地函數獲取顏色 (因為模型返回的 Band 可能是數字，我們需要顏色來渲染)
+                // 使用本地函數獲取顏色
                 const bandInfo = getCohesionBandDetails(item.ppl);
 
-                // v2.2 更新: 處理 grammar/clarity 狀態
-                const grammarStatus = item.grammar_error_count === 0 && item.clarity_score >= 90 ? 'Passed' : 'Review';
+                // v3.0 更新: 處理 consistency 狀態
                 const consistencyStatus = item.consistency_score >= 85 ? 'Stable' : 'Check';
 
                 const card = document.createElement('div');
@@ -598,10 +724,13 @@
                     <div id="example-container-${index}" class="bg-gray-700 p-3 rounded-md text-gray-200">
                         ${highlight(item.example, fullPhrase)}
                     </div>
-                    <!-- v2.2 更新: 顯示 Consistency 和 Grammar -->
+                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
                     <div id="metrics-container-${index}" class="text-xs text-gray-400 text-right mt-1 space-y-1">
                         <div>Consistency: ${item.consistency_score} (${consistencyStatus})</div>
-                        <div>Grammar: ${item.grammar_error_count} Errors | Clarity: ${item.clarity_score} (${grammarStatus})</div>
+                    </div>
+                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <div id="grammar-validation-${index}">
+                        ${renderGrammarValidation(item.grammar_validation)}
                     </div>
                     
                     <!-- Band Control Regeneration -->
@@ -647,6 +776,17 @@
             if (loadingEl) displayDone(loadingEl, buttonEl, textEl, buttonMessage);
         }
 
+        // v3.0: 更新 regenSchema
+        const regenSchema = {
+            type: "OBJECT",
+            properties: {
+                "example": { "type": "STRING", "description": "新生成的例句, $\le 25$ 詞" },
+                "consistency_score": { "type": "NUMBER", "description": "新例句的語義一致性分數 (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+            },
+            required: ["example", "consistency_score", "grammar_validation"] // v3.0 替換
+        };
+
         // 統一的例句重新生成邏輯 (Prediction & Validation 共用)
         async function handleRegeneration(button, band, context, word, type) {
             const index = button.dataset.index;
@@ -672,20 +812,8 @@
 
             // 準備 API 請求
             const bandRules = `Band ${band} - 詞彙與句式特徵: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
-            
-            // v2.2 更新: 新增 grammar_error_count 和 clarity_score
-            const regenSchema = {
-                type: "OBJECT",
-                properties: {
-                    "example": { "type": "STRING", "description": "新生成的例句, $\le 25$ 詞" },
-                    "consistency_score": { "type": "NUMBER", "description": "新例句的語義一致性分數 (0-100)" },
-                    "grammar_error_count": { "type": "NUMBER", "description": "Grammarly 語法錯誤計數 (應為 0)" },
-                    "clarity_score": { "type": "NUMBER", "description": "Grammarly 清晰度分數 (應 $\ge 90$)" }
-                },
-                required: ["example", "consistency_score", "grammar_error_count", "clarity_score"]
-            };
 
-            // v2.2 更新: 新增 Grammar Validation Layer 規則
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」和「目標 Band」，生成一個「單一、精簡（最多 25 詞）」的例句。
 原則：
 1. **語義一致性 ($\ge 0.9$):** 新生成的例句必須與當前例句語義保持高度一致，差異僅在於句法結構和詞彙選擇。
@@ -694,9 +822,12 @@
 4. **連續性:** 確保搭配中的詞彙是連續且不被標點符號分隔。
 5. **Self-Consistency:** 模擬執行三輪 Self-Consistency 採樣，以確保輸出的穩定性。
 6. 輸出「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
-7. 【Grammar Validation v2.2】: 新生成的 'example' 必須通過 Grammarly Premium 驗證 (Error Count = 0, Clarity Score $\ge 90$)。
-8. 為 'example' 提供 'grammar_error_count' 和 'clarity_score'。
-9. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+7. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+8. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
@@ -716,7 +847,7 @@ Band 規則: ${bandRules}
             // 顯示結果
             if (result.isError) {
                 exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: ${result.message || '未知錯誤'}</span>`;
-            } else if (result.example && result.consistency_score !== undefined) {
+            } else if (result.example && result.consistency_score !== undefined && result.grammar_validation) {
                 
                 // T1.8 / T2.8 Fix: 儲存歷史紀錄
                 const historyKey = `${type}-${index}`;
@@ -733,14 +864,19 @@ Band 規則: ${bandRules}
                 if (result.consistency_score < 85 && !isAutoRetry) {
                     console.warn(`Semantic Traceback (T1.8) 觸發於 ${historyKey}. 分數: ${result.consistency_score}. 自動重試中...`);
                     
-                    // v2.2 更新: 抓取 metrics container
+                    // v3.0 更新: 抓取 metrics container
                     const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
                     if (metricsContainer) {
                         metricsContainer.innerHTML = `
                             <div>Consistency: ${result.consistency_score} (<span class="text-yellow-400">低分! 自動回溯重試...</span>)</div>
-                            <div>Grammar: ${result.grammar_error_count} Errors | Clarity: ${result.clarity_score}</div>
                         `;
                     }
+                    // v3.0 更新: 抓取 grammar container
+                    const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
+                    if (grammarContainer) {
+                        grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
+                    }
+
 
                     // 標記並重試一次
                     button.dataset.isAutoRetry = 'true';
@@ -756,18 +892,21 @@ Band 規則: ${bandRules}
                 // 更新例句
                 exampleContainer.innerHTML = highlight(result.example, fullPhrase);
                 
-                // v2.2 更新: 更新 metrics container
+                // v3.0 更新: 更新 metrics container
                 const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
                 if (metricsContainer) {
-                    const grammarStatus = result.grammar_error_count === 0 && result.clarity_score >= 90 ? 'Passed' : 'Review';
                     const consistencyStatus = result.consistency_score >= 85 ? 'Stable' : 'Check';
                     metricsContainer.innerHTML = `
                         <div>Consistency: ${result.consistency_score} (${consistencyStatus})</div>
-                        <div>Grammar: ${result.grammar_error_count} Errors | Clarity: ${result.clarity_score} (${grammarStatus})</div>
                     `;
                 }
+                // v3.0 更新: 更新 grammar container
+                const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
+                if (grammarContainer) {
+                    grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
+                }
             } else {
-                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式。</span>`;
+                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式 (缺少 grammar_validation)。</span>`;
             }
         }
 
@@ -790,8 +929,7 @@ Band 規則: ${bandRules}
 
         // --- Validation Tab 邏輯 ---
 
-        // S_Naturalness v2.2 修正版 Schema
-        // 新增 example_grammar_error_count 和 example_clarity_score
+        // v3.0: 更新 validationSchema
         const validationSchema = {
             type: "OBJECT",
             properties: {
@@ -802,10 +940,9 @@ Band 規則: ${bandRules}
                 "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明 (應與 L_acc_norm 一致)" },
                 "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" },
                 "consistency_score": { "type": "NUMBER", "description": "範例句的語義一致性分數 (0-100)" },
-                "example_grammar_error_count": { "type": "NUMBER", "description": "範例句的 Grammarly 語法錯誤計數 (應為 0)" },
-                "example_clarity_score": { "type": "NUMBER", "description": "範例句的 Grammarly 清晰度分數 (應 $\ge 90$)" }
+                "example_grammar_validation": grammarValidationSchemaObject // v3.0 替換
             },
-            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score", "example_grammar_error_count", "example_clarity_score"]
+            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score", "example_grammar_validation"] // v3.0 替換
         };
 
         async function handleValidationSubmit(e) {
@@ -824,8 +961,7 @@ Band 規則: ${bandRules}
             validationResults.classList.add('hidden');
             validationResults.innerHTML = '';
             
-            // S_Naturalness v2.2 修正版 System Prompt
-            // 新增 Grammar Validation Layer 規則
+            // S_Naturalness v3.0 (使用者自訂) 修正版 System Prompt
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
 規則：
 1. 提供「Fpm」 (該片語在語料庫中每百萬詞的出現頻率)。
@@ -835,9 +971,12 @@ Band 規則: ${bandRules}
 5. 提供「語法驗證 (grammarCheck)」的簡短結果 (這應與 L_acc_norm 一致)。
 6. 如果搭配不自然或有明顯拼寫錯誤，提供「替代搭配 (spellingSuggestion)」或修正建議；若無，則返回空字串。
 7. 為 'example' 提供「一致性分數 (consistency_score)」(0-100)。
-8. 【Grammar Validation v2.2】: 生成的 'example' 必須通過 Grammarly Premium 驗證 (Error Count = 0, Clarity Score $\ge 90$)。
-9. 為 'example' 提供 'example_grammar_error_count' 和 'example_clarity_score'。
-10. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+8. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'example_grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+9. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
             
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
@@ -852,19 +991,19 @@ Band 規則: ${bandRules}
             // 處理 API 回應
             if (result.isError) {
                 displayError(valError, result.message);
-            } else if (result.Fpm !== undefined && result.MI !== undefined && result.L_acc_norm !== undefined && result.example_grammar_error_count !== undefined && result.example_clarity_score !== undefined) {
-                // S_Naturalness v2.2 修正版：檢查新欄位
+            } else if (result.Fpm !== undefined && result.MI !== undefined && result.L_acc_norm !== undefined && result.example_grammar_validation !== undefined) {
+                // v3.0 修正版：檢查新欄位
                 displayValidationResult(result, fullPhrase);
             } else {
-                displayError(valError, "收到非預期的回應格式。");
+                displayError(valError, "收到非預期的回應格式 (缺少 example_grammar_validation)。");
             }
         }
 
-        // 顯示驗證結果 (S_Naturalness v2.2 修正版)
+        // v3.0: 顯示驗證結果
         function displayValidationResult(result, fullPhrase) {
             // 根據 S_Naturalness 流程解構 API 回應
-            // v2.2 更新: 解構新欄位
-            const { Fpm, MI, L_acc_norm, example, grammarCheck, spellingSuggestion, consistency_score, example_grammar_error_count, example_clarity_score } = result;
+            // v3.0 更新: 解構新欄位
+            const { Fpm, MI, L_acc_norm, example, grammarCheck, spellingSuggestion, consistency_score, example_grammar_validation } = result;
             
             // S_Naturalness 運算 (七步驟流程)
             // 範例參數（正規化基準）
@@ -900,8 +1039,7 @@ Band 規則: ${bandRules}
                 `;
             }
 
-            // v2.2 更新: 處理 grammar/clarity 狀態
-            const grammarStatus = example_grammar_error_count === 0 && example_clarity_score >= 90 ? 'Passed' : 'Review';
+            // v3.0 更新: 處理 consistency 狀態
             const consistencyStatus = consistency_score >= 85 ? 'Stable' : 'Check';
 
             validationResults.innerHTML = `
@@ -915,7 +1053,7 @@ Band 規則: ${bandRules}
                 </div>
 
                 <div class="space-y-4">
-                    <!-- S_Naturalness v2.1 修正版: 顯示 S_Naturalness 計算流程 -->
+                    <!-- S_Naturalness v2.1 修正版: 顯示 S_Naturalness 計算詳情 -->
                     <div class="bg-gray-700/50 p-4 rounded-md space-y-3">
                         <h4 class="font-semibold text-gray-300 text-center">S_Naturalness (自然度) 計算詳情</h4>
                         <div class="grid grid-cols-3 text-sm text-gray-300 text-center">
@@ -946,10 +1084,13 @@ Band 規則: ${bandRules}
                             ${highlight(example, fullPhrase)}
                         </div>
                     </div>
-                    <!-- v2.2 更新: 顯示 Consistency 和 Grammar -->
+                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
                     <div id="val-metrics-container" class="text-xs text-gray-400 text-right mt-1 space-y-1">
                         <div>Consistency: ${consistency_score} (${consistencyStatus})</div>
-                        <div>Grammar: ${example_grammar_error_count} Errors | Clarity: ${example_clarity_score} (${grammarStatus})</div>
+                    </div>
+                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <div id="val-grammar-validation">
+                        ${renderGrammarValidation(example_grammar_validation)}
                     </div>
 
                     <!-- Band Control Regeneration for Validation -->
