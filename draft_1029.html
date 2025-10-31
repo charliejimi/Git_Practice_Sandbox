@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS 智慧詞彙與搭配系統</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Inter 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基本樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Highlight 樣式 */
+        .highlight {
+            background-color: rgba(147, 197, 253, 0.4); /* blue-300/40 */
+            color: #dbeafe; /* text-blue-100 */
+            font-weight: 600;
+            padding: 0 2px;
+            border-radius: 3px;
+            white-space: nowrap; /* 確保高亮部分不斷行 */
+        }
+        /* 隱藏元素 */
+        .hidden {
+            display: none;
+        }
+        /* 簡易 Spinner 動畫 */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .band-tag {
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- 標題 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
+            <!-- v3.0 更新 -->
+            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness 與 Grammar Validation Layer (v3.0)</p>
+        </header>
+
+        <!-- 功能分頁標籤 -->
+        <div class="flex justify-center mb-6 border-b border-gray-700">
+            <button id="tabPrediction" class="tab-button px-6 py-3 font-semibold text-white bg-gray-800 rounded-t-lg -mb-px border-t border-l border-r border-gray-700">
+                1. 詞彙預測 (Prediction)
+            </button>
+            <button id="tabValidation" class="tab-button px-6 py-3 font-semibold text-gray-400 hover:bg-gray-800/50 rounded-t-lg">
+                2. 搭配驗證 (Validation)
+            </button>
+        </div>
+
+        <!-- 主要內容區域 -->
+        <main>
+            <!-- 1. 詞彙預測 (Prediction) 內容 -->
+            <div id="predictionContent">
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
+                    <form id="predictionForm" class="space-y-4">
+                        <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">輸入英文上下文片段 (Context Phrase)</label>
+                        <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：The government should implement effective policies to...">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">指定詞性 (POS Filter)</label>
+                                <select id="predPos" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="any">所有詞性 (Any)</option>
+                                    <option value="N">名詞 (Noun)</option>
+                                    <option value="V">動詞 (Verb)</option>
+                                    <option value="Adj">形容詞 (Adjective)</option>
+                                    <option value="Adv">副詞 (Adverb)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="predTask" class="block text-sm font-medium text-gray-300 mb-2">寫作任務 (IELTS Task)</label>
+                                <select id="predTask" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="general">通用 (General)</option>
+                                    <option value="task1">Task 1</option>
+                                    <option value="task2">Task 2</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-700">
+                            <h3 class="text-sm font-medium text-gray-300 mb-2">一致性控制 (Consistency Manager)</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <label class="block">
+                                    <span class="text-xs text-gray-400">溫度 (Temperature)</span>
+                                    <input type="number" id="predTemp" value="0.7" step="0.1" min="0.1" max="1.0" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs text-gray-400">Top-P (核採樣)</span>
+                                    <input type="number" id="predTopP" value="0.95" step="0.05" min="0.0" max="1.0" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs text-gray-400">上下文詞數 (Context Words)</span>
+                                    <!-- T1.4 Fix: 移除 disabled -->
+                                    <input type="number" id="predContextLen" value="20" min="5" max="50" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs text-gray-400">Self-Consistency Iterations</span>
+                                    <input type="number" id="predSC" value="3" min="1" max="5" disabled class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-500 text-sm">
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="predButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 mt-4">
+                            <span id="predButtonText">獲取 6 個預測詞彙 (Get Predictions)</span>
+                            <div id="predLoading" class="spinner hidden"></div>
+                        </button>
+                    </form>
+
+                    <!-- 自定詞彙驗證區 -->
+                    <div class="pt-6 border-t border-gray-700 mt-6">
+                        <h2 class="text-xl font-semibold text-white mb-3">2. 驗證自定詞彙 (Custom Word Check)</h2>
+                        <form id="customWordForm" class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="text" id="customWordInput" class="bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" placeholder="輸入你想接的詞 (e.g., 'growth')">
+                                <button type="submit" id="customButton" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                                    <span id="customButtonText">Check Word</span>
+                                    <div id="customLoading" class="spinner hidden"></div>
+                                </button>
+                            </div>
+                        </form>
+                        <div id="customResults" class="mt-4"></div>
+                    </div>
+                </div>
+
+                <!-- 預測結果區域 -->
+                <div id="predError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                <div id="predictionResults" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 預測結果卡片將動態插入此處 -->
+                </div>
+            </div>
+
+            <!-- 2. 搭配驗證 (Validation) 內容 -->
+            <div id="validationContent" class="hidden">
+                <form id="validationForm" class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
+                    <div>
+                        <label for="valInput1" class="block text-sm font-medium text-gray-300 mb-2">搭配片語 - 前半部 (Initial Phrase)</label>
+                        <input type="text" id="valInput1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：make a">
+                    </div>
+                    <div>
+                        <label for="valInput2" class="block text-sm font-medium text-gray-300 mb-2">搭配片語 - 後半部 (Target Word/Phrase)</label>
+                        <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：decision">
+                    </div>
+                    
+                    <button type="submit" id="valButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                        <span id="valButtonText">驗證搭配 (Validate Collocation)</span>
+                        <div id="valLoading" class="spinner hidden"></div>
+                    </button>
+                </form>
+
+                <!-- 驗證結果區域 -->
+                <div id="valError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                <div id="validationResults" class="mt-8 bg-gray-800 p-6 rounded-lg shadow-xl hidden">
+                    <!-- 驗證結果將動態插入此處 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script type="module">
+        // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
+        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // --- DOM 元素參照 ---
+        const tabs = {
+            prediction: document.getElementById('tabPrediction'),
+            validation: document.getElementById('tabValidation')
+        };
+        const contents = {
+            prediction: document.getElementById('predictionContent'),
+            validation: document.getElementById('validationContent')
+        };
+        
+        // 預測 (Prediction) 相關元素
+        const predForm = document.getElementById('predictionForm');
+        const predInput = document.getElementById('predInput');
+        const predPos = document.getElementById('predPos');
+        const predTask = document.getElementById('predTask');
+        const predTemp = document.getElementById('predTemp');
+        const predTopP = document.getElementById('predTopP');
+        const predContextLen = document.getElementById('predContextLen'); // T1.4 抓取 DOM
+        const predButton = document.getElementById('predButton');
+        const predButtonText = document.getElementById('predButtonText');
+        const predLoading = document.getElementById('predLoading');
+        const predError = document.getElementById('predError');
+        const predictionResults = document.getElementById('predictionResults');
+
+        // 自定詞彙 (Custom Word) 相關元素
+        const customWordForm = document.getElementById('customWordForm');
+        const customWordInput = document.getElementById('customWordInput');
+        const customButton = document.getElementById('customButton');
+        const customButtonText = document.getElementById('customButtonText');
+        const customLoading = document.getElementById('customLoading');
+        const customResults = document.getElementById('customResults');
+
+        // 驗證 (Validation) 相關元素
+        const valForm = document.getElementById('validationForm');
+        const valInput1 = document.getElementById('valInput1');
+        const valInput2 = document.getElementById('valInput2');
+        const valButton = document.getElementById('valButton');
+        const valButtonText = document.getElementById('valButtonText');
+        const valLoading = document.getElementById('valLoading');
+        const valError = document.getElementById('valError');
+        const validationResults = document.getElementById('validationResults');
+
+        // T1.8 / T2.8 Fix: 重新生成歷史紀錄
+        const regenerationHistory = {};
+
+        // --- v3.0 Grammar Validation Layer Schema ---
+        // 根據使用者提供的規格 (I-IV) 定義的共用 Schema
+        const grammarValidationSchemaObject = {
+            "type": "OBJECT",
+            "description": "Grammar Validation Layer v3.0 的詳細分析結果",
+            "properties": {
+                "correctness": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "errors": {
+                            "type": "ARRAY",
+                            "description": "所有文法、拼寫、標點錯誤",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '語境拼寫')" },
+                                    "original": { "type": "STRING", "description": "錯誤的原文" },
+                                    "correction": { "type": "STRING", "description": "修正建議" },
+                                    "explanation": { "type": "STRING", "description": "簡短解釋" }
+                                },
+                                "required": ["type", "original", "correction"]
+                            }
+                        }
+                    },
+                    "required": ["errors"]
+                },
+                "clarity": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "feedback": { "type": "ARRAY", "description": "清晰度問題 (e.g., '流水句', '贅詞')", "items": { "type": "STRING" } },
+                        "rewrite_suggestion": { "type": "STRING", "description": "針對複雜句子的完整重寫建議 (若無則為空字串)" },
+                        "passive_voice_warning": { "type": "BOOLEAN", "description": "是否過度使用被動語態" }
+                    },
+                    "required": ["feedback", "rewrite_suggestion", "passive_voice_warning"]
+                },
+                "engagement": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "feedback": { "type": "ARRAY", "description": "參與度問題 (e.g., '詞彙單調', '句子結構重複')", "items": { "type": "STRING" } },
+                        "vocab_suggestions": {
+                            "type": "ARRAY",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "original": { "type": "STRING" },
+                                    "suggestion": { "type": "STRING" }
+                                },
+                                "required": ["original", "suggestion"]
+                            }
+                        }
+                    },
+                    "required": ["feedback", "vocab_suggestions"]
+                },
+                "delivery": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "detected_tone": { "type": "STRING", "description": "偵測到的語氣" },
+                        "formality": { "type": "STRING", "description": "正式程度 (e.g., '正式', '非正式', '口語化')" },
+                        "inclusive_language_warning": { "type": "BOOLEAN", "description": "是否包含不具包容性的語言" }
+                    },
+                    "required": ["detected_tone", "formality", "inclusive_language_warning"]
+                }
+            },
+            "required": ["correctness", "clarity", "engagement", "delivery"]
+        };
+
+
+        // --- 核心輔助函式 ---
+
+        /**
+         * T1.4 Fix: 截斷上下文以符合最後 N 個詞
+         * @param {string} text - 完整輸入文字
+         * @param {number} wordCount - 需要保留的最後詞彙數量
+         * @returns {string} - 截斷後的文字
+         */
+        function truncateContext(text, wordCount) {
+            if (!text) return "";
+            const words = text.trim().split(/\s+/); // 按空白拆分
+            const count = parseInt(wordCount, 10) || 20; // 預設 20
+            
+            if (words.length <= count) {
+                return text.trim(); // 不需要截斷
+            }
+            
+            return words.slice(-count).join(' '); // 取最後 N 個詞
+        }
+
+        /**
+         * 根據PPL獲取 Band 評語 (Cohesion & Coherence)
+         * @param {number} ppl - 困惑度
+         * @returns {object} - { band, summary, color }
+         */
+        function getCohesionBandDetails(ppl) {
+            if (ppl <= 20) {
+                return { band: 9, summary: '句意流暢、銜接自然、連貫度極高。', color: 'bg-indigo-600' };
+            } else if (ppl <= 40) {
+                return { band: 8, summary: '結構清晰、銜接順暢、僅偶有輕微不自然。', color: 'bg-purple-600' };
+            } else if (ppl <= 60) {
+                return { band: 7, summary: '句法連貫但略顯機械，部分連接詞或指代使用不精確。', color: 'bg-blue-600' };
+            } else if (ppl <= 80) {
+                return { band: 6, summary: '有整體邏輯但語篇銜接偶有失衡或重複。', color: 'bg-yellow-600' };
+            } else {
+                return { band: 5, summary: '結構鬆散、句與句間缺乏自然銜接或過度機械。', color: 'bg-red-600' };
+            }
+        }
+
+        /**
+         * 【S_Naturalness v2.1 修正版】
+         * 根據 S_Naturalness 獲取 Band 評語 (Lexical Resource)
+         * @param {number} s - S_Naturalness 自然度分數
+         * @returns {object} - { band, summary, color }
+         */
+        function getLexicalBandDetails(s) {
+             if (s >= 0.85) {
+                return { band: 9, summary: '完全自然、極高搭配強度；接近母語級表達。', color: 'bg-indigo-600' };
+            } else if (s >= 0.75) {
+                return { band: 8, summary: '流暢靈活、少許誤用；仍屬高階搭配。', color: 'bg-purple-600' };
+            } else if (s >= 0.60) {
+                return { band: 7, summary: '可理解且常見，但略顯機械或重複。', color: 'bg-blue-600' };
+            } else if (s >= 0.40) {
+                return { band: 6, summary: '中等自然度；語意清楚但搭配不地道。', color: 'bg-yellow-600' };
+            } else {
+                // S < 0.40
+                return { band: 5, summary: '不自然或生硬；建議替換。', color: 'bg-red-600' };
+            }
+        }
+
+        /**
+         * 高亮顯示例句中的片語
+         * @param {string} text - 完整的例句
+         * @param {string} phraseToHighlight - 需要高亮的片語
+         * @returns {string} - 包含 HTML <span class="highlight"> 的字串
+         */
+        function highlight(text, phraseToHighlight) {
+            if (!text || !phraseToHighlight) return text;
+            // 替換所有非單詞字元為空白，以確保正確匹配詞彙邊界
+            const cleanedPhrase = phraseToHighlight.trim().replace(/[\W_]+/g,"\\s*");
+            // 使用正則表達式進行不區分大小寫的替換
+            const regex = new RegExp(`(${cleanedPhrase})`, 'gi');
+            
+            // 使用 match 函式確保原始大小寫被保留
+            return text.replace(regex, (match, p1) => {
+                // p1 是原始匹配的群組，確保我們只高亮這部分
+                return `<span class="highlight">${match}</span>`;
+            });
+        }
+
+        /**
+         * v3.0: 渲染 Grammar Validation Layer 的 HTML 報告
+         * @param {object} validation - grammar_validation 物件
+         * @returns {string} - 格式化後的 HTML
+         */
+        function renderGrammarValidation(validation) {
+            if (!validation) {
+                return '<div class="text-xs text-red-400">文法驗證資料缺失。</div>';
+            }
+
+            let html = '<div class="space-y-2 mt-2 pt-2 border-t border-gray-600 text-xs text-left">'; // 改為 text-left
+            
+            // I. 正確性
+            const { correctness, clarity, engagement, delivery } = validation;
+            html += '<h5 class="font-semibold text-gray-300">文法驗證報告 (v3.0)</h5>';
+            
+            if (correctness && correctness.errors && correctness.errors.length > 0) {
+                html += `<div class="text-yellow-400">I. 正確性: ${correctness.errors.length} 個問題</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                correctness.errors.slice(0, 2).forEach(err => { // 最多顯示 2 個
+                    html += `<li>[${err.type}] <strong>"${err.original}"</strong> &rarr; <strong>"${err.correction}"</strong></li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<div class="text-green-400">I. 正確性: 檢查通過。</div>';
+            }
+
+            // II. 清晰度
+            if (clarity && (clarity.feedback.length > 0 || clarity.rewrite_suggestion || clarity.passive_voice_warning)) {
+                html += `<div class="text-blue-300 mt-1">II. 清晰度:</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                clarity.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`); // 最多 1 個
+                if (clarity.passive_voice_warning) html += '<li>提醒: 過度使用被動語態。</li>';
+                if (clarity.rewrite_suggestion) html += `<li>重寫建議: <span class="text-blue-200">${clarity.rewrite_suggestion}</span></li>`;
+                html += '</ul>';
+            } else {
+                html += '<div class="text-green-400">II. 清晰度: 檢查通過。</div>';
+            }
+
+            // III. 參與度
+            if (engagement && (engagement.feedback.length > 0 || engagement.vocab_suggestions.length > 0)) {
+                html += `<div class="text-purple-300 mt-1">III. 參與度:</div>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
+                engagement.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`);
+                engagement.vocab_suggestions.slice(0, 1).forEach(vs => html += `<li>詞彙建議: ${vs.original} &rarr; ${vs.suggestion}</li>`);
+                html += '</ul>';
+            }
+
+            // IV. 傳遞性
+            if (delivery) {
+                html += `<div class="text-gray-300 mt-1">IV. 語氣: ${delivery.detected_tone} | 正式度: ${delivery.formality}</div>`;
+                if(delivery.inclusive_language_warning) html += '<div class="text-yellow-400">提醒: 包含不具包容性的語言。</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // --- API 呼叫邏輯 ---
+
+        /**
+         * 呼叫 Gemini API
+         * @param {string} systemPrompt - 系統提示 (System Instruction)
+         * @param {string} userQuery - 使用者查詢
+         * @param {object|null} schema - JSON 輸出結構 (若需要)
+         * @param {number} temperature - 採樣溫度
+         * @param {number} topP - Top-P 採樣參數
+         * @param {number} maxRetries - 最大重試次數
+         * @returns {Promise<object>} - API 回應或錯誤物件
+         */
+        async function callGeminiAPI(systemPrompt, userQuery, schema = null, temperature = 0.7, topP = 0.95, maxRetries = 3) {
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            const generationConfig = {
+                temperature: parseFloat(temperature),
+                topP: parseFloat(topP),
+            };
+
+            if (schema) {
+                generationConfig.responseMimeType = "application/json";
+                generationConfig.responseSchema = schema;
+            }
+            payload.generationConfig = generationConfig;
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (!candidate || !candidate.content?.parts?.[0]) {
+                        throw new Error("API 返回了無效的回應結構或被過濾。");
+                    }
+
+                    const part = candidate.content.parts[0];
+                    
+                    if (schema) {
+                        // 處理 JSON 回應
+                        const jsonText = part.text;
+                        return JSON.parse(jsonText);
+                    } else {
+                        // 處理純文字回應
+                        return part.text;
+                    }
+
+                } catch (error) {
+                    console.error(`API 呼叫第 ${attempt} 次失敗:`, error);
+                    if (attempt === maxRetries) {
+                        return { isError: true, message: `API 請求失敗: ${error.message}` };
+                    }
+                    // 指數退避
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                }
+            }
+        }
+
+
+        // --- Prediction Tab 邏輯 ---
+
+        // v3.0 更新: 使用 v3.0 Grammar Validation Layer Schema
+        const predictionSchema = {
+            type: "ARRAY",
+            maxItems: 6,
+            items: {
+                type: "OBJECT",
+                properties: {
+                    "word": { "type": "STRING", "description": "預測的下一個詞彙" },
+                    "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
+                    "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
+                    "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
+                    "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
+                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
+                    "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
+                    "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+                },
+                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
+            }
+        };
+        
+        async function handlePredictionSubmit(e) {
+            e.preventDefault();
+            const phrase = predInput.value.trim();
+            if (!phrase) {
+                displayError(predError, "請輸入英文片語。", predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
+                return;
+            }
+
+            // 設置 UI 為載入中
+            displayLoading(predError, predLoading, predButton, predButtonText, "正在預測...");
+            predictionResults.innerHTML = '';
+
+            // 準備 API 請求
+            const posFilter = predPos.value === 'any' ? '任何詞性' : predPos.value;
+            const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
+            const temp = predTemp.value;
+            const topP = predTopP.value;
+            // T1.4 Fix: 讀取並截斷上下文
+            const contextLen = predContextLen.value;
+            const truncatedPhrase = truncateContext(phrase, contextLen);
+
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
+規則：
+1. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
+2. 為每個預測詞提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
+3. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
+4. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。
+5. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
+6. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+7. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤 (e.g., 主謂一致, 懸垂修飾語, 語境拼寫)。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone' (e.g., '中性', '學術'), 'formality' (e.g., '正式')，並檢查 'inclusive_language_warning'。
+8. 僅以要求的 JSON 格式陣列 (Array) 輸出。`;
+
+            const userQuery = `
+輸入片語 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
+詞性過濾: ${posFilter}
+寫作任務: ${taskContext}
+採樣參數 (T=${temp}, TopP=${topP})
+`;
+
+            // 呼叫 API
+            const results = await callGeminiAPI(systemPrompt, userQuery, predictionSchema, temp, topP);
+
+            // 恢復 UI
+            displayDone(predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
+
+            // 處理 API 回應
+            if (results.isError) {
+                displayError(predError, results.message);
+            } else if (Array.isArray(results)) {
+                displayPredictionResults(results, truncatedPhrase); // T1.4 Fix: 傳遞截斷後的片語
+            } else {
+                displayError(predError, "收到非預期的回應格式。");
+            }
+        }
+        
+        // v3.0: 更新 customSchema
+        const customSchema = {
+            type: "OBJECT",
+            properties: {
+                "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
+                "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
+                "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
+                "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
+                "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
+                "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+            },
+            required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
+        };
+
+        // 處理自定詞彙驗證
+        async function handleCustomWordCheck(e) {
+            e.preventDefault();
+            const phrase = predInput.value.trim();
+            const customWord = customWordInput.value.trim();
+
+            if (!phrase || !customWord) {
+                customResults.innerHTML = `<p class="text-red-400">請輸入上下文和自定詞彙。</p>`;
+                return;
+            }
+
+            // 設置 UI 為載入中
+            customResults.innerHTML = '';
+            customLoading.classList.remove('hidden');
+            customButton.disabled = true;
+            customButtonText.textContent = "Checking...";
+
+            // 準備 API 請求 (使用單詞模式)
+            // T1.4 Fix: 讀取並截斷上下文
+            const temp = predTemp.value;
+            const topP = predTopP.value;
+            const contextLen = predContextLen.value;
+            const truncatedPhrase = truncateContext(phrase, contextLen);
+            const fullPhrase = `${truncatedPhrase} ${customWord}`;
+
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${truncatedPhrase}」之後的自然度。
+規則：
+1. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
+2. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
+3. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。
+4. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
+5. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+6. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+7. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+
+            const userQuery = `
+上下文 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
+自定詞彙: "${customWord}"
+採樣參數 (T=${temp}, TopP=${topP})
+`;
+
+            const result = await callGeminiAPI(systemPrompt, userQuery, customSchema, temp, topP);
+
+            // 恢復 UI
+            customLoading.classList.add('hidden');
+            customButton.disabled = false;
+            customButtonText.textContent = "Check Word";
+
+            if (result.isError) {
+                customResults.innerHTML = `<p class="text-red-400">驗證失敗: ${result.message}</p>`;
+            } else if (result.band !== undefined) {
+                // 獲取 Band 資訊 (雖然模型已返回，但我們使用本地函數來標準化顏色)
+                const bandInfo = getCohesionBandDetails(result.ppl);
+                
+                // v3.0 更新: 顯示 Grammar Validation Layer
+                customResults.innerHTML = `
+                    <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-lg font-bold text-yellow-300">自定詞彙：${customWord}</h4>
+                            <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
+                        </div>
+                        <p class="text-sm text-gray-400">${result.band_summary}</p>
+                        <hr class="border-gray-600">
+                        <div class="grid grid-cols-3 text-sm text-gray-300">
+                            <p><strong>P(wₙ|context):</strong> <span class="text-yellow-300">${result.p_w_n.toFixed(4)}</span></p>
+                            <p><strong>PPL:</strong> <span class="text-yellow-300">${result.ppl.toFixed(2)}</span></p>
+                            <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
+                        </div>
+                        <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
+                            ${highlight(result.example, fullPhrase)}
+                        </div>
+                        <!-- v3.0 Grammar Validation Layer 注入點 -->
+                        ${renderGrammarValidation(result.grammar_validation)}
+                    </div>
+                `;
+            } else {
+                customResults.innerHTML = `<p class="text-red-400">收到非預期的回應格式。</p>`;
+            }
+        }
+
+
+        // v3.0: 更新顯示預測結果
+        function displayPredictionResults(results, inputPhrase) {
+            if (results.length === 0) {
+                predictionResults.innerHTML = `<p class="text-gray-400 md:col-span-2 text-center">找不到符合條件的預測詞彙。</p>`;
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const fullPhrase = `${inputPhrase} ${item.word}`;
+                // 使用本地函數獲取顏色
+                const bandInfo = getCohesionBandDetails(item.ppl);
+
+                // v3.0 更新: 處理 consistency 狀態
+                const consistencyStatus = item.consistency_score >= 85 ? 'Stable' : 'Check';
+
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 space-y-3';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white">${index + 1}. ${item.word}</h3>
+                        <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
+                    </div>
+                    
+                    <p class="text-sm text-gray-400">${item.band_summary}</p>
+
+                    <div class="grid grid-cols-2 text-sm text-gray-300 border-b border-gray-700 pb-3">
+                        <p><strong>P(wₙ|context):</strong> <span class="text-blue-300">${item.p_w_n.toFixed(4)}</span></p>
+                        <p><strong>PPL:</strong> <span class="text-blue-300">${item.ppl.toFixed(2)}</span></p>
+                    </div>
+
+                    <div id="example-container-${index}" class="bg-gray-700 p-3 rounded-md text-gray-200">
+                        ${highlight(item.example, fullPhrase)}
+                    </div>
+                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
+                    <div id="metrics-container-${index}" class="text-xs text-gray-400 text-right mt-1 space-y-1">
+                        <div>Consistency: ${item.consistency_score} (${consistencyStatus})</div>
+                    </div>
+                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <div id="grammar-validation-${index}">
+                        ${renderGrammarValidation(item.grammar_validation)}
+                    </div>
+                    
+                    <!-- Band Control Regeneration -->
+                    <div class="flex gap-2 pt-2">
+                        <select id="band-select-${index}" class="w-1/2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white focus:ring-1 focus:ring-blue-500">
+                            <option value="9">Band 9</option>
+                            <option value="8">Band 8</option>
+                            <option value="7">Band 7</option>
+                            <option value="6">Band 6</option>
+                            <option value="5">Band 5</option>
+                        </select>
+                        <button class="regen-button w-1/2 bg-gray-500 hover:bg-gray-400 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 disabled:opacity-50"
+                                data-index="${index}"
+                                data-context="${inputPhrase}"
+                                data-word="${item.word}"
+                                data-type="prediction">
+                            <span class="regen-text">🔄 重新生成</span>
+                            <div class="spinner regen-loading hidden"></div>
+                        </button>
+                    </div>
+                `;
+                predictionResults.appendChild(card);
+            });
+        }
+        
+        // 統一的 UI 狀態輔助函數
+        function displayLoading(errorEl, loadingEl, buttonEl, textEl, message) {
+            errorEl.classList.add('hidden');
+            loadingEl.classList.remove('hidden');
+            buttonEl.disabled = true;
+            textEl.textContent = message;
+        }
+
+        function displayDone(loadingEl, buttonEl, textEl, message) {
+            loadingEl.classList.add('hidden');
+            buttonEl.disabled = false;
+            textEl.textContent = message;
+        }
+
+        function displayError(errorEl, message, loadingEl = null, buttonEl = null, textEl = null, buttonMessage = null) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+            if (loadingEl) displayDone(loadingEl, buttonEl, textEl, buttonMessage);
+        }
+
+        // v3.0: 更新 regenSchema
+        const regenSchema = {
+            type: "OBJECT",
+            properties: {
+                "example": { "type": "STRING", "description": "新生成的例句, $\le 25$ 詞" },
+                "consistency_score": { "type": "NUMBER", "description": "新例句的語義一致性分數 (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+            },
+            required: ["example", "consistency_score", "grammar_validation"] // v3.0 替換
+        };
+
+        // 統一的例句重新生成邏輯 (Prediction & Validation 共用)
+        async function handleRegeneration(button, band, context, word, type) {
+            const index = button.dataset.index;
+            const fullPhrase = type === 'prediction' ? `${context} ${word}` : context; // Validation case: context is the full phrase
+            
+            const exampleContainer = document.getElementById(type === 'prediction' ? `example-container-${index}` : `val-example-container`);
+            const regenText = button.querySelector('.regen-text');
+            const regenLoading = button.querySelector('.regen-loading');
+
+            // T1.8 Fix: 檢查這是否為自動重試
+            const isAutoRetry = button.dataset.isAutoRetry === 'true';
+
+            // 設置 UI 為載入中
+            button.disabled = true;
+            regenText.classList.add('hidden');
+            regenLoading.classList.remove('hidden');
+            // T1.8 Fix: 更新載入訊息
+            exampleContainer.innerHTML = `<span class="text-gray-400">正在生成 Band ${band} 例句... ${isAutoRetry ? '(自動回溯重試...)' : '(Self-Consistency 3x)'}</span>`;
+
+            // 獲取 Consistency Manager 參數
+            const temp = predTemp.value;
+            const topP = predTopP.value;
+
+            // 準備 API 請求
+            const bandRules = `Band ${band} - 詞彙與句式特徵: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
+
+            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」和「目標 Band」，生成一個「單一、精簡（最多 25 詞）」的例句。
+原則：
+1. **語義一致性 ($\ge 0.9$):** 新生成的例句必須與當前例句語義保持高度一致，差異僅在於句法結構和詞彙選擇。
+2. **Band 遵循:** 例句必須嚴格符合目標 Band (${band}) 的語法複雜度、連貫性與詞彙密度要求。
+3. **搭配完整:** 確保例句中包含完整的搭配「${fullPhrase}」。
+4. **連續性:** 確保搭配中的詞彙是連續且不被標點符號分隔。
+5. **Self-Consistency:** 模擬執行三輪 Self-Consistency 採樣，以確保輸出的穩定性。
+6. 輸出「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+7. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+8. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+
+            const userQuery = `
+完整搭配片語: "${fullPhrase}"
+目標 Band: ${band}
+Band 規則: ${bandRules}
+採樣參數 (T=${temp}, TopP=${topP})
+`;
+
+            // 呼叫 API
+            const result = await callGeminiAPI(systemPrompt, userQuery, regenSchema, temp, topP);
+
+            // 恢復 UI (在 T1.8 檢查前先恢復，以免按鈕卡住)
+            button.disabled = false;
+            regenText.classList.remove('hidden');
+            regenLoading.classList.add('hidden');
+
+            // 顯示結果
+            if (result.isError) {
+                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: ${result.message || '未知錯誤'}</span>`;
+            } else if (result.example && result.consistency_score !== undefined && result.grammar_validation) {
+                
+                // T1.8 / T2.8 Fix: 儲存歷史紀錄
+                const historyKey = `${type}-${index}`;
+                if (!regenerationHistory[historyKey]) {
+                    regenerationHistory[historyKey] = [];
+                }
+                regenerationHistory[historyKey].push(result.consistency_score);
+                if (regenerationHistory[historyKey].length > 5) { // 保留最近 5 次
+                    regenerationHistory[historyKey].shift();
+                }
+
+                // T1.8 / T2.8 Fix: Semantic Traceback 模擬
+                // 如果分數低，且這不是一次自動重試
+                if (result.consistency_score < 85 && !isAutoRetry) {
+                    console.warn(`Semantic Traceback (T1.8) 觸發於 ${historyKey}. 分數: ${result.consistency_score}. 自動重試中...`);
+                    
+                    // v3.0 更新: 抓取 metrics container
+                    const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
+                    if (metricsContainer) {
+                        metricsContainer.innerHTML = `
+                            <div>Consistency: ${result.consistency_score} (<span class="text-yellow-400">低分! 自動回溯重試...</span>)</div>
+                        `;
+                    }
+                    // v3.0 更新: 抓取 grammar container
+                    const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
+                    if (grammarContainer) {
+                        grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
+                    }
+
+
+                    // 標記並重試一次
+                    button.dataset.isAutoRetry = 'true';
+                    await handleRegeneration(button, band, context, word, type);
+                    
+                    // 重試後，清除標記並退出
+                    button.dataset.isAutoRetry = 'false';
+                    return; // 終止此函數，防止顯示低分結果
+                }
+
+                // --- 正常顯示結果 (分數 $\ge$ 85 或已重試過) ---
+                
+                // 更新例句
+                exampleContainer.innerHTML = highlight(result.example, fullPhrase);
+                
+                // v3.0 更新: 更新 metrics container
+                const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
+                if (metricsContainer) {
+                    const consistencyStatus = result.consistency_score >= 85 ? 'Stable' : 'Check';
+                    metricsContainer.innerHTML = `
+                        <div>Consistency: ${result.consistency_score} (${consistencyStatus})</div>
+                    `;
+                }
+                // v3.0 更新: 更新 grammar container
+                const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
+                if (grammarContainer) {
+                    grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
+                }
+            } else {
+                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式 (缺少 grammar_validation)。</span>`;
+            }
+        }
+
+        // 預測結果區域的事件委派 (重新生成)
+        predictionResults.addEventListener('click', async function(e) {
+            const button = e.target.closest('.regen-button');
+            if (!button || button.dataset.type !== 'prediction') return;
+
+            e.preventDefault();
+            const index = button.dataset.index;
+            // T1.4 Fix: 確保傳遞截斷後的 context
+            const context = truncateContext(button.dataset.context, predContextLen.value);
+            const word = button.dataset.word;
+            
+            const bandSelect = document.getElementById(`band-select-${index}`);
+            const band = bandSelect.value;
+            
+            await handleRegeneration(button, band, context, word, 'prediction');
+        });
+
+        // --- Validation Tab 邏輯 ---
+
+        // v3.0: 更新 validationSchema
+        const validationSchema = {
+            type: "OBJECT",
+            properties: {
+                "Fpm": { "type": "NUMBER", "description": "該片語在語料庫中每百萬詞的出現頻率 (Per Million)" },
+                "MI": { "type": "NUMBER", "description": "互資訊值 (Mutual Information)" },
+                "L_acc_norm": { "type": "NUMBER", "description": "語言學準確度 (1.0 = 正確; 0.5 = 小錯; 0.0 = 錯誤)" },
+                "example": { "type": "STRING", "description": "不超過 25 個詞的例句" },
+                "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明 (應與 L_acc_norm 一致)" },
+                "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" },
+                "consistency_score": { "type": "NUMBER", "description": "範例句的語義一致性分數 (0-100)" },
+                "example_grammar_validation": grammarValidationSchemaObject // v3.0 替換
+            },
+            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score", "example_grammar_validation"] // v3.0 替換
+        };
+
+        async function handleValidationSubmit(e) {
+            e.preventDefault();
+            const phrase1 = valInput1.value.trim();
+            const phrase2 = valInput2.value.trim();
+            const fullPhrase = `${phrase1} ${phrase2}`.trim();
+
+            if (!phrase1 || !phrase2) {
+                displayError(valError, "請輸入初始片語和目標詞彙。", valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
+                return;
+            }
+
+            // 設置 UI 為載入中
+            displayLoading(valError, valLoading, valButton, valButtonText, "正在驗證...");
+            validationResults.classList.add('hidden');
+            validationResults.innerHTML = '';
+            
+            // S_Naturalness v3.0 (使用者自訂) 修正版 System Prompt
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
+規則：
+1. 提供「Fpm」 (該片語在語料庫中每百萬詞的出現頻率)。
+2. 提供「MI」 (互資訊值)。
+3. 根據語法與詞形正確性，提供「L_acc_norm」 (語言學準確度分數：1.0 = 完全正確, 0.5 = 可理解但有小錯, 0.0 = 嚴重錯誤)。
+4. 提供一個「精簡例句 (example)」（最多 25 詞）。
+5. 提供「語法驗證 (grammarCheck)」的簡短結果 (這應與 L_acc_norm 一致)。
+6. 如果搭配不自然或有明顯拼寫錯誤，提供「替代搭配 (spellingSuggestion)」或修正建議；若無，則返回空字串。
+7. 為 'example' 提供「一致性分數 (consistency_score)」(0-100)。
+8. 【Grammar Validation Layer v3.0】: 對生成的 'example' 執行嚴格的文法驗證，並填入 'example_grammar_validation' 物件。
+    a. 【I. 正確性】: 詳盡檢查所有文法、拼寫、標點錯誤。'correctness.errors' 陣列必須包含所有發現的錯誤。如果沒有錯誤，返回空陣列 []。
+    b. 【II. 清晰度】: 檢查流水句、片段句、贅詞、被動語態。'clarity.feedback' 必須包含具體建議。如果句子結構複雜，提供 'clarity.rewrite_suggestion'。
+    c. 【III. 參與度】: 檢查詞彙是否單調或重複。'engagement.feedback' 必須包含建議。'engagement.vocab_suggestions' 應提供具體替換詞。
+    d. 【IV. 傳遞性】: 偵測 'detected_tone', 'formality'，並檢查 'inclusive_language_warning'。
+9. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+            
+            const userQuery = `
+完整搭配片語: "${fullPhrase}"
+`;
+            
+            // 呼叫 API (使用 Prediction tab 的 Consistency Manager 參數)
+            const result = await callGeminiAPI(systemPrompt, userQuery, validationSchema, predTemp.value, predTopP.value);
+
+            // 恢復 UI
+            displayDone(valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
+            
+            // 處理 API 回應
+            if (result.isError) {
+                displayError(valError, result.message);
+            } else if (result.Fpm !== undefined && result.MI !== undefined && result.L_acc_norm !== undefined && result.example_grammar_validation !== undefined) {
+                // v3.0 修正版：檢查新欄位
+                displayValidationResult(result, fullPhrase);
+            } else {
+                displayError(valError, "收到非預期的回應格式 (缺少 example_grammar_validation)。");
+            }
+        }
+
+        // v3.0: 顯示驗證結果
+        function displayValidationResult(result, fullPhrase) {
+            // 根據 S_Naturalness 流程解構 API 回應
+            // v3.0 更新: 解構新欄位
+            const { Fpm, MI, L_acc_norm, example, grammarCheck, spellingSuggestion, consistency_score, example_grammar_validation } = result;
+            
+            // S_Naturalness 運算 (七步驟流程)
+            // 範例參數（正規化基準）
+            const N_LOG_MIN = 0;
+            const N_LOG_MAX = 2.0043213738; // log10(100 + 1)
+            const M_MIN = 0;
+            const M_MAX = 6;
+            
+            // 權重
+            const W_FPM = 0.4;
+            const W_MI = 0.4;
+            const W_L_ACC = 0.2;
+
+            // 步驟 3: 對數轉換
+            const N_Log = Math.log10(Fpm + 1);
+            // 步驟 4: N-gram 正規化
+            const N_norm = (N_Log - N_LOG_MIN) / (N_LOG_MAX - N_LOG_MIN);
+            // 步驟 5: MI 正規化
+            const M_norm = (MI - M_MIN) / (M_MAX - M_MIN);
+            // 步驟 7: 計算最終自然度評分
+            const S_Naturalness = (W_FPM * N_norm) + (W_MI * M_norm) + (W_L_ACC * L_acc_norm);
+
+            // 根據 S_Naturalness 獲取 Band 資訊 (使用已修正的函數)
+            const bandInfo = getLexicalBandDetails(S_Naturalness);
+
+            let suggestionHtml = '';
+            if (spellingSuggestion && spellingSuggestion.trim() !== '') {
+                suggestionHtml = `
+                    <div class="mt-4">
+                        <h4 class="font-semibold text-yellow-300">建議 (Suggestion/Alternative)</h4>
+                        <p class="text-yellow-400 bg-yellow-900/50 p-3 rounded-md">${spellingSuggestion}</p>
+                    </div>
+                `;
+            }
+
+            // v3.0 更新: 處理 consistency 狀態
+            const consistencyStatus = consistency_score >= 85 ? 'Stable' : 'Check';
+
+            validationResults.innerHTML = `
+                <div class="text-center mb-6 border-b border-gray-700 pb-4">
+                    <span class="text-xs font-semibold uppercase text-gray-400">IELTS Lexical Resource Band</span>
+                    <div class="flex items-center justify-center my-2">
+                        <!-- S_Naturalness v2.1 修正版: Band 顯示基於 S_Naturalness -->
+                        <span class="band-tag ${bandInfo.color} text-white text-3xl p-3">Band ${bandInfo.band}</span>
+                    </div>
+                    <p class="text-gray-300 mt-2 max-w-md mx-auto">${bandInfo.summary}</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- S_Naturalness v2.1 修正版: 顯示 S_Naturalness 計算詳情 -->
+                    <div class="bg-gray-700/50 p-4 rounded-md space-y-3">
+                        <h4 class="font-semibold text-gray-300 text-center">S_Naturalness (自然度) 計算詳情</h4>
+                        <div class="grid grid-cols-3 text-sm text-gray-300 text-center">
+                            <p><strong>Fpm (原始頻率):</strong> <span class="text-green-300">${Fpm.toFixed(4)}</span></p>
+                            <p><strong>MI (互資訊):</strong> <span class="text-green-300">${MI.toFixed(3)}</span></p>
+                            <p><strong>L_Acc (準確度):</strong> <span class="text-green-300">${L_acc_norm.toFixed(1)}</span></p>
+                        </div>
+                        <hr class="border-gray-600">
+                        <div class="grid grid-cols-2 text-sm text-gray-300 text-center">
+                            <p><strong>N_norm (頻率正規化):</strong> <span class="text-blue-300">${N_norm.toFixed(4)}</span> (w: ${W_FPM * 100}%)</p>
+                            <p><strong>M_norm (MI 正規化):</strong> <span class="text-blue-300">${M_norm.toFixed(4)}</span> (w: ${W_MI * 100}%)</p>
+                        </div>
+                        <div class="text-center pt-2">
+                            <p class="font-semibold text-gray-300">最終 S_Naturalness 分數</p>
+                            <p class="text-2xl font-bold text-white">${S_Naturalness.toFixed(4)}</p>
+                            <p class="text-xs text-gray-400">(${W_FPM}*${N_norm.toFixed(3)} + ${W_MI}*${M_norm.toFixed(3)} + ${W_L_ACC}*${L_acc_norm.toFixed(1)})</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-300">語法驗證 (Grammar Check)</h4>
+                        <p class="text-gray-300">${grammarCheck}</p>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold text-gray-300">範例 (Example) - <span class="text-xs text-gray-400">可切換 Band 等級</span></h4>
+                        <div id="val-example-container" class="bg-gray-700 p-4 rounded-md text-gray-200 text-lg">
+                            ${highlight(example, fullPhrase)}
+                        </div>
+                    </div>
+                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
+                    <div id="val-metrics-container" class="text-xs text-gray-400 text-right mt-1 space-y-1">
+                        <div>Consistency: ${consistency_score} (${consistencyStatus})</div>
+                    </div>
+                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <div id="val-grammar-validation">
+                        ${renderGrammarValidation(example_grammar_validation)}
+                    </div>
+
+                    <!-- Band Control Regeneration for Validation -->
+                    <div class="flex gap-2 pt-2">
+                        <select id="val-band-select" class="w-1/2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white focus:ring-1 focus:ring-blue-500">
+                            <option value="9">Band 9</option>
+                            <option value="8">Band 8</option>
+                            <option value="7" selected>Band 7</option>
+                            <option value="6">Band 6</option>
+                            <option value="5">Band 5</option>
+                        </select>
+                        <button class="regen-button w-1/2 bg-gray-500 hover:bg-gray-400 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 disabled:opacity-50"
+                                data-index="val"
+                                data-context="${fullPhrase}"
+                                data-word=""
+                                data-type="validation">
+                            <span class="regen-text">🔄 重新生成</span>
+                            <div class="spinner regen-loading hidden"></div>
+                        </button>
+                    </div>
+
+                    ${suggestionHtml}
+                </div>
+            `;
+            validationResults.classList.remove('hidden');
+
+            // 綁定 Validation Tab 的重新生成事件
+            document.querySelector('#validationResults .regen-button').addEventListener('click', async function(e) {
+                e.preventDefault();
+                const button = e.currentTarget;
+                const band = document.getElementById('val-band-select').value;
+                const context = button.dataset.context; // fullPhrase is stored here
+                await handleRegeneration(button, band, context, '', 'validation');
+            });
+        }
+
+
+        // --- 分頁切換邏輯 ---
+        function switchTab(activeTab) {
+            // ... ( unchanged switchTab logic )
+            if (activeTab === 'prediction') {
+                // 啟動 Prediction
+                tabs.prediction.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+                tabs.prediction.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+                contents.prediction.classList.remove('hidden');
+                
+                // 關閉 Validation
+                tabs.validation.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+                tabs.validation.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+                contents.validation.classList.add('hidden');
+            } else {
+                // 啟動 Validation
+                tabs.validation.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+                tabs.validation.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+                contents.validation.classList.remove('hidden');
+
+                // 關閉 Prediction
+                tabs.prediction.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+                tabs.prediction.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+                contents.prediction.classList.add('hidden');
+            }
+        }
+
+        // --- 初始綁定事件 ---
+        tabs.prediction.addEventListener('click', () => switchTab('prediction'));
+        tabs.validation.addEventListener('click', () => switchTab('validation'));
+        predForm.addEventListener('submit', handlePredictionSubmit);
+        customWordForm.addEventListener('submit', handleCustomWordCheck); // 綁定自定詞彙表單
+        valForm.addEventListener('submit', handleValidationSubmit);
+
+        // 預設選中第一個分頁
+        switchTab('prediction');
+
+    </script>
+</body>
+</html>
