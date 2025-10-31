@@ -56,7 +56,7 @@
         <!-- 標題 -->
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
-            <p class="text-lg text-gray-400 mt-2">整合 PPL, MI 與 IELTS Band 評估</p>
+            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness (v2.1) 與 IELTS Band 評估</p>
         </header>
 
         <!-- 功能分頁標籤 -->
@@ -181,7 +181,7 @@
     <!-- JavaScript 邏輯 -->
     <script type="module">
         // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
-        const apiKey = "";
+        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
         // --- DOM 元素參照 ---
@@ -269,21 +269,23 @@
         }
 
         /**
-         * 根據 MI 獲取 Band 評語 (Lexical Resource)
-         * @param {number} mi - 互資訊
+         * 【S_Naturalness v2.1 修正版】
+         * 根據 S_Naturalness 獲取 Band 評語 (Lexical Resource)
+         * @param {number} s - S_Naturalness 自然度分數
          * @returns {object} - { band, summary, color }
          */
-        function getLexicalBandDetails(mi) {
-             if (mi >= 5.0) {
-                return { band: 9, summary: '完整靈活與精準運用；詞彙自然且貼近母語。', color: 'bg-indigo-600' };
-            } else if (mi >= 4.0) {
-                return { band: 8, summary: '詞彙廣泛且能準確表達意義；仍屬高階搭配。', color: 'bg-purple-600' };
-            } else if (mi >= 3.0) {
-                return { band: 7, summary: '詞彙多樣度足夠但靈活性稍有限；部分不自然搭配。', color: 'bg-blue-600' };
-            } else if (mi >= 2.0) {
-                return { band: 6, summary: '詞彙足以表達意思但欠缺精準；有時搭配錯誤或重複。', color: 'bg-yellow-600' };
+        function getLexicalBandDetails(s) {
+             if (s >= 0.85) {
+                return { band: 9, summary: '完全自然、極高搭配強度；接近母語級表達。', color: 'bg-indigo-600' };
+            } else if (s >= 0.75) {
+                return { band: 8, summary: '流暢靈活、少許誤用；仍屬高階搭配。', color: 'bg-purple-600' };
+            } else if (s >= 0.60) {
+                return { band: 7, summary: '可理解且常見，但略顯機械或重複。', color: 'bg-blue-600' };
+            } else if (s >= 0.40) {
+                return { band: 6, summary: '中等自然度；語意清楚但搭配不地道。', color: 'bg-yellow-600' };
             } else {
-                return { band: 5, summary: '詞彙受限；錯誤頻繁，搭配顯得不自然。', color: 'bg-red-600' };
+                // S < 0.40
+                return { band: 5, summary: '不自然或生硬；建議替換。', color: 'bg-red-600' };
             }
         }
 
@@ -751,20 +753,19 @@ Band 規則: ${bandRules}
 
         // --- Validation Tab 邏輯 ---
 
+        // S_Naturalness v2.1 修正版 Schema
         const validationSchema = {
             type: "OBJECT",
             properties: {
-                "score": { "type": "NUMBER", "description": "搭配可靠度分數 (0-100)" },
-                "p_w_n": { "type": "NUMBER", "description": "聯合機率 P(w1..wn) (0-1之間)" },
-                "mi": { "type": "NUMBER", "description": "互資訊 (Mutual Information, MI)" },
-                "lexical_band": { "type": "NUMBER", "description": "對應的 IELTS Lexical Resource Band (5-9)" },
-                "lexical_summary": { "type": "STRING", "description": "Lexical Resource 評語摘要" },
+                "Fpm": { "type": "NUMBER", "description": "該片語在語料庫中每百萬詞的出現頻率 (Per Million)" },
+                "MI": { "type": "NUMBER", "description": "互資訊值 (Mutual Information)" },
+                "L_acc_norm": { "type": "NUMBER", "description": "語言學準確度 (1.0 = 正確; 0.5 = 小錯; 0.0 = 錯誤)" },
                 "example": { "type": "STRING", "description": "不超過 25 個詞的例句" },
-                "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明" },
+                "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明 (應與 L_acc_norm 一致)" },
                 "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" },
                 "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" }
             },
-            required: ["score", "p_w_n", "mi", "lexical_band", "lexical_summary", "example", "grammarCheck", "spellingSuggestion", "consistency_score"]
+            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score"]
         };
 
         async function handleValidationSubmit(e) {
@@ -783,17 +784,16 @@ Band 規則: ${bandRules}
             validationResults.classList.add('hidden');
             validationResults.innerHTML = '';
             
-            // 準備 API 請求
-            // T2.1 / T2.3 Fix: Prompt 保持不變，要求 MI 和 P(w1..wn)，我們將在客戶端計算 L_score
-            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性。
+            // S_Naturalness v2.1 修正版 System Prompt
+            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
 規則：
-1. 評估該搭配的自然度，給出一個「可靠度分數 (score)」 (0-100)。
-2. 提供「聯合機率 P(w1..wn)」、「互資訊 (MI)」值，並依此映射到「IELTS Lexical Resource Band」。
-3. 【MI-Band 映射】: MI $\ge 5.0$=Band 9, $4.0 \le MI < 5.0$=Band 8, $3.0 \le MI < 4.0$=Band 7, $2.0 \le MI < 3.0$=Band 6, $MI < 2.0$=Band 5。
+1. 提供「Fpm」 (該片語在語料庫中每百萬詞的出現頻率)。
+2. 提供「MI」 (互資訊值)。
+3. 根據語法與詞形正確性，提供「L_acc_norm」 (語言學準確度分數：1.0 = 完全正確, 0.5 = 可理解但有小錯, 0.0 = 嚴重錯誤)。
 4. 提供一個「精簡例句 (example)」（最多 25 詞）。
-5. 提供「語法驗證 (grammarCheck)」的簡短結果。
+5. 提供「語法驗證 (grammarCheck)」的簡短結果 (這應與 L_acc_norm 一致)。
 6. 如果搭配不自然或有明顯拼寫錯誤，提供「替代搭配 (spellingSuggestion)」或修正建議；若無，則返回空字串。
-7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)。
 8. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
             
             const userQuery = `
@@ -809,22 +809,42 @@ Band 規則: ${bandRules}
             // 處理 API 回應
             if (result.isError) {
                 displayError(valError, result.message);
-            } else if (result.score !== undefined) {
+            } else if (result.Fpm !== undefined && result.MI !== undefined && result.L_acc_norm !== undefined) {
+                // S_Naturalness v2.1 修正版：檢查新欄位
                 displayValidationResult(result, fullPhrase);
             } else {
                 displayError(valError, "收到非預期的回應格式。");
             }
         }
 
-        // 顯示驗證結果
+        // 顯示驗證結果 (S_Naturalness v2.1 修正版)
         function displayValidationResult(result, fullPhrase) {
-            const { score, p_w_n, mi, lexical_band, lexical_summary, example, grammarCheck, spellingSuggestion, consistency_score } = result;
+            // 根據 S_Naturalness 流程解構 API 回應
+            const { Fpm, MI, L_acc_norm, example, grammarCheck, spellingSuggestion, consistency_score } = result;
             
-            // T2.1 / T2.3 Fix: 在客戶端計算 L_score
-            const l_score = (0.7 * mi) + (0.3 * p_w_n);
+            // S_Naturalness 運算 (七步驟流程)
+            // 範例參數（正規化基準）
+            const N_LOG_MIN = 0;
+            const N_LOG_MAX = 2.0043213738; // log10(100 + 1)
+            const M_MIN = 0;
+            const M_MAX = 6;
+            
+            // 權重
+            const W_FPM = 0.4;
+            const W_MI = 0.4;
+            const W_L_ACC = 0.2;
 
-            // 使用本地函數獲取顏色 (因為模型返回的 Band 可能是數字，我們需要顏色來渲染)
-            const bandInfo = getLexicalBandDetails(mi);
+            // 步驟 3: 對數轉換
+            const N_Log = Math.log10(Fpm + 1);
+            // 步驟 4: N-gram 正規化
+            const N_norm = (N_Log - N_LOG_MIN) / (N_LOG_MAX - N_LOG_MIN);
+            // 步驟 5: MI 正規化
+            const M_norm = (MI - M_MIN) / (M_MAX - M_MIN);
+            // 步驟 7: 計算最終自然度評分
+            const S_Naturalness = (W_FPM * N_norm) + (W_MI * M_norm) + (W_L_ACC * L_acc_norm);
+
+            // 根據 S_Naturalness 獲取 Band 資訊 (使用已修正的函數)
+            const bandInfo = getLexicalBandDetails(S_Naturalness);
 
             let suggestionHtml = '';
             if (spellingSuggestion && spellingSuggestion.trim() !== '') {
@@ -840,24 +860,33 @@ Band 規則: ${bandRules}
                 <div class="text-center mb-6 border-b border-gray-700 pb-4">
                     <span class="text-xs font-semibold uppercase text-gray-400">IELTS Lexical Resource Band</span>
                     <div class="flex items-center justify-center my-2">
-                        <span class="band-tag ${bandInfo.color} text-white text-3xl p-3">Band ${lexical_band}</span>
+                        <!-- S_Naturalness v2.1 修正版: Band 顯示基於 S_Naturalness -->
+                        <span class="band-tag ${bandInfo.color} text-white text-3xl p-3">Band ${bandInfo.band}</span>
                     </div>
-                    <p class="text-gray-300 mt-2 max-w-md mx-auto">${lexical_summary}</p>
+                    <p class="text-gray-300 mt-2 max-w-md mx-auto">${bandInfo.summary}</p>
                 </div>
 
                 <div class="space-y-4">
-                    <!-- T2.1 / T2.3 Fix: 顯示 L_score -->
-                    <div class="grid grid-cols-3 text-sm text-gray-300 bg-gray-700/50 p-4 rounded-md">
-                        <p><strong>聯合機率 P(w₁..wₙ):</strong> <span class="text-green-300">${p_w_n.toFixed(6)}</span></p>
-                        <p><strong>互資訊 MI:</strong> <span class="text-green-300">${mi.toFixed(3)}</span></p>
-                        <p><strong>L_score (70%MI+30%P):</strong> <span class="text-green-300">${l_score.toFixed(4)}</span></p>
+                    <!-- S_Naturalness v2.1 修正版: 顯示 S_Naturalness 計算流程 -->
+                    <div class="bg-gray-700/50 p-4 rounded-md space-y-3">
+                        <h4 class="font-semibold text-gray-300 text-center">S_Naturalness (自然度) 計算詳情</h4>
+                        <div class="grid grid-cols-3 text-sm text-gray-300 text-center">
+                            <p><strong>Fpm (原始頻率):</strong> <span class="text-green-300">${Fpm.toFixed(4)}</span></p>
+                            <p><strong>MI (互資訊):</strong> <span class="text-green-300">${MI.toFixed(3)}</span></p>
+                            <p><strong>L_Acc (準確度):</strong> <span class="text-green-300">${L_acc_norm.toFixed(1)}</span></p>
+                        </div>
+                        <hr class="border-gray-600">
+                        <div class="grid grid-cols-2 text-sm text-gray-300 text-center">
+                            <p><strong>N_norm (頻率正規化):</strong> <span class="text-blue-300">${N_norm.toFixed(4)}</span> (w: ${W_FPM * 100}%)</p>
+                            <p><strong>M_norm (MI 正規化):</strong> <span class="text-blue-300">${M_norm.toFixed(4)}</span> (w: ${W_MI * 100}%)</p>
+                        </div>
+                        <div class="text-center pt-2">
+                            <p class="font-semibold text-gray-300">最終 S_Naturalness 分數</p>
+                            <p class="text-2xl font-bold text-white">${S_Naturalness.toFixed(4)}</p>
+                            <p class="text-xs text-gray-400">(${W_FPM}*${N_norm.toFixed(3)} + ${W_MI}*${M_norm.toFixed(3)} + ${W_L_ACC}*${L_acc_norm.toFixed(1)})</p>
+                        </div>
                     </div>
                     
-                    <div>
-                        <h4 class="font-semibold text-gray-300">搭配分數 (Reliability Score)</h4>
-                        <p class="text-2xl font-bold text-blue-400">${score}/100</p>
-                    </div>
-
                     <div>
                         <h4 class="font-semibold text-gray-300">語法驗證 (Grammar Check)</h4>
                         <p class="text-gray-300">${grammarCheck}</p>
