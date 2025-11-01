@@ -56,8 +56,8 @@
         <!-- 標題 -->
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
-            <!-- v3.0 更新 -->
-            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness 與 Grammar Validation Layer (v3.0)</p>
+            <!-- v2.6 IGPVL 更新: 修改標題 -->
+            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness, GVL (v3.0) 與 IGPVL (v2.6)</p>
         </header>
 
         <!-- 功能分頁標籤 -->
@@ -79,6 +79,9 @@
                         <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">輸入英文上下文片段 (Context Phrase)</label>
                         <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：The government should implement effective policies to...">
                         
+                        <!-- v2.6 IGPVL 新增: 預測輸入的錯誤回報區域 -->
+                        <div id="igpvlPredError" class="text-sm rounded-lg"></div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">指定詞性 (POS Filter)</label>
@@ -141,6 +144,8 @@
                                 </button>
                             </div>
                         </form>
+                        <!-- v2.6 IGPVL 新增: 自定詞彙的錯誤回報區域 -->
+                        <div id="igpvlCustomError" class="text-sm rounded-lg mt-4"></div>
                         <div id="customResults" class="mt-4"></div>
                     </div>
                 </div>
@@ -164,6 +169,9 @@
                         <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：decision">
                     </div>
                     
+                    <!-- v2.6 IGPVL 新增: 驗證輸入的錯誤回報區域 -->
+                    <div id="igpvlValError" class="text-sm rounded-lg"></div>
+
                     <button type="submit" id="valButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
                         <span id="valButtonText">驗證搭配 (Validate Collocation)</span>
                         <div id="valLoading" class="spinner hidden"></div>
@@ -182,6 +190,7 @@
     <!-- JavaScript 邏輯 -->
     <script type="module">
         // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
+        // v2.6 IGPVL 註記: IGPVL 和 GVL 使用相同的 API 端點和金鑰
         const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
@@ -208,6 +217,7 @@
         const predLoading = document.getElementById('predLoading');
         const predError = document.getElementById('predError');
         const predictionResults = document.getElementById('predictionResults');
+        const igpvlPredError = document.getElementById('igpvlPredError'); // v2.6 IGPVL 新增
 
         // 自定詞彙 (Custom Word) 相關元素
         const customWordForm = document.getElementById('customWordForm');
@@ -216,6 +226,7 @@
         const customButtonText = document.getElementById('customButtonText');
         const customLoading = document.getElementById('customLoading');
         const customResults = document.getElementById('customResults');
+        const igpvlCustomError = document.getElementById('igpvlCustomError'); // v2.6 IGPVL 新增
 
         // 驗證 (Validation) 相關元素
         const valForm = document.getElementById('validationForm');
@@ -226,11 +237,43 @@
         const valLoading = document.getElementById('valLoading');
         const valError = document.getElementById('valError');
         const validationResults = document.getElementById('validationResults');
+        const igpvlValError = document.getElementById('igpvlValError'); // v2.6 IGPVL 新增
 
         // T1.8 / T2.8 Fix: 重新生成歷史紀錄
         const regenerationHistory = {};
 
-        // --- v3.0 Grammar Validation Layer Schema ---
+        // --- v2.6 IGPVL (Input Grammar Pre-Validation Layer) Schema ---
+        // 根據使用者 v2.6 規格定義的 Schema
+        const igpvlSchema = {
+            "type": "OBJECT",
+            "description": "Input Grammar Pre-Validation Layer (IGPVL) 的即時回饋",
+            "properties": {
+                "input_id": { "type": "STRING", "description": "對應請求的唯一 ID" },
+                "status": { "type": "STRING", "enum": ["passed", "warning", "blocked"], "description": "驗證狀態" },
+                "error_count": { "type": "NUMBER", "description": "偵測到的文法錯誤總數" },
+                "severity": { "type": "STRING", "enum": ["none", "minor", "major"], "description": "整體錯誤嚴重性" },
+                "errors": {
+                    "type": "ARRAY",
+                    "description": "偵測到的錯誤列表",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "type": { "type": "STRING", "description": "錯誤類型 (e.g., 'subject_verb_agreement', 'article_error', 'spelling', 'punctuation')" },
+                            "message": { "type": "STRING", "description": "錯誤的描述" },
+                            "suggestion": { "type": "STRING", "description": "修正建議 (可能是完整句子或片段)" },
+                            "severity": { "type": "STRING", "enum": ["minor", "major"], "description": "此錯誤的嚴重性" },
+                            "code": { "type": "STRING", "description": "符合規範的錯誤代碼 (e.g., 'IGPVL-CORE-XX')" }
+                        },
+                        "required": ["type", "message", "suggestion", "code"]
+                    }
+                },
+                "recommendation": { "type": "STRING", "description": "給使用者的總體建議" },
+                "timestamp": { "type": "STRING", "format": "date-time", "description": "ISO 8601 格式的時間戳" }
+            },
+            "required": ["input_id", "status", "error_count", "severity", "errors", "recommendation", "timestamp"]
+        };
+
+        // --- v3.0 GVL (Grammar Validation Layer) Schema ---
         // 根據使用者提供的規格 (I-IV) 定義的共用 Schema
         const grammarValidationSchemaObject = {
             "type": "OBJECT",
@@ -246,7 +289,7 @@
                             "items": {
                                 "type": "OBJECT",
                                 "properties": {
-                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '時態錯誤', '冠詞錯誤', '懸垂修飾語', '語境拼寫', '標點錯誤')" },
+                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '時态錯誤', '冠詞錯誤', '懸垂修飾語', '語境拼寫', '標點錯誤')" },
                                     "original": { "type": "STRING", "description": "錯誤的原文片段" },
                                     "correction": { "type": "STRING", "description": "修正建議" },
                                     "explanation": { "type": "STRING", "description": "簡短解釋" }
@@ -467,18 +510,13 @@
 			// 由於您的 System Prompt 非常長，您可以將它們一起印出
 			console.log("--- 完整的 API 請求 Payload 內容 (除錯用) ---");
 			
-			
-			
 			const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
                 systemInstruction: {
                     parts: [{ text: systemPrompt }]
                 },
             };
-            // 印出整個 payload 物件
-			console.log(JSON.stringify(payload, null, 2));
-			console.log("----------------------------------------------");
-			
+            
             const generationConfig = {
                 temperature: parseFloat(temperature),
                 topP: parseFloat(topP),
@@ -489,6 +527,10 @@
                 generationConfig.responseSchema = schema;
             }
             payload.generationConfig = generationConfig;
+            
+            // 印出整個 payload 物件
+			console.log(JSON.stringify(payload, null, 2));
+			console.log("----------------------------------------------");
 
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
@@ -504,15 +546,6 @@
 
                     const result = await response.json();
 					
-					
-					//// ===============================================
-                    //// 🚨 這是您要的檢查點：印出完整的 Response 資料
-                    //// ===============================================
-                    //console.log("--- 完整 API 原始回應 (Full Response Object) ---");
-                    //// 使用 JSON.stringify 帶縮排 2 格，使其在 Console 中整齊易讀
-                    //console.log(JSON.stringify(result, null, 2)); 
-                    //console.log("-------------------------------------------------");
-					
                     const candidate = result.candidates?.[0];
 
                     if (!candidate || !candidate.content?.parts?.[0]) {
@@ -524,13 +557,6 @@
                     if (schema) {
                         // 處理 JSON 回應
                         const jsonText = part.text;
-						
-						//// ⭐️ 在這裡加入檢查點：印出模型回覆的純文字 JSON 字符串
-						//console.log("--- 模型回覆的原始 JSON 字符串 (jsonText) ---");
-						//// 注意：這裡直接印出 jsonText 即可，因為它還是一個字符串
-						//console.log(jsonText); 
-						//console.log("------------------------------------------");
-						
                         return JSON.parse(jsonText);
                     } else {
                         // 處理純文字回應
@@ -545,6 +571,101 @@
                     // 指數退避
                     await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
+            }
+        }
+
+        // --- v2.6 IGPVL (Input Grammar Pre-Validation Layer) 邏輯 ---
+
+        /**
+         * 執行 IGPVL 檢查 (模擬 API 呼叫)
+         * @param {string} text - 要檢查的完整文字
+         * @param {string} inputId - 呼叫來源的 ID
+         * @param {string} context - 寫作情境 (e.g., 'academic')
+         * @returns {Promise<object>} - 符合 igpvlSchema 的物件或錯誤
+         */
+        async function validateInputGrammar(text, inputId, context) {
+            
+            // v2.6 IGPVL System Prompt
+            const systemPrompt = `你是一個嚴格的「輸入文法預驗證層 (IGPVL)」。
+你的「唯一」任務是分析使用者輸入的文字，並「僅」根據 v2.6 規格回傳 JSON 物件。
+你「必須」執行所有四類檢查：
+1.  **Core Grammar (IGPVL-CORE-XX)**: 主謂一致, 時態, 冠詞, 代名詞。
+2.  **Advanced Grammar (IGPVL-ADV-XX)**: 懸垂修飾語, 不完整比較, 雙重否定, 時態轉換不一致。
+3.  **Spelling & Consistency (IGPVL-SPC-XX)**: 拼寫錯誤, 語境拼寫 (e.g., their/there), 大小寫, 數字格式, 連字符。
+4.  **Punctuation (IGPVL-PUN-XX)**: 句尾標點, 逗號/分號/冒號誤用。
+
+**規則:**
+1.  **嚴格檢查**: 即使是微小的錯誤 (如 'He go') 也要標記。
+2.  **錯誤計數 (error_count)**: 必須準確反映 'errors' 陣列的長度。
+3.  **驗證機制 (Status & Severity):**
+    * error_count = 0: 'status' = 'passed', 'severity' = 'none', 'recommendation' = '文法正確，準備生成。'
+    * 1 $\le$ error_count $\le$ 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = '偵測到 \${error_count} 個輕微錯誤。請參考建議，已允許繼續生成。'
+    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = '偵測到 \${error_count} 個嚴重錯誤。請修正輸入後再試。'
+4.  **錯誤代碼**: 'code' 欄位必須符合規範 (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01')。
+5.  **時間戳**: 必須提供 ISO 8601 格式的當前 UTC 時間。
+6.  **絕對禁止**: 你的回覆「不得」包含 JSON 以外的任何文字 (例如 "Here is the JSON...")。`;
+
+            const userQuery = `
+{
+  "input_id": "${inputId}",
+  "text": "${text}",
+  "context": "${context}",
+  "language": "en",
+  "validation_mode": "strict"
+}
+`;
+            // 使用 0.1 溫度以確保 IGPVL 檢查的穩定性和一致性
+            const result = await callGeminiAPI(systemPrompt, userQuery, igpvlSchema, 0.1, 1.0);
+            
+            // 確保時間戳存在 (模型有時會忘記)
+            if (result && !result.isError && !result.timestamp) {
+                result.timestamp = new Date().toISOString();
+            }
+            return result;
+        }
+
+        /**
+         * 在 UI 上顯示 IGPVL 的回饋
+         * @param {HTMLElement} el - 要顯示回饋的 DOM 元素
+         * @param {object} result - 來自 validateInputGrammar 的結果物件
+         * @returns {boolean} - 是否阻止了流程 (isBlocked)
+         */
+        function displayIgpvlFeedback(el, result) {
+            el.innerHTML = '';
+            
+            if (result.isError) {
+                el.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+                el.innerHTML = `<strong>IGPVL 檢查失敗:</strong> ${result.message}`;
+                return true; // 阻止流程
+            }
+
+            if (result.status === 'blocked') {
+                el.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400 space-y-2';
+                let html = `<p class="font-semibold">${result.recommendation}</p>`;
+                html += '<ul class="list-disc list-inside text-xs">';
+                result.errors.forEach(err => {
+                    html += `<li>[${err.code}] ${err.message} (建議: <strong>${err.suggestion}</strong>)</li>`;
+                });
+                html += '</ul>';
+                el.innerHTML = html;
+                return true; // 阻止流程
+            
+            } else if (result.status === 'warning') {
+                el.className = 'text-sm p-3 rounded-lg bg-yellow-900/50 text-yellow-400 space-y-2';
+                let html = `<p class="font-semibold">${result.recommendation}</p>`;
+                html += '<ul class="list-disc list-inside text-xs">';
+                result.errors.forEach(err => {
+                    html += `<li>[${err.code}] ${err.message} (建議: <strong>${err.suggestion}</strong>)</li>`;
+                });
+                html += '</ul>';
+                el.innerHTML = html;
+                return false; // 不阻止流程
+            
+            } else {
+                // 'passed'
+                el.className = 'text-sm p-3 rounded-lg bg-green-900/50 text-green-400';
+                el.innerHTML = `<p class="font-semibold">${result.recommendation}</p>`;
+                return false; // 不阻止流程
             }
         }
 
@@ -574,14 +695,33 @@
         async function handlePredictionSubmit(e) {
             e.preventDefault();
             const phrase = predInput.value.trim();
+            
+            // v2.6 IGPVL 整合: 清空舊訊息
+            igpvlPredError.innerHTML = '';
+            igpvlPredError.className = 'text-sm rounded-lg';
+            predError.classList.add('hidden'); // 隱藏舊的生成錯誤
+            predictionResults.innerHTML = ''; // 清空舊結果
+
             if (!phrase) {
                 displayError(predError, "請輸入英文片語。", predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
                 return;
             }
 
-            // 設置 UI 為載入中
-            displayLoading(predError, predLoading, predButton, predButtonText, "正在預測...");
-            predictionResults.innerHTML = '';
+            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
+            displayLoading(predError, predLoading, predButton, predButtonText, "1/2 正在驗證輸入...");
+
+            // --- v2.6 IGPVL 執行 ---
+            const igpvlResult = await validateInputGrammar(phrase, 'predInput', 'academic');
+            const isBlocked = displayIgpvlFeedback(igpvlPredError, igpvlResult);
+
+            if (isBlocked) {
+                displayDone(predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
+                return; // 停止執行
+            }
+            // --- IGPVL 結束 ---
+
+            // 設置 UI 為載入中 (v2.6: 更新狀態)
+            displayLoading(predError, predLoading, predButton, predButtonText, "2/2 正在預測...");
 
             // 準備 API 請求
             const posFilter = predPos.value === 'any' ? '任何詞性' : predPos.value;
@@ -599,7 +739,7 @@
 2. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 3. 為每個預測詞提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 4. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
-5. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號（例如：句號 .、逗號 ,、問號 ?、冒號 :、分號 ; 等），則預測的詞彙必須在標點符號之後「緊密且唯一地」以一個空格隔開**。**
+5. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號（例如：句號 .、逗號 ,、問號 ?、冒號 :、分號 ; 等），則預測的詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
 6. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
 7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 8. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
@@ -665,16 +805,36 @@
             const phrase = predInput.value.trim();
             const customWord = customWordInput.value.trim();
 
+            // v2.6 IGPVL 整合: 清空舊訊息
+            igpvlCustomError.innerHTML = '';
+            igpvlCustomError.className = 'text-sm rounded-lg mt-4';
+            customResults.innerHTML = ''; // 清空舊結果
+
             if (!phrase || !customWord) {
-                customResults.innerHTML = `<p class="text-red-400">請輸入上下文和自定詞彙。</p>`;
+                igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+                igpvlCustomError.innerHTML = '請輸入上下文和自定詞彙。';
                 return;
             }
 
-            // 設置 UI 為載入中
-            customResults.innerHTML = '';
+            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
             customLoading.classList.remove('hidden');
             customButton.disabled = true;
-            customButtonText.textContent = "Checking...";
+            customButtonText.textContent = "1/2 驗證輸入...";
+
+            // --- v2.6 IGPVL 執行 (僅檢查上下文 phrase) ---
+            const igpvlResult = await validateInputGrammar(phrase, 'predInput_custom', 'academic');
+            const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
+
+            if (isBlocked) {
+                customLoading.classList.add('hidden');
+                customButton.disabled = false;
+                customButtonText.textContent = "Check Word";
+                return; // 停止執行
+            }
+            // --- IGPVL 結束 ---
+
+            // 設置 UI 為載入中 (v2.6: 更新狀態)
+            customButtonText.textContent = "2/2 檢查中...";
 
             // 準備 API 請求 (使用單詞模式)
             // T1.4 Fix: 讀取並截斷上下文
@@ -692,7 +852,7 @@
 2. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 7 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 3. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 4. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
-5. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號（例如：句號 .、逗號 ,、問號 ?、冒號 :、分號 ; 等），則預測的詞彙必須在標點符號之後「緊密且唯一地」以一個空格隔開**。**
+5. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號（例如：句號 .、逗號 ,、問號 ?、冒號 :、分號 ; 等），則預測的詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
 6. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
 7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 8. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
@@ -824,7 +984,7 @@
         
         // 統一的 UI 狀態輔助函數
         function displayLoading(errorEl, loadingEl, buttonEl, textEl, message) {
-            errorEl.classList.add('hidden');
+            errorEl.classList.add('hidden'); // v2.6: 保持隱藏主錯誤
             loadingEl.classList.remove('hidden');
             buttonEl.disabled = true;
             textEl.textContent = message;
@@ -877,7 +1037,7 @@
             const topP = predTopP.value;
 
             // 準備 API 請求
-            const bandRules = `Band ${band} - 詞彙與句式特徵: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
+            const bandRules = `Band ${band} - 詞彙與句式特征: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
             
             // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」和「目標 Band」，生成一個「單一、精簡（最多 25 詞）」的例句。
@@ -1026,15 +1186,33 @@ Band 規則: ${bandRules}
             const phrase2 = valInput2.value.trim();
             const fullPhrase = `${phrase1} ${phrase2}`.trim();
 
+            // v2.6 IGPVL 整合: 清空舊訊息
+            igpvlValError.innerHTML = '';
+            igpvlValError.className = 'text-sm rounded-lg';
+            valError.classList.add('hidden'); // 隱藏舊的生成錯誤
+            validationResults.classList.add('hidden');
+            validationResults.innerHTML = '';
+
             if (!phrase1 || !phrase2) {
                 displayError(valError, "請輸入初始片語和目標詞彙。", valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
                 return;
             }
 
-            // 設置 UI 為載入中
-            displayLoading(valError, valLoading, valButton, valButtonText, "正在驗證...");
-            validationResults.classList.add('hidden');
-            validationResults.innerHTML = '';
+            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
+            displayLoading(valError, valLoading, valButton, valButtonText, "1/2 正在驗證輸入...");
+
+            // --- v2.6 IGPVL 執行 ---
+            const igpvlResult = await validateInputGrammar(fullPhrase, 'valInput', 'academic');
+            const isBlocked = displayIgpvlFeedback(igpvlValError, igpvlResult);
+
+            if (isBlocked) {
+                displayDone(valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
+                return; // 停止執行
+            }
+            // --- IGPVL 結束 ---
+
+            // 設置 UI 為載入中 (v2.6: 更新狀態)
+            displayLoading(valError, valLoading, valButton, valButtonText, "2/2 正在驗證...");
             
             // S_Naturalness v3.0 (使用者自訂) 修正版 System Prompt
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
@@ -1247,6 +1425,9 @@ Band 規則: ${bandRules}
 
         // 預設選中第一個分頁
         switchTab('prediction');
+
+        // v2.6 IGPVL: 版本註記
+        console.log("IGPVL v2.6 已載入並整合到提交表單中。");
 
     </script>
 </body>
