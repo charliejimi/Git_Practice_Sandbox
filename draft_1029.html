@@ -258,7 +258,7 @@
                     "items": {
                         "type": "OBJECT",
                         "properties": {
-                            "type": { "type": "STRING", "description": "錯誤類型 (e.g., 'subject_verb_agreement', 'article_error', 'spelling', 'punctuation')" },
+                            "type": { "type": "STRING", "enum": ["subject_verb_agreement","tense_error","article_error","pronoun_error","number_agreement","dangling_modifier","incomplete_comparison","double_negative","inconsistent_tense_shift","spelling","contextual_spelling","capitalization_error","number_format_error","hyphenation_error","end_punctuation","internal_punctuation","quotation_marks"],"description": "錯誤類型，必須從預先定義的清單中選取，以確保與四大檢查類別相符。" },
                             "message": { "type": "STRING", "description": "錯誤的描述" },
                             "suggestion": { "type": "STRING", "description": "修正建議 (可能是完整句子或片段)" },
                             "severity": { "type": "STRING", "enum": ["minor", "major"], "description": "此錯誤的嚴重性" },
@@ -289,7 +289,7 @@
                             "items": {
                                 "type": "OBJECT",
                                 "properties": {
-                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '時态錯誤', '冠詞錯誤', '懸垂修飾語', '語境拼寫', '標點錯誤')" },
+                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '時態錯誤', '冠詞錯誤','代名詞錯誤','單複數不一致','懸垂修飾語','不完整比較','雙重否定','時態轉換不一致','一般拼寫錯誤','語境拼寫錯誤','大小寫錯誤','數字格式錯誤','連字符錯誤','句尾標點錯誤','內部標點誤用 - 含逗號/分號/冒號')"},
                                     "original": { "type": "STRING", "description": "錯誤的原文片段" },
                                     "correction": { "type": "STRING", "description": "修正建議" },
                                     "explanation": { "type": "STRING", "description": "簡短解釋" }
@@ -342,7 +342,6 @@
             },
             "required": ["correctness", "clarity", "engagement", "delivery"]
         };
-
 
         // --- 核心輔助函式 ---
 
@@ -455,7 +454,7 @@
             if (clarity && (clarity.feedback.length > 0 || clarity.rewrite_suggestion || clarity.passive_voice_warning)) {
                 html += `<div class="text-blue-300 mt-1">II. 清晰度:</div>`;
                 html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
-                clarity.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`); // 最多 1 個
+                clarity.feedback.slice(0, 10).forEach(fb => html += `<li>${fb}</li>`); // 最多 10 個
                 if (clarity.passive_voice_warning) html += '<li>提醒: 過度使用被動語態。</li>';
                 if (clarity.rewrite_suggestion) html += `<li>重寫建議: <span class="text-blue-200">${clarity.rewrite_suggestion}</span></li>`;
                 html += '</ul>';
@@ -467,7 +466,7 @@
             if (engagement && (engagement.feedback.length > 0 || engagement.vocab_suggestions.length > 0)) {
                 html += `<div class="text-purple-300 mt-1">III. 參與度:</div>`;
                 html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
-                engagement.feedback.slice(0, 1).forEach(fb => html += `<li>${fb}</li>`);
+                engagement.feedback.slice(0, 10).forEach(fb => html += `<li>${fb}</li>`);
                 engagement.vocab_suggestions.slice(0, 1).forEach(vs => html += `<li>詞彙建議: ${vs.original} &rarr; ${vs.suggestion}</li>`);
                 html += '</ul>';
             }
@@ -589,10 +588,11 @@
             const systemPrompt = `你是一個嚴格的「輸入文法預驗證層 (IGPVL)」。
 你的「唯一」任務是分析使用者輸入的文字，並「僅」根據 v2.6 規格回傳 JSON 物件。
 你「必須」執行所有四類檢查：
-1.  **Core Grammar (IGPVL-CORE-XX)**: 主謂一致, 時態, 冠詞, 代名詞。
+1.  **Core Grammar (IGPVL-CORE-XX)**: 主謂一致, 時態, 冠詞, 代名詞, 單複詞。
 2.  **Advanced Grammar (IGPVL-ADV-XX)**: 懸垂修飾語, 不完整比較, 雙重否定, 時態轉換不一致。
 3.  **Spelling & Consistency (IGPVL-SPC-XX)**: 拼寫錯誤, 語境拼寫 (e.g., their/there), 大小寫, 數字格式, 連字符。
 4.  **Punctuation (IGPVL-PUN-XX)**: 句尾標點, 逗號/分號/冒號誤用。
+    **【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
 
 **規則:**
 1.  **嚴格檢查**: 即使是微小的錯誤 (如 'He go') 也要標記。
@@ -744,10 +744,11 @@
 7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 8. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
     a. 【I. 正確性 (Strict Correctness)】: 嚴格執行此部分的檢查。'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤（例如冠詞、單複數、標點符號）**。如果沒有錯誤，必須返回空陣列 []。
-        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤。
+        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
+		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -857,10 +858,11 @@
 7. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 8. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
     a. 【I. 正確性 (Strict Correctness)】: 嚴格執行此部分的檢查。'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤（例如冠詞、單複數、標點符號）**。如果沒有錯誤，必須返回空陣列 []。
-        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤。
+        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
+		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -1051,10 +1053,11 @@
 7. 輸出「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 8. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'grammar_validation' 物件。
     a. 【I. 正確性 (Strict Correctness)】: 嚴格執行此部分的檢查。'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤（例如冠詞、單複數、標點符號）**。如果沒有錯誤，必須返回空陣列 []。
-        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤。
+        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
+		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -1227,10 +1230,11 @@ Band 規則: ${bandRules}
 8. 為 'example' 提供「一致性分數 (consistency_score)」(0-100)。
 9. 【Grammar Validation Layer (最新規格)】: **這是最重要的步驟**。對生成的 'example' 執行嚴格的文法驗證，並填入 'example_grammar_validation' 物件。
     a. 【I. 正確性 (Strict Correctness)】: 嚴格執行此部分的檢查。'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤（例如冠詞、單複數、標點符號）**。如果沒有錯誤，必須返回空陣列 []。
-        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤。
+        - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
+		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
