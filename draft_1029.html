@@ -61,6 +61,18 @@ Ensure highlighted part does not wrap */
             <p class="text-lg text-gray-400 mt-2">Integrating PPL, S_Naturalness, GVL (v3.0) & IGPVL (v2.6)</p>
         </header>
 
+        <!-- === [MODIFICATION START] API Key Input === -->
+        <div class="max-w-xl mx-auto mb-6 p-4 bg-gray-800 rounded-lg shadow-inner border border-gray-700">
+            <label for="apiKeyInput" class="block text-sm font-medium text-gray-300 mb-2">
+                Gemini API Key
+            </label>
+            <input type="password" id="apiKeyInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="請在此輸入您的 API 金鑰..." value="AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo">
+            <p class="text-xs text-gray-500 mt-2">
+                The default key may become invalid at any time. It is recommended that you paste your own Gemini API key here to ensure the service is available.
+            </p>
+        </div>
+        <!-- === [MODIFICATION END] API Key Input === -->
+
         <!-- Feature Tabs -->
         <div class="flex justify-center mb-6 border-b border-gray-700">
             <button id="tabPrediction" class="tab-button px-6 py-3 font-semibold text-white bg-gray-800 rounded-t-lg -mb-px border-t border-l border-r border-gray-700">
@@ -85,9 +97,9 @@ Ensure highlighted part does not wrap */
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">Specify POS (POS Filter)</label>
+                                <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">Specify Word Class</label>
                                 <select id="predPos" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="any">Any POS (Any)</option>
+                                    <option value="any">Word Class (Any)</option>
                                     <option value="N">Noun</option>
                                     <option value="V">Verb</option>
                                     <option value="Adj">Adjective</option>
@@ -191,10 +203,12 @@ Ensure highlighted part does not wrap */
 
     <!-- JavaScript Logic -->
     <script type="module">
-        // --- Gemini API Key (Leave as an empty string, Canvas will auto-fill) ---
-        // v2.6 IGPVL Note: IGPVL and GVL use the same API endpoint and key
-        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        // --- [MODIFICATION] Gemini API Key ---
+        // API 金鑰現在從 HTML 中的 'apiKeyInput' 欄位讀取。
+        // const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // 舊的硬編碼金鑰
+        // API URL 現在在 callGeminiAPI() 內部動態建構。
+        // const apiUrl = `...`;
+        // --- [MODIFICATION END] ---
 
         // --- DOM Element References ---
         const tabs = {
@@ -240,6 +254,10 @@ Ensure highlighted part does not wrap */
         const valError = document.getElementById('valError');
         const validationResults = document.getElementById('validationResults');
         const igpvlValError = document.getElementById('igpvlValError'); // v2.6 IGPVL Add
+        
+        // --- [MODIFICATION START] API Key Input ---
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        // --- [MODIFICATION END] ---
 
         // T1.8 / T2.8 Fix: Regeneration history
         const regenerationHistory = {};
@@ -486,6 +504,7 @@ Ensure highlighted part does not wrap */
 
         /**
          * Call the Gemini API
+         * @param {string} userApiKey - [MODIFIED] The API key from the input field
          * @param {string} systemPrompt - System Instruction
          * @param {string} userQuery - User Query
          * @param {object|null} schema - JSON output schema (if needed)
@@ -494,8 +513,13 @@ Ensure highlighted part does not wrap */
          * @param {number} maxRetries - Maximum retry attempts
          * @returns {Promise<object>} - API response or error object
          */
-        async function callGeminiAPI(systemPrompt, userQuery, schema = null, temperature = 0.7, topP = 0.95, maxRetries = 3) {
+        // --- [MODIFICATION START] Added userApiKey parameter ---
+        async function callGeminiAPI(userApiKey, systemPrompt, userQuery, schema = null, temperature = 0.7, topP = 0.95, maxRetries = 3) {
             
+            // --- [MODIFICATION] Dynamically build API URL ---
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${userApiKey}`;
+            // --- [MODIFICATION END] ---
+
 			// ===============================================
 			// 🚨 This is your checkpoint: Print Prompt content for AI
 			// ===============================================
@@ -534,13 +558,18 @@ Ensure highlighted part does not wrap */
 
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(apiUrl, { // [MODIFIED] Uses dynamic apiUrl
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
 
                     if (!response.ok) {
+                        // [MODIFIED] Improved error handling for 400 (Bad Request), often API key related
+                        if (response.status === 400) {
+                             const errorData = await response.json();
+                             throw new Error(`API request failed (Status 400 - Bad Request). Check API Key or model access. Details: ${errorData?.error?.message || 'No details'}`);
+                        }
                         throw new Error(`API request failed, status code: ${response.status}`);
                     }
 
@@ -549,6 +578,10 @@ Ensure highlighted part does not wrap */
                     const candidate = result.candidates?.[0];
 
                     if (!candidate || !candidate.content?.parts?.[0]) {
+                        // [MODIFIED] Handle safety blocks
+                        if (candidate?.finishReason === 'SAFETY') {
+                            throw new Error("API call blocked due to safety settings (Finish Reason: SAFETY).");
+                        }
                         throw new Error("API returned an invalid response structure or was filtered.");
                     }
 
@@ -578,12 +611,14 @@ Ensure highlighted part does not wrap */
 
         /**
          * Execute IGPVL check (Simulates API call)
+         * @param {string} userApiKey - [MODIFIED] The API key
          * @param {string} text - The full text to check
          * @param {string} inputId - ID of the calling source
          * @param {string} context - Writing context (e.g., 'academic')
          * @returns {Promise<object>} - Object matching igpvlSchema or an error
          */
-        async function validateInputGrammar(text, inputId, context) {
+        // --- [MODIFICATION START] Added userApiKey parameter ---
+        async function validateInputGrammar(userApiKey, text, inputId, context) {
             
             // v2.6 IGPVL System Prompt
 			const systemPrompt = `You are a specialized and strict "Input Grammar Pre-Validation Layer (IGPVL) v2.6".
@@ -619,7 +654,9 @@ You "must" perform all four check categories and strictly flag all errors:
 }
 `;
             // Use 0.1 temperature to ensure stability and consistency of IGPVL check
-            const result = await callGeminiAPI(systemPrompt, userQuery, igpvlSchema, 0.1, 1.0);
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, igpvlSchema, 0.1, 1.0);
+            // --- [MODIFICATION END] ---
             
             // Ensure timestamp exists (model sometimes forgets)
             if (result && !result.isError && !result.timestamp) {
@@ -698,6 +735,19 @@ You "must" perform all four check categories and strictly flag all errors:
         
         async function handlePredictionSubmit(e) {
             e.preventDefault();
+
+            // --- [MODIFICATION START] Get API Key First ---
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                // Use predError for main form errors
+                displayError(predError, "API key is empty. Please provide a valid API key in the top input field.", predLoading, predButton, predButtonText, "Get 6 Predictions");
+                // Clear any old IGPVL errors
+                igpvlPredError.innerHTML = '';
+                igpvlPredError.className = 'text-sm rounded-lg';
+                return;
+            }
+            // --- [MODIFICATION END] ---
+
             const phrase = predInput.value.trim();
             
             // v2.6 IGPVL Integration: Clear old messages
@@ -715,7 +765,9 @@ You "must" perform all four check categories and strictly flag all errors:
             displayLoading(predError, predLoading, predButton, predButtonText, "1/2 Validating Input...");
 
             // --- v2.6 IGPVL Execution ---
-            const igpvlResult = await validateInputGrammar(phrase, 'predInput', 'academic');
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput', 'academic');
+            // --- [MODIFICATION END] ---
             const isBlocked = displayIgpvlFeedback(igpvlPredError, igpvlResult);
 
             if (isBlocked) {
@@ -844,7 +896,9 @@ Sampling Params (T=${temp}, TopP=${topP})
 `;
 
             // Call API
-            const results = await callGeminiAPI(systemPrompt, userQuery, predictionSchema, temp, topP);
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const results = await callGeminiAPI(userApiKey, systemPrompt, userQuery, predictionSchema, temp, topP);
+            // --- [MODIFICATION END] ---
             
 			// ⭐️ Checkpoint: Print the raw API response
 			console.log("--- Raw Gemini API Response (results) ---");
@@ -881,6 +935,18 @@ Sampling Params (T=${temp}, TopP=${topP})
         // Handle custom word validation
         async function handleCustomWordCheck(e) {
             e.preventDefault();
+
+            // --- [MODIFICATION START] Get API Key First ---
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+                igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the top input field.';
+                // Clear old results
+                customResults.innerHTML = '';
+                return;
+            }
+            // --- [MODIFICATION END] ---
+
             const phrase = predInput.value.trim();
             const customWord = customWordInput.value.trim();
 
@@ -901,7 +967,9 @@ Sampling Params (T=${temp}, TopP=${topP})
             customButtonText.textContent = "1/2 Validating Input...";
 
             // --- v2.6 IGPVL Execution (Check context phrase only) ---
-            const igpvlResult = await validateInputGrammar(phrase, 'predInput_custom', 'academic');
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput_custom', 'academic');
+            // --- [MODIFICATION END] ---
             const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
 
             if (isBlocked) {
@@ -1024,8 +1092,9 @@ Custom Word: "${customWord}"
 Writing Task: "${taskContext}"
 Sampling Params (T=${temp}, TopP=${topP})
 `;
-
-            const result = await callGeminiAPI(systemPrompt, userQuery, customSchema, temp, topP);
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, customSchema, temp, topP);
+            // --- [MODIFICATION END] ---
 
             // Restore UI
             customLoading.classList.add('hidden');
@@ -1163,10 +1232,26 @@ Sampling Params (T=${temp}, TopP=${topP})
 
         // Unified example regeneration logic (Shared by Prediction & Validation)
         async function handleRegeneration(button, band, context, word, type) {
+            // --- [MODIFICATION START] Get API Key First ---
+            const userApiKey = apiKeyInput.value.trim();
             const index = button.dataset.index;
+            const exampleContainer = document.getElementById(type === 'prediction' ? `example-container-${index}` : `val-example-container`);
+            
+            if (!userApiKey) {
+                exampleContainer.innerHTML = `<span class="text-red-400">Generation Failed: API key is empty.</span>`;
+                // Restore UI in case it's spinning
+                const regenText = button.querySelector('.regen-text');
+                const regenLoading = button.querySelector('.regen-loading');
+                button.disabled = false;
+                regenText.classList.remove('hidden');
+                regenLoading.classList.add('hidden');
+                return;
+            }
+            // --- [MODIFICATION END] ---
+
             const fullPhrase = type === 'prediction' ? `${context} ${word}` : context; // Validation case: context is the full phrase
             
-            const exampleContainer = document.getElementById(type === 'prediction' ? `example-container-${index}` : `val-example-container`);
+            // const exampleContainer = document.getElementById(type === 'prediction' ? `example-container-${index}` : `val-example-container`); // Moved up
             const regenText = button.querySelector('.regen-text');
             const regenLoading = button.querySelector('.regen-loading');
 
@@ -1270,7 +1355,9 @@ Sampling Params (T=${temp}, TopP=${topP})
 `;
 
             // Call API
-            const result = await callGeminiAPI(systemPrompt, userQuery, regenSchema, temp, topP);
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, regenSchema, temp, topP);
+            // --- [MODIFICATION END] ---
 
             // Restore UI (Restore before T1.8 check to prevent button getting stuck)
             button.disabled = false;
@@ -1380,6 +1467,18 @@ Sampling Params (T=${temp}, TopP=${topP})
 
         async function handleValidationSubmit(e) {
             e.preventDefault();
+
+            // --- [MODIFICATION START] Get API Key First ---
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                displayError(valError, "API key is empty. Please provide a valid API key in the top input field.", valLoading, valButton, valButtonText, "Validate Collocation");
+                // Clear any old IGPVL errors
+                igpvlValError.innerHTML = '';
+                igpvlValError.className = 'text-sm rounded-lg';
+                return;
+            }
+            // --- [MODIFICATION END] ---
+
             const phrase1 = valInput1.value.trim();
             const phrase2 = valInput2.value.trim();
             const fullPhrase = `${phrase1} ${phrase2}`.trim();
@@ -1400,7 +1499,9 @@ Sampling Params (T=${temp}, TopP=${topP})
             displayLoading(valError, valLoading, valButton, valButtonText, "1/2 Validating Input...");
 
             // --- v2.6 IGPVL Execution ---
-            const igpvlResult = await validateInputGrammar(fullPhrase, 'valInput', 'academic');
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const igpvlResult = await validateInputGrammar(userApiKey, fullPhrase, 'valInput', 'academic');
+            // --- [MODIFICATION END] ---
             const isBlocked = displayIgpvlFeedback(igpvlValError, igpvlResult);
 
             if (isBlocked) {
@@ -1498,7 +1599,9 @@ Full Collocation: "${fullPhrase}"
 `;
             
             // Call API (Use Consistency Manager params from Prediction tab)
-            const result = await callGeminiAPI(systemPrompt, userQuery, validationSchema, predTemp.value, predTopP.value);
+            // --- [MODIFICATION START] Pass userApiKey ---
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, validationSchema, predTemp.value, predTopP.value);
+            // --- [MODIFICATION END] ---
 
             // Restore UI
             displayDone(valLoading, valButton, valButtonText, "Validate Collocation");
