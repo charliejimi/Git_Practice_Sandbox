@@ -741,7 +741,11 @@
 【內部參照：英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**此參照將用於規則 8 的嚴格檢查。
 規則：
 1. 【**輸入校驗與修正**】: **如果使用者輸入的片語包含基礎拼寫或嚴重文法錯誤** (例如 'cycly' 或 'the lives are'), **你必須在輸出 JSON 的 'initial_phrase_correction' 欄位中提供修正後的片語** (e.g., 'the life cycle ends,')，並以該修正後的片語作為所有預測的上下文。如果輸入正確，則返回空字串。
-2. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
+
+2. 【🔥 **Task 風格約束 (核心優化)**】: 必須嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文來生成 'example' 句子。
+    a. **若 Task = Task 1 (圖表描述):** 'example' 必須是**正式 (Formal)**、**客觀 (Objective)** 且**學術性**的。語氣必須**中立**，專注於描述數據、趨勢或比較 (例如：*soared, plummeted, whereas, significantly*)。**絕對禁止**使用 "I think", "In my opinion" 等任何主觀或情感表達。
+    b. **若 Task = Task 2 (議論文):** 'example' 必須是**正式 (Formal)** 或 **半正式 (Semi-formal)** 的，語氣應為**說服性 (Persuasive)** 或 **分析性 (Analytical)**。句子應側重於邏輯論證、因果關係或提出正式觀點 (例如：*consequently, It is widely argued that, however*)。**必須避免**口語化表達或縮寫 (如 "don't")。
+
 3. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 4. 為每個預測詞提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 5. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
@@ -751,67 +755,73 @@
 8. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
 **這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'grammar_validation' 物件。
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
-        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        - **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        - **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
-        - **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法與 Task 規範錯誤**)
+    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
+        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
+        - **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
+        - **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
+        - **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+        - **(🔥) IELTS Task 規範:** 必須嚴格檢查是否違反 **規則 2** 的 Task 風格。
+          - **Task 1 違規 (Critical):** 偵測到任何主觀表達 (如 "I think", "In my opinion", "feels")。錯誤 'type' 應為 "Task 1 Violation"。
+          - **Task 2 違規 (High):** 偵測到口語縮寫 (如 "don't", "it's") 或過度口語化的詞彙。錯誤 'type' 應為 "Formality Violation"。
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**不處理 I 級句法錯誤**。
-        - **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態。
-        - **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
+    提供「建議」。**不處理 I 級句法錯誤**。
+        - **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態。
+        - **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        - **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
+    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
+    提供「建議」。
+        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
+        - **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
 
-    d. 【IV. 傳遞性 (Delivery)】: (維持原標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    d. 【IV. 傳遞性 (Delivery)】: (🔥 Task 強化標準)
+    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    **'formality' 和 'detected_tone' 的評估必須嚴格對應規則 2 中指定的 Task 類型：**
+        - **Task 1:** 'formality' 必須評為 "Formal (Academic)"，'detected_tone' 必須評為 "Objective" 或 "Neutral"。
+        - **Task 2:** 'formality' 必須評為 "Formal" 或 "Semi-formal"，'detected_tone' 必須評為 "Persuasive" 或 "Analytical"。
 
 9. 【輸出格式 (JSON Schema)】: **你的輸出「必須」嚴格遵守以下 JSON 結構的物件。**
 
 \`\`\`json
 {
-  "initial_phrase_correction": "STRING", 
-  "predictions": [
-    {
-      "predicted_word": "STRING",
-      "P(w_n|context)": "NUMBER",
-      "example": "STRING",
-      "ppl": "NUMBER",
-      "cohesion_band": "NUMBER",
-      "consistency_score": "NUMBER",
-      "grammar_validation": {
-        "correctness": {
-          "is_correct": "BOOLEAN", 
-          "errors": [
-            {
-              "type": "STRING", 
-              "description": "STRING", 
-              "suggestion": "STRING",
-              "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
-            }
-          ]
-        },
-        "clarity": {
-          "feedback": "STRING", 
-          "rewrite_suggestion": "STRING"
-        },
-        "engagement": {
-          "feedback": "STRING", 
-          "vocab_suggestions": "ARRAY<STRING>"
-        },
-        "delivery": {
-          "detected_tone": "STRING",
-          "formality": "STRING",
-          "inclusive_language_warning": "STRING"
-        }
-      }
-    }
-  ]
+  "initial_phrase_correction": "STRING", 
+  "predictions": [
+    {
+      "predicted_word": "STRING",
+      "P(w_n|context)": "NUMBER",
+      "example": "STRING",
+      "ppl": "NUMBER",
+      "cohesion_band": "NUMBER",
+      "consistency_score": "NUMBER",
+      "grammar_validation": {
+        "correctness": {
+          "is_correct": "BOOLEAN", 
+          "errors": [
+            {
+              "type": "STRING", 
+              "description": "STRING", 
+              "suggestion": "STRING",
+              "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+            }
+          ]
+        },
+        "clarity": {
+          "feedback": "STRING", 
+          "rewrite_suggestion": "STRING"
+        },
+        "engagement": {
+          "feedback": "STRING", 
+          "vocab_suggestions": "ARRAY<STRING>"
+        },
+        "delivery": {
+  C       "detected_tone": "STRING",
+          "formality": "STRING",
+          "inclusive_language_warning": "STRING"
+        }
+      }
+    }
+  ]
 }
 \`\`\`
 10. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
@@ -909,36 +919,46 @@
 
 規則：
 1. 【**輸入校驗與修正**】: **如果使用者輸入的上下文片語 \${truncatedPhrase} 包含基礎拼寫或嚴重文法錯誤** (例如 'cycly' 或 'the lives are'), **你必須在輸出 JSON 的 'initial_phrase_correction' 欄位中提供修正後的片語** (e.g., 'the life cycle ends,')，並以該修正後的片語作為所有例句生成的上下文。如果輸入正確，則返回空字串。
-2. 嚴格遵守使用者指定的「寫作任務 (Task)」上下文。
-3. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
+
+2. 【🔥 **Task 風格約束 (核心優化)**】: 必須嚴格遵守使用者指定的「寫作任務 (Task)」上下文來生成 'example' 句子。
+    a. **若 Task = Task 1 (圖表描述):** 'example' 必須是**正式 (Formal)**、**客觀 (Objective)** 且**學術性**的。語氣必須**中立**，專注於描述數據、趨勢或比較 (例如：*soared, plummeted, whereas, significantly*)。**絕對禁止**使用 "I think", "In my opinion" 等任何主觀或情感表達。
+    b. **若 Task = Task 2 (議論文):** 'example' 必須是**正式 (Formal)** 或 **半正式 (Semi-formal)** 的，語氣應為**說服性 (Persuasive)** 或 **分析性 (Analytical)**。句子應側重於邏輯論證、因果關係或提出正式觀點 (例如：*consequently, It is widely argued that, however*)。**必須避免**口語化表達或縮寫 (如 "don't")。
+
+3. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 9 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 4. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 5. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
-6. 【重點】例句中，驗證的詞彙 \${customWord} 必須「緊密且唯一地」緊接在上下文 \${truncatedPhrase} 的「最後一個字」之後。如果上下文的最後一個字是標點符號，該詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
+6. 【重點】例句中，驗證的詞彙 \${customWord} 必須「緊密且唯一地」緊接在上下文 \${truncatedPhrase} 的「最後一個字」之後。如果上下文的最後一個字是標點符号，該詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
 7. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
 8. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
 
 9. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
 **這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'grammar_validation' 物件。
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
-        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        - **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        - **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
-        - **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法與 Task 規範錯誤**)
+    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
+        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
+        - **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
+        - **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
+        - **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+        - **(🔥) IELTS Task 規範:** 必須嚴格檢查是否違反 **規則 2** 的 Task 風格。
+          - **Task 1 違規 (Critical):** 偵測到任何主觀表達 (如 "I think", "In my opinion", "feels")。錯誤 'type' 應為 "Task 1 Violation"。
+          - **Task 2 違規 (High):** 偵測到口語縮寫 (如 "don't", "it's") 或過度口語化的詞彙。錯誤 'type' 應為 "Formality Violation"。
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**不處理 I 級句法錯誤**。
-        - **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態。
-        - **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
+    提供「建議」。**不處理 I 級句法錯誤**。
+        - **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態。
+        - **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        - **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
+    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
+    提供「建議」。
+        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
+        - **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
 
-    d. 【IV. 傳遞性 (Delivery)】: (維持原標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    d. 【IV. 傳遞性 (Delivery)】: (🔥 Task 強化標準)
+    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    **'formality' 和 'detected_tone' 的評估必須嚴格對應規則 2 中指定的 Task 類型：**
+        - **Task 1:** 'formality' 必須評為 "Formal (Academic)"，'detected_tone' 必須評為 "Objective" 或 "Neutral"。
+        - **Task 2:** 'formality' 必須評為 "Formal" 或 "Semi-formal"，'detected_tone' 必須評為 "Persuasive" 或 "Analytical"。
 
 10. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
 
@@ -946,38 +966,38 @@
 
 \`\`\`json
 {
-  "initial_phrase_correction": "STRING", // 規則 1 要求的修正
-  "P(w_n|context)": "NUMBER",
-  "example": "STRING",
-  "ppl": "NUMBER",
-  "cohesion_band": "NUMBER",
-  "consistency_score": "NUMBER",
-  "grammar_validation": {
-    "correctness": {
-      "is_correct": "BOOLEAN", 
-      "errors": [
-        {
-          "type": "STRING", 
-          "description": "STRING", 
-          "suggestion": "STRING",
-          "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
-        }
-      ]
-    },
-    "clarity": {
-      "feedback": "STRING", 
-      "rewrite_suggestion": "STRING"
-    },
-    "engagement": {
-      "feedback": "STRING", 
-      "vocab_suggestions": "ARRAY<STRING>"
-    },
-    "delivery": {
-      "detected_tone": "STRING",
-      "formality": "STRING",
-      "inclusive_language_warning": "STRING"
-    }
-  }
+  "initial_phrase_correction": "STRING", // 規則 1 要求的修正
+  "P(w_n|context)": "NUMBER",
+  "example": "STRING",
+  "ppl": "NUMBER",
+  "cohesion_band": "NUMBER",
+  "consistency_score": "NUMBER",
+. "grammar_validation": {
+    "correctness": {
+      "is_correct": "BOOLEAN", 
+      "errors": [
+        {
+          "type": "STRING", 
+          "description": "STRING", 
+          "suggestion": "STRING",
+          "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+        }
+      ]
+    },
+    "clarity": {
+      "feedback": "STRING", 
+      "rewrite_suggestion": "STRING"
+    },
+    "engagement": {
+      "feedback": "STRING", 
+      "vocab_suggestions": "ARRAY<STRING>"
+    },
+    "delivery": {
+      "detected_tone": "STRING",
+      "formality": "STRING",
+      "inclusive_language_warning": "STRING"
+    }
+  }
 }
 \`\`\`
 12. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
