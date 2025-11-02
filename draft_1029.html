@@ -191,7 +191,7 @@
     <script type="module">
         // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
         // v2.6 IGPVL 註記: IGPVL 和 GVL 使用相同的 API 端點和金鑰
-        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
+        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
         // --- DOM 元素參照 ---
@@ -734,6 +734,7 @@
 
             // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者輸入的片語，預測 6 個最常見的下一個詞彙。
+			【內部參照：英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**此參照將用於規則 8 的嚴格檢查。
 規則：
 1. 嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文。
 2. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
@@ -747,7 +748,6 @@
         - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
-        - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
 		
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
@@ -848,9 +848,10 @@
 
             // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是驗證使用者輸入的詞彙「${customWord}」在上下文「${truncatedPhrase}」之後的自然度。
+			
 規則：
 1. 嚴格遵守使用者指定的「寫作任務 (Task)」上下文。
-2. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 7 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
+2. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 9 點**英文句子定義**而且都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 3. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
 4. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
 5. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在上下文的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號（例如：句號 .、逗號 ,、問號 ?、冒號 :、分號 ; 等），則預測的詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
@@ -861,8 +862,8 @@
         - 核心文法: 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤,單複詞。
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
-        - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
-		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
+        
+		
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -870,7 +871,8 @@
         - 詞彙: 透過 'vocab_suggestions' 建議替換 過度使用或乏味 的詞彙。
         - 結構: 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
     d. 【IV. 傳遞性 (Delivery)】: (維持原標準) 偵測 'detected_tone', 'formality' (e.g., '正式')，並檢查 'inclusive_language_warning'。
-9. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+9. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+10. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 上下文 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
@@ -1044,7 +1046,7 @@
             // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」和「目標 Band」，生成一個「單一、精簡（最多 25 詞）」的例句。
 原則：
-1. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
+1. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 9 點**英文句子定義**而且都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 2. **語義一致性 ($\ge 0.9$):** 新生成的例句必須與當前例句語義保持高度一致，差異僅在於句法結構和詞彙選擇。
 3. **Band 遵循:** 例句必須嚴格符合目標 Band (${band}) 的語法複雜度、連貫性與詞彙密度要求。
 4. **搭配完整:** 確保例句中包含完整的搭配「${fullPhrase}」。
@@ -1065,7 +1067,8 @@
         - 詞彙: 透過 'vocab_suggestions' 建議替換 過度使用或乏味 的詞彙。
         - 結構: 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
     d. 【IV. 傳遞性 (Delivery)】: (維持原標準) 偵測 'detected_tone', 'formality' (e.g., '正式')，並檢查 'inclusive_language_warning'。
-9. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+9. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+10. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
 
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
@@ -1220,7 +1223,7 @@ Band 規則: ${bandRules}
             // S_Naturalness v3.0 (使用者自訂) 修正版 System Prompt
             const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
 規則：
-1. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 9 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
+1. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 9 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
 2. 提供「Fpm」 (該片語在語料庫中每百萬詞的出現頻率)。
 3. 提供「MI」 (互資訊值)。
 4. 根據語法與詞形正確性，提供「L_acc_norm」 (語言學準確度分數：1.0 = 完全正確, 0.5 = 可理解但有小錯, 0.0 = 嚴重錯誤)。
@@ -1242,7 +1245,8 @@ Band 規則: ${bandRules}
         - 詞彙: 透過 'vocab_suggestions' 建議替換 過度使用或乏味 的詞彙。
         - 結構: 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
     d. 【IV. 傳遞性 (Delivery)】: (維持原標準) 偵測 'detected_tone', 'formality' (e.g., '正式')，並檢查 'inclusive_language_warning'。
-10. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
+10. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+11. 僅以要求的 JSON 格式物件 (Object) 輸出。`;
             
             const userQuery = `
 完整搭配片語: "${fullPhrase}"
