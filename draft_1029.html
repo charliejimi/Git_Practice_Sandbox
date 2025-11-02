@@ -602,8 +602,8 @@ You "must" perform all four check categories and strictly flag all errors:
 2.  **Error Count (error_count)**: Must "precisely" reflect the length of the 'errors' array.
 3.  **Validation Mechanism (Status & Severity):**
     * error_count = 0: 'status' = 'passed', 'severity' = 'none', 'recommendation' = 'Grammar correct, ready to generate.'
-    * 1 <= error_count <= 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = 'Detected ${error_count} minor errors. Please review suggestions. Generation is permitted.'
-    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = 'Detected ${error_count} major errors. Please correct the input and try again.'
+    * 1 <= error_count <= 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = 'Detected \${error_count} minor errors. Please review suggestions. Generation is permitted.'
+    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = 'Detected \${error_count} major errors. Please correct the input and try again.'
 4.  **Error Codes**: 'code' field must follow specifications (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01').
 5.  **Timestamp**: Must provide the current UTC time in ISO 8601 format.
 6.  **Absolute Prohibition**: Your response "must not" contain any text other than the JSON.`;
