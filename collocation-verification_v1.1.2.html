@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英語搭配詞分析器 (AI 驅動)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        body {
+            font-family: "Inter", sans-serif;
+        }
+        /* 自訂分析結果的動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .result-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        /* 確保列表的顯示效果 */
+        .list-disc li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-3xl">
+        
+        <header class="text-center mb-6">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">英語搭配詞分析器</h1>
+            <p class="text-gray-600 mt-2">比較兩個詞組，分析其用法規模與來源可靠性。</p>
+            <p class="text-sm text-blue-600 mt-2 font-medium">(由 AI 驅動的真實分析工具)</p>
+        </header>
+
+        <!-- 輸入區域 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+                <label for="phrase1" class="block text-sm font-medium text-gray-700 mb-1">詞組 1 (例如: make a decision)</label>
+                <input type="text" id="phrase1" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label for="phrase2" class="block text-sm font-medium text-gray-700 mb-1">詞組 2 (例如: take a decision)</label>
+                <input type="text" id="phrase2" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <!-- 按鈕 -->
+        <div class="text-center mb-6">
+            <button id="analyzeButton" class="w-full md:w-auto bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 disabled:bg-gray-400">
+                <span id="button-text">開始分析</span>
+                <span id="button-loading" class="hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 inline-block text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    分析中...
+                </span>
+            </button>
+        </div>
+
+        <!-- 結果顯示區域 -->
+        <div id="results-container" class="space-y-6">
+            <!-- 錯誤訊息提示 (用於真正錯誤) -->
+            <div id="error-message" class="hidden text-center text-red-600 bg-red-100 p-4 rounded-lg"></div>
+            <!-- 狀態/IELTS 提示 (用於通知) -->
+            <div id="status-message" class="hidden text-center p-4 rounded-lg font-medium"></div>
+            
+            <!-- 範例提示 -->
+            <div id="sample-prompt" class="text-center text-gray-500 p-4 bg-gray-50 rounded-lg">
+                <h4 class="font-semibold">試試看輸入這些範例：</h4>
+                <ul class="text-sm mt-2">
+                    <li>(make a decision) vs (take a decision)</li>
+                    <li>(strong coffee) vs (powerful coffee)</li>
+                    <li>(commit a crime) vs (do a crime)</li>
+                </ul>
+            </div>
+
+            <!-- 分析結果將動態插入此處 -->
+        </div>
+
+    </div>
+
+    <script>
+        // 全局快取，用於儲存原始 Markdown 分析文本以供匯出
+        window.toneAnalysisCache = {}; 
+        
+        // --- DOM 元素 ---
+        const phrase1Input = document.getElementById('phrase1');
+        const phrase2Input = document.getElementById('phrase2');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const buttonText = document.getElementById('button-text');
+        const buttonLoading = document.getElementById('button-loading');
+        const resultsContainer = document.getElementById('results-container');
+        const errorMessage = document.getElementById('error-message');
+        const statusMessage = document.getElementById('status-message'); // 新增狀態提示
+        const samplePrompt = document.getElementById('sample-prompt');
+
+        // --- 事件監聽 ---
+        analyzeButton.addEventListener('click', handleAnalysis);
+
+        // --- 輔助函數: Markdown 轉基本 HTML ---
+        function markdownToBasicHtml(markdownText) {
+            if (!markdownText) return '';
+
+            let html = markdownText;
+
+            // 1. 轉換粗體 (**text** 或 __text__) 為 strong 標籤
+            html = html.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
+            
+            // 2. 轉換標題 (# Header)
+            // H4 樣式
+            html = html.replace(/^##\s*(.*)$/gm, '<h4 class="font-bold text-lg text-teal-700 mt-3 mb-1">$1</h4>');
+            // H3 樣式 (最主要標題)
+            html = html.replace(/^#\s*(.*)$/gm, '<h3 class="font-bold text-xl text-teal-800 mt-4 mb-2">$1</h3>');
+            
+            // 3. 處理表格 (Table Conversion - NEW)
+            const tableRegex = /(\|.*?\|\r?\n)((?:\|[-: ]+\|)+\r?\n)((?:\|.*?\|\r?\n?)+)/gs;
+            
+            html = html.replace(tableRegex, (match, headerLine, separatorLine, dataLines) => {
+                let tableHtml = '<div class="overflow-x-auto my-4"><table class="min-w-full table-auto border-collapse shadow-md rounded-lg overflow-hidden">';
+                
+                // 3a. Process Header
+                const headerCells = headerLine.trim().split('|').filter(c => c.trim() !== '');
+                if (headerCells.length > 0) {
+                    tableHtml += '<thead><tr class="bg-gray-200">';
+                    headerCells.forEach(cell => {
+                        let content = cell.trim();
+                        tableHtml += `<th class="px-4 py-2 text-sm font-semibold text-gray-700 text-left border-b-2 border-gray-300">${content}</th>`;
+                    });
+                    tableHtml += '</tr></thead>';
+                }
+                
+                // 3b. Process Data Rows
+                tableHtml += '<tbody>';
+                const dataRowsArray = dataLines.trim().split('\n').filter(r => r.trim() !== '');
+                dataRowsArray.forEach(rowLine => {
+                    const dataCells = rowLine.trim().split('|').filter(c => c.trim() !== '');
+                    if (dataCells.length > 0) {
+                        tableHtml += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
+                        dataCells.forEach(cell => {
+                            let content = cell.trim();
+                            tableHtml += `<td class="px-4 py-2 text-sm text-gray-800">${content}</td>`;
+                        });
+                        tableHtml += '</tr>';
+                    }
+                });
+                tableHtml += '</tbody></table></div>';
+                
+                return tableHtml;
+            });
+
+            // 4. 處理列表 (* Item 或 - Item) 和普通段落
+            const lines = html.split('\n');
+            let inList = false;
+            let newLines = [];
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                
+                // 忽略空行
+                if (trimmedLine === '' && !inList) continue; 
+                
+                // 檢查是否是已處理的 HTML 區塊 (標題或表格)
+                if (trimmedLine.startsWith('<h') || trimmedLine.startsWith('<div class="overflow-x-auto')) {
+                    if (inList) {
+                        newLines.push('</ul>');
+                        inList = false;
+                    }
+                    newLines.push(line);
+                    continue;
+                }
+                
+                // 檢查是否是列表項目
+                if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+                    if (!inList) {
+                        // 開始一個新的列表
+                        newLines.push('<ul class="list-disc list-inside ml-4 space-y-1">');
+                        inList = true;
+                    }
+                    // 移除列表符號並包裝成 li
+                    const listItemText = trimmedLine.substring(2).trim();
+                    newLines.push(`<li class="text-sm text-gray-700">${listItemText}</li>`);
+                } else {
+                    if (inList) {
+                        // 結束列表
+                        newLines.push('</ul>');
+                        inList = false;
+                    }
+                    if (trimmedLine) {
+                        // 處理非列表項目（即段落）
+                        if (!trimmedLine.startsWith('<')) { 
+                            newLines.push(`<p class="text-sm text-gray-700">${trimmedLine}</p>`);
+                        } else {
+                            // 如果是其他 HTML 標籤（例如：表格），則直接加入
+                            newLines.push(line);
+                        }
+                    }
+                }
+            }
+            if (inList) {
+                newLines.push('</ul>');
+            }
+
+            // 重新組合
+            return newLines.join('\n');
+        }
+
+
+        // --- 核心功能 ---
+        async function handleAnalysis() {
+            // 顯示載入狀態
+            setLoading(true);
+            showError(''); // 清空舊的錯誤訊息
+            showStatus(''); // 清空舊的狀態訊息
+            resultsContainer.innerHTML = ''; // 清空舊的分析結果
+            samplePrompt.classList.add('hidden'); // 隱藏範例提示
+
+            const phrase1 = phrase1Input.value.trim();
+            const phrase2 = phrase2Input.value.trim();
+
+            if (!phrase1 || !phrase2) {
+                showError('請同時輸入兩個詞組以便比較。');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                // 1. 執行主要搭配詞分析
+                const analysisData = await callGeminiAPI(phrase1, phrase2);
+                const { recommendation } = analysisData;
+
+                let recommendedPhrase;
+
+                // 2. 判斷哪個詞組是 AI 推薦的
+				
+				// --- 加入這三行進行偵錯 ---
+				console.log('偵錯 1: Phrase 1 原始值:', phrase1);
+				console.log('偵錯 2: Phrase 2 原始值:', phrase2);
+				console.log('偵錯 3: Recommendation 原始內容:', recommendation);
+				// ----------------------------
+                const isPhrase1Better = recommendation.includes(phrase1) && !recommendation.includes(phrase2);
+                const isPhrase2Better = recommendation.includes(phrase2) && !recommendation.includes(phrase1);
+				
+				// --- 檢查判斷結果 ---
+				console.log('偵錯 4: isPhrase1Better 結果:', isPhrase1Better);
+				console.log('偵錯 5: isPhrase2Better 結果:', isPhrase2Better);
+				// ----------------------
+				
+                if (isPhrase1Better) {
+                    recommendedPhrase = phrase1;
+                } else if (isPhrase2Better) {
+                    recommendedPhrase = phrase2;
+                } else {
+                    // 3. (新邏輯) 如果沒有單一明確推薦，則透過 IELTS 權重決定
+                    showStatus('總結建議不夠明確。正在透過 IELTS 寫作標準決定推薦詞組...', 'loading');
+                    
+                    // 呼叫新的 AI 決定函數
+                    const ieltsChoice = await determineIeltsPhrase(phrase1, phrase2);
+                    recommendedPhrase = ieltsChoice;
+                    
+                    // 顯示最終 IELTS 判斷結果
+                    showStatus(`AI 推薦詞組判定為 IELTS 寫作中更合適的：「${recommendedPhrase}」。`, 'info');
+                }
+
+                // 4. 產生並顯示分析結果
+                const analysisHTML = createAnalysisHTML(analysisData, recommendedPhrase);
+                resultsContainer.innerHTML = analysisHTML;
+
+            } catch (error) {
+                console.error('API 呼叫失敗:', error);
+                showError(`分析時發生錯誤：${error.message}。請稍後再試。`);
+            } finally {
+                setLoading(false);
+                // 如果是 IELTS 判斷模式，維持狀態訊息顯示，否則清除
+                if (statusMessage.classList.contains('bg-blue-100')) {
+                    // 保持 info 狀態訊息
+                } else {
+                    showStatus('');
+                }
+            }
+        }
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                analyzeButton.disabled = true;
+                buttonText.classList.add('hidden');
+                buttonLoading.classList.remove('hidden');
+            } else {
+                analyzeButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonLoading.classList.add('hidden');
+            }
+        }
+
+        // --- 呼叫 Gemini API (IELTS Phrase Determination - NEW) ---
+        async function determineIeltsPhrase(phrase1, phrase2) {
+            const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const systemPrompt = "You are an expert English language examiner, specializing in IELTS writing. You must choose ONE of the two provided phrases that is more formal, appropriate, and common for high-scoring IELTS academic writing. You must ONLY respond with the chosen phrase text, nothing else, no explanation, no quotes, no extra characters.";
+
+            const userQuery = `Which phrase is better for IELTS Academic Writing: "${phrase1}" or "${phrase2}"?`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+			
+			// 💡 偵錯步驟 1: 打印 PAYLOAD 內容
+            console.log('--- API 請求 Payload 偵錯 ---');
+            console.log('Payload 物件:', payload);
+            console.log('JSON 格式 Payload:', JSON.stringify(payload));
+            console.log('----------------------------');
+
+            const response = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+			
+			// 💡 偵錯步驟 2: 打印 RESPONSE 狀態和內容
+            console.log('--- API 響應 Response 偵錯 ---');
+            console.log('Response 狀態碼:', response.status);
+            console.log('Response 狀態訊息:', response.statusText);
+
+            if (!response.ok) {
+                throw new Error(`IELTS determination failed with status ${response.status}`);
+            }
+
+            const result = await response.json();
+			
+			// 💡 偵錯步驟 3: 打印成功的 RESPONSE 內容
+        	console.log('API 成功響應資料 (JSON):', result);
+            console.log('----------------------------');
+			
+			
+			
+            const chosenPhrase = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+			
+			const candidate = result.candidates?.[0];
+			console.log('3. 第一個 Candidate 物件:', candidate);
+			
+			// 判斷 content 屬性是否存在
+			if (!candidate?.content) {
+				console.error('ERROR: candidate[0] 中缺少 content 屬性。');
+			}
+			const contentParts = candidate?.content?.parts;
+			console.log('4. Content Parts 陣列:', contentParts);
+			
+			// 判斷 parts 是否存在且不為空
+			if (!Array.isArray(contentParts) || contentParts.length === 0) {
+				console.error('ERROR: content.parts 不存在或為空陣列。');
+			}
+
+			const firstPart = contentParts?.[0];
+			console.log('5. 第一個 Part 物件:', firstPart);
+			
+			const finalString = firstPart?.text;
+			console.log('6. 最終提取的 Text 內容:', finalString);
+			
+			// 判斷 text 屬性是否真的存在
+			if (!finalString) {
+				console.error('ERROR: parts[0] 中缺少 text 屬性，或 text 為空。');
+			}
+
+            if (!chosenPhrase) {
+                // Fallback to the first phrase if AI fails to respond clearly
+                return phrase1;
+            }
+            
+            // 確保返回的詞組與原輸入的詞組之一匹配
+            if (chosenPhrase.includes(phrase1)) return phrase1;
+            if (chosenPhrase.includes(phrase2)) return phrase2;
+            
+            // 最終的保護性回退
+            return phrase1;
+        }
+
+        // --- 呼叫 Gemini API (Collocation Analysis - 保持不變) ---
+        async function callGeminiAPI(phrase1, phrase2) {
+            const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const systemPrompt = "You are an expert English linguist and corpus analyst. Analyze the user's phrases accurately. Respond in Traditional Chinese.";
+            
+            const userQuery = `請比較以下兩個英語搭配詞： "${phrase1}" 和 "${phrase2}"。
+請針對每一個詞組，提供：
+1. 規模分析：分析其常見用法和使用頻率（例如：'非常常見，標準用法'、'常用'、'罕見'或'錯誤用法'）。
+2. 來源分析：列出 3-4 個最可能找到此用法的來源類型（例如："新聞媒體"、"學術論文"、"個人部落格"、"口語對話"）。
+最後，請提供一個總結建議，說明哪個詞組在IELTS ***Writing Task 1*** 以及***Writing Task 2***寫作上使用更好，以及為什麼。
+注意: 務必針對***Writing Task 1*** 以及***Writing Task 2***都要分析
+針對您推薦的詞組，請進行一個簡短的 SWOT 分析（優勢、劣勢、機會、威脅），從語言使用和學習的角度出發。`; 
+
+            // JSON Schema 定義 (保持不變)
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    phrase1_analysis: {
+                        type: "OBJECT",
+                        properties: {
+                            phrase: { type: "STRING" },
+                            scale_analysis: { type: "STRING" },
+                            sources: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        name: { type: "STRING" },
+                                        type: { type: "STRING" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    phrase2_analysis: { /* ... structure omitted for brevity ... */
+                        type: "OBJECT",
+                        properties: {
+                            phrase: { type: "STRING" },
+                            scale_analysis: { type: "STRING" },
+                            sources: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        name: { type: "STRING" },
+                                        type: { type: "STRING" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    recommendation: { type: "STRING" },
+                    swot_analysis: { 
+                        type: "OBJECT",
+                        description: "基於推薦詞組的語言使用和學習角度的 SWOT 分析。",
+                        properties: {
+                            strengths: { type: "STRING" },
+                            weaknesses: { type: "STRING" },
+                            opportunities: { type: "STRING" },
+                            threats: { type: "STRING" }
+                        }
+                    }
+                }
+            };
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema
+                }
+            };
+
+            const response = await fetchWithBackoff(apiUrl, options={
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                console.error("API 錯誤內文:", errorBody); 
+                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+            }
+
+            const result = await response.json();
+            
+            const candidate = result.candidates?.[0];
+            if (!candidate || !candidate.content?.parts?.[0]?.text) {
+                throw new Error('從 API 收到的回應格式無效。');
+            }
+
+            return JSON.parse(candidate.content.parts[0].text);
+        }
+        
+        // --- 呼叫 Gemini API (Example Sentence Generation - 保持不變) ---
+        async function generateExamples(phrase) {
+            const uniqueId = phrase.replace(/\s/g, '-');
+            const buttonTextEl = document.getElementById(`gen-text-${uniqueId}`);
+            const buttonLoadingEl = document.getElementById(`gen-loading-${uniqueId}`);
+            const examplesContainer = document.getElementById(`examples-container-${uniqueId}`);
+            const examplesList = document.getElementById(`examples-list-${uniqueId}`);
+
+            buttonTextEl.classList.add('hidden');
+            buttonLoadingEl.classList.remove('hidden');
+            
+            examplesList.innerHTML = '<p class="text-gray-500 italic">正在生成例句...</p>';
+
+            try {
+                const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                const systemPrompt = "You are a language teacher. Generate exactly 3 diverse, contextually correct English sentences using the provided phrase. Do not add any introductory or explanatory text. Respond with only the JSON array.";
+                const userQuery = `Generate 3 example sentences using the phrase: "${phrase}".`;
+
+                const schema = {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                };
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: schema
+                    }
+                };
+
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Generation failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!jsonText) {
+                    throw new Error('No valid response received.');
+                }
+                
+                const sentences = JSON.parse(jsonText);
+                
+                let html = sentences.map(s => `<p class="text-base text-gray-800 border-l-4 border-purple-400 pl-3 bg-white p-2 rounded">${s.replace(phrase, `<strong>${phrase}</strong>`)}</p>`).join('');
+
+                examplesList.innerHTML = html;
+
+            } catch (error) {
+                console.error('例句生成失敗:', error);
+                examplesList.innerHTML = `<p class="text-red-600">無法生成例句，請檢查輸入或稍後再試。</p>`;
+            } finally {
+                buttonTextEl.classList.remove('hidden');
+                buttonLoadingEl.classList.add('hidden');
+            }
+        }
+
+        // --- 呼叫 Gemini API (Tone and Context Analysis - 保持不變) ---
+        async function checkToneAndContext(phrase) {
+            const uniqueId = phrase.replace(/\s/g, '-');
+            const buttonTextEl = document.getElementById(`tone-text-${uniqueId}`);
+            const buttonLoadingEl = document.getElementById(`tone-loading-${uniqueId}`);
+            const toneContainer = document.getElementById(`tone-container-${uniqueId}`);
+            const toneContent = document.getElementById(`tone-content-${uniqueId}`);
+            const exportButton = document.getElementById(`export-tone-btn-${uniqueId}`);
+
+            buttonTextEl.classList.add('hidden');
+            buttonLoadingEl.classList.remove('hidden');
+            exportButton.disabled = true; // 載入時禁用匯出按鈕
+            toneContent.innerHTML = '<p class="text-gray-500 italic">正在分析語氣與語境...</p>';
+
+            try {
+                const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                const systemPrompt = "You are an expert language usage guide. Provide a detailed, easy-to-understand analysis of the formality, tone, and specific contexts where the user's provided phrase is most appropriate. Use Markdown formatting for clarity (e.g., bold headings, lists, tables). Respond in Traditional Chinese.";
+                
+                const userQuery = `請分析搭配詞 "${phrase}" 的語氣 (Tone)、正式程度 (Formality) 和適用語境 (Specific Contexts)。`; 
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Tone analysis failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!analysisText) {
+                    throw new Error('No valid tone analysis received.');
+                }
+                
+                // 1. 儲存原始 Markdown 文本到全局快取以供匯出
+                window.toneAnalysisCache[uniqueId] = analysisText;
+
+                // 2. 將 Markdown 轉換為基本 HTML 結構 (確保表格和標題被正確轉換)
+                const contentHtml = markdownToBasicHtml(analysisText);
+                
+                const formattedHtml = `<div class="p-3 bg-white rounded-lg shadow-sm space-y-2">
+                    ${contentHtml}
+                </div>`;
+
+                toneContent.innerHTML = formattedHtml;
+                exportButton.disabled = false; // 啟用匯出按鈕
+
+            } catch (error) {
+                console.error('語氣分析失敗:', error);
+                toneContent.innerHTML = `<p class="text-red-600">無法生成語氣與語境分析，請稍後再試。</p>`;
+            } finally {
+                buttonTextEl.classList.remove('hidden');
+                buttonLoadingEl.classList.add('hidden');
+            }
+        }
+        
+        // --- 匯出 Markdown 格式的分析結果 (保持不變) ---
+        function exportAnalysisMarkdown(phrase) {
+            const uniqueId = phrase.replace(/\s/g, '-');
+            const markdownContent = window.toneAnalysisCache[uniqueId];
+
+            if (!markdownContent) {
+                showError('沒有可供匯出的語氣與語境分析內容。請先進行分析。');
+                return;
+            }
+
+            const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.href = url;
+            a.download = `Collocation_Analysis_${uniqueId}.md`;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+
+        // --- 帶有指數退避的 Fetch ---
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 && retries > 0) { // 429: Too Many Requests
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
+
+
+        // --- 顯示錯誤 (紅色警告) ---
+        function showError(message) {
+            if (message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+            } else {
+                errorMessage.classList.add('hidden');
+            }
+        }
+        
+        // --- 顯示狀態 (藍色通知) ---
+        function showStatus(message, type = 'info') {
+            statusMessage.classList.add('hidden'); // 先隱藏
+            statusMessage.textContent = '';
+
+            if (message) {
+                statusMessage.textContent = message;
+                statusMessage.classList.remove('hidden');
+                statusMessage.classList.remove('text-blue-600', 'bg-blue-100', 'text-yellow-600', 'bg-yellow-100');
+
+                if (type === 'info') {
+                    statusMessage.classList.add('text-blue-600', 'bg-blue-100');
+                } else if (type === 'loading') {
+                    statusMessage.classList.add('text-yellow-600', 'bg-yellow-100');
+                }
+            }
+        }
+
+
+        // --- 產生 HTML 結果 (已更新為接收明確的 recommendedPhrase) ---
+        function createAnalysisHTML(data, recommendedPhrase) {
+            const { phrase1_analysis, phrase2_analysis, recommendation } = data;
+
+            let uniqueId = recommendedPhrase ? recommendedPhrase.replace(/\s/g, '-') : 'none';
+
+            // 用來高亮顯示規模分析結果
+            const isPhrase1Better = recommendedPhrase === phrase1_analysis.phrase;
+            const isPhrase2Better = recommendedPhrase === phrase2_analysis.phrase;
+            
+            return `
+                <!-- 總結建議 & 生成例句按鈕 -->
+                <div class="bg-blue-50 p-4 rounded-xl shadow-inner result-fade-in border-l-4 border-blue-500">
+                    <h3 class="text-xl font-semibold text-blue-800 mb-2">AI 總結建議</h3>
+                    <p class="text-gray-800 font-medium mb-4">${recommendation}</p>
+                    
+                    ${recommendedPhrase ? `
+                    <div class="flex flex-wrap gap-3 mt-4">
+                        <!-- E. 例句生成按鈕 -->
+                        <button id="gen-btn-${uniqueId}" onclick="generateExamples('${recommendedPhrase}')" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-purple-700 transition duration-300 flex items-center text-sm">
+                            <span id="gen-text-${uniqueId}">✨ 生成例句 (for: ${recommendedPhrase})</span>
+                            <span id="gen-loading-${uniqueId}" class="hidden ml-2"><svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
+                        </button>
+                        
+                        <!-- F. 語氣與語境分析按鈕 -->
+                        <button id="tone-btn-${uniqueId}" onclick="checkToneAndContext('${recommendedPhrase}')" class="bg-teal-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-teal-700 transition duration-300 flex items-center text-sm">
+                            <span id="tone-text-${uniqueId}">🗣️ 語氣與語境分析 (for: ${recommendedPhrase})</span>
+                            <span id="tone-loading-${uniqueId}" class="hidden ml-2"><svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
+                        </button>
+
+                        <!-- G. 匯出 Markdown 按鈕 -->
+                        <button id="export-tone-btn-${uniqueId}" onclick="exportAnalysisMarkdown('${recommendedPhrase}')" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-gray-600 transition duration-300 flex items-center text-sm disabled:bg-gray-300" disabled>
+                            <span>📥 匯出 Markdown</span>
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+
+
+                <!-- D. SWOT 分析 (針對建議詞組) -->
+                ${data.swot_analysis ? `
+                <div class="bg-indigo-50 p-4 rounded-lg shadow-inner result-fade-in" style="animation-delay: 0.15s;">
+                    <h3 class="text-xl font-semibold text-indigo-800 mb-4">D. SWOT 分析 (針對建議詞組: ${recommendedPhrase})</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Strengths (優勢) -->
+                        <div class="p-3 bg-white rounded-lg shadow border-l-4 border-green-500">
+                            <h4 class="font-bold text-green-700 mb-1">優勢 (Strengths)</h4>
+                            <p class="text-sm text-gray-700">${data.swot_analysis.strengths}</p>
+                        </div>
+                        <!-- Weaknesses (劣勢) -->
+                        <div class="p-3 bg-white rounded-lg shadow border-l-4 border-yellow-500">
+                            <h4 class="font-bold text-yellow-700 mb-1">劣勢 (Weaknesses)</h4>
+                            <p class="text-sm text-gray-700">${data.swot_analysis.weaknesses}</p>
+                        </div>
+                        <!-- Opportunities (機會) -->
+                        <div class="p-3 bg-white rounded-lg shadow border-l-4 border-blue-500">
+                            <h4 class="font-bold text-blue-700 mb-1">機會 (Opportunities)</h4>
+                            <p class="text-sm text-gray-700">${data.swot_analysis.opportunities}</p>
+                        </div>
+                        <!-- Threats (威脅) -->
+                        <div class="p-3 bg-white rounded-lg shadow border-l-4 border-red-500">
+                            <h4 class="font-bold text-red-700 mb-1">威脅 (Threats)</h4>
+                            <p class="text-sm text-gray-700">${data.swot_analysis.threats}</p>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- E. 例句生成 (新模組) -->
+                <div id="examples-container-${uniqueId}" class="bg-purple-50 p-4 rounded-lg shadow-inner result-fade-in" style="animation-delay: 0.25s;">
+                    <h3 class="text-xl font-semibold text-purple-800 mb-3 flex items-center">
+                        <span class="mr-2">📚 E. 例句與語境 (Contextual Examples)</span>
+                    </h3>
+                    <div id="examples-list-${uniqueId}" class="space-y-3">
+                        <p class="text-gray-600 italic">請點擊上方的「✨ 生成例句」按鈕來查看結果。</p>
+                    </div>
+                </div>
+
+                <!-- F. 語氣與語境分析 (Tone and Context Analysis) -->
+                <div id="tone-container-${uniqueId}" class="bg-teal-50 p-4 rounded-lg shadow-inner result-fade-in" style="animation-delay: 0.35s;">
+                    <h3 class="text-xl font-semibold text-teal-800 mb-3 flex items-center">
+                        <span class="mr-2">🗣️ F. 語氣與語境分析 (Tone & Context)</span>
+                    </h3>
+                    <div id="tone-content-${uniqueId}" class="space-y-2 text-sm text-gray-700">
+                        <p class="text-gray-600 italic">請點擊上方的「🗣️ 語氣與語境分析」按鈕來查看結果。</p>
+                    </div>
+                </div>
+
+
+                <!-- A. 規模分析 (原有的部分) -->
+                <div class="bg-gray-50 p-4 rounded-lg shadow-inner result-fade-in" style="animation-delay: 0.45s;">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">A. 規模分析 (AI 質化分析)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-1">"${phrase1_analysis.phrase}"</h4>
+                            <p class="p-2 rounded ${isPhrase1Better ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}">${phrase1_analysis.scale_analysis}</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-1">"${phrase2_analysis.phrase}"</h4>
+                            <p class="p-2 rounded ${isPhrase2Better ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}">${phrase2_analysis.scale_analysis}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- B. 來源分析 (原有的部分) -->
+                <div class="bg-gray-50 p-4 rounded-lg shadow-inner result-fade-in" style="animation-delay: 0.55s;">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">B. 來源分析 (AI 判斷)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- 詞組 1 來源 -->
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">"${phrase1_analysis.phrase}" 的可能來源:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                ${phrase1_analysis.sources.map(s => `
+                                    <li class="text-sm text-gray-800">
+                                        ${s.name} <span class="text-xs ${isPhrase1Better ? 'text-green-700 bg-green-100' : 'text-gray-700 bg-gray-100'} font-medium px-2 py-0.5 rounded-full">${s.type}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <!-- 詞組 2 來源 -->
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">"${phrase2_analysis.phrase}" 的可能來源:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                ${phrase2_analysis.sources.map(s => `
+                                    <li class="text-sm text-gray-800">
+                                        ${s.name} <span class="text-xs ${isPhrase2Better ? 'text-green-700 bg-green-100' : 'text-gray-700 bg-gray-100'} font-medium px-2 py-0.5 rounded-full">${s.type}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
