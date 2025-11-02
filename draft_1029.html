@@ -1,36 +1,37 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS 智慧詞彙與搭配系統</title>
-    <!-- 載入 Tailwind CSS -->
+    <title>IELTS Smart Vocabulary & Collocation System</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 載入 Inter 字體 -->
+    <!-- Load Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* 基本樣式 */
+        /* Base Style */
         body {
-            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        /* Highlight 樣式 */
+        /* Highlight Style */
         .highlight {
             background-color: rgba(147, 197, 253, 0.4); /* blue-300/40 */
             color: #dbeafe; /* text-blue-100 */
             font-weight: 600;
             padding: 0 2px;
             border-radius: 3px;
-            white-space: nowrap; /* 確保高亮部分不斷行 */
+            white-space: nowrap; /*
+Ensure highlighted part does not wrap */
         }
-        /* 隱藏元素 */
+        /* Hide Element */
         .hidden {
             display: none;
         }
-        /* 簡易 Spinner 動畫 */
+        /* Simple Spinner Animation */
         .spinner {
             width: 20px;
             height: 20px;
@@ -53,50 +54,50 @@
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
 
     <div class="max-w-4xl mx-auto">
-        <!-- 標題 -->
+        <!-- Title -->
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS 智慧詞彙與搭配系統</h1>
-            <!-- v2.6 IGPVL 更新: 修改標題 -->
-            <p class="text-lg text-gray-400 mt-2">整合 PPL, S_Naturalness, GVL (v3.0) 與 IGPVL (v2.6)</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-white">IELTS Smart Vocabulary & Collocation System</h1>
+            <!-- v2.6 IGPVL Update: Modified title -->
+            <p class="text-lg text-gray-400 mt-2">Integrating PPL, S_Naturalness, GVL (v3.0) & IGPVL (v2.6)</p>
         </header>
 
-        <!-- 功能分頁標籤 -->
+        <!-- Feature Tabs -->
         <div class="flex justify-center mb-6 border-b border-gray-700">
             <button id="tabPrediction" class="tab-button px-6 py-3 font-semibold text-white bg-gray-800 rounded-t-lg -mb-px border-t border-l border-r border-gray-700">
-                1. 詞彙預測 (Prediction)
+                1. Prediction
             </button>
             <button id="tabValidation" class="tab-button px-6 py-3 font-semibold text-gray-400 hover:bg-gray-800/50 rounded-t-lg">
-                2. 搭配驗證 (Validation)
+                2. Validation
             </button>
         </div>
 
-        <!-- 主要內容區域 -->
+        <!-- Main Content Area -->
         <main>
-            <!-- 1. 詞彙預測 (Prediction) 內容 -->
+            <!-- 1. Prediction Content -->
             <div id="predictionContent">
                 <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
                     <form id="predictionForm" class="space-y-4">
-                        <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">輸入英文上下文片段 (Context Phrase)</label>
-                        <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：The government should implement effective policies to...">
+                        <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">Input Context Phrase</label>
+                        <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., The government should implement effective policies to...">
                         
-                        <!-- v2.6 IGPVL 新增: 預測輸入的錯誤回報區域 -->
+                        <!-- v2.6 IGPVL Add: Prediction input error reporting area -->
                         <div id="igpvlPredError" class="text-sm rounded-lg"></div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">指定詞性 (POS Filter)</label>
+                                <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">Specify POS (POS Filter)</label>
                                 <select id="predPos" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="any">所有詞性 (Any)</option>
-                                    <option value="N">名詞 (Noun)</option>
-                                    <option value="V">動詞 (Verb)</option>
-                                    <option value="Adj">形容詞 (Adjective)</option>
-                                    <option value="Adv">副詞 (Adverb)</option>
+                                    <option value="any">Any POS (Any)</option>
+                                    <option value="N">Noun</option>
+                                    <option value="V">Verb</option>
+                                    <option value="Adj">Adjective</option>
+                                    <option value="Adv">Adverb</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="predTask" class="block text-sm font-medium text-gray-300 mb-2">寫作任務 (IELTS Task)</label>
+                                <label for="predTask" class="block text-sm font-medium text-gray-300 mb-2">IELTS Task</label>
                                 <select id="predTask" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="general">通用 (General)</option>
+                                    <option value="general">General</option>
                                     <option value="task1">Task 1</option>
                                     <option value="task2">Task 2</option>
 									<option value="TechWriting">TechWriting</option>
@@ -105,19 +106,19 @@
                         </div>
                         
                         <div class="pt-4 border-t border-gray-700">
-                            <h3 class="text-sm font-medium text-gray-300 mb-2">一致性控制 (Consistency Manager)</h3>
+                            <h3 class="text-sm font-medium text-gray-300 mb-2">Consistency Manager</h3>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <label class="block">
-                                    <span class="text-xs text-gray-400">溫度 (Temperature)</span>
+                                    <span class="text-xs text-gray-400">Temperature</span>
                                     <input type="number" id="predTemp" value="0.7" step="0.1" min="0.1" max="1.0" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
                                 </label>
                                 <label class="block">
-                                    <span class="text-xs text-gray-400">Top-P (核採樣)</span>
+                                    <span class="text-xs text-gray-400">Top-P (Nucleus Sampling)</span>
                                     <input type="number" id="predTopP" value="0.95" step="0.05" min="0.0" max="1.0" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
                                 </label>
                                 <label class="block">
-                                    <span class="text-xs text-gray-400">上下文詞數 (Context Words)</span>
-                                    <!-- T1.4 Fix: 移除 disabled -->
+                                    <span class="text-xs text-gray-400">Context Words</span>
+                                    <!-- T1.4 Fix: Remove disabled -->
                                     <input type="number" id="predContextLen" value="20" min="5" max="50" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
                                 </label>
                                 <label class="block">
@@ -128,74 +129,74 @@
                         </div>
 
                         <button type="submit" id="predButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 mt-4">
-                            <span id="predButtonText">獲取 6 個預測詞彙 (Get Predictions)</span>
+                            <span id="predButtonText">Get 6 Predictions</span>
                             <div id="predLoading" class="spinner hidden"></div>
                         </button>
                     </form>
 
-                    <!-- 自定詞彙驗證區 -->
+                    <!-- Custom Word Validation Area -->
                     <div class="pt-6 border-t border-gray-700 mt-6">
-                        <h2 class="text-xl font-semibold text-white mb-3">2. 驗證自定詞彙 (Custom Word Check)</h2>
+                        <h2 class="text-xl font-semibold text-white mb-3">2. Custom Word Check</h2>
                         <form id="customWordForm" class="space-y-4">
                             <div class="grid grid-cols-2 gap-4">
-                                <input type="text" id="customWordInput" class="bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" placeholder="輸入你想接的詞 (e.g., 'growth')">
+                                <input type="text" id="customWordInput" class="bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" placeholder="Enter desired word (e.g., 'growth')">
                                 <button type="submit" id="customButton" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
                                     <span id="customButtonText">Check Word</span>
                                     <div id="customLoading" class="spinner hidden"></div>
                                 </button>
                             </div>
                         </form>
-                        <!-- v2.6 IGPVL 新增: 自定詞彙的錯誤回報區域 -->
+                        <!-- v2.6 IGPVL Add: Custom word error reporting area -->
                         <div id="igpvlCustomError" class="text-sm rounded-lg mt-4"></div>
                         <div id="customResults" class="mt-4"></div>
                     </div>
                 </div>
 
-                <!-- 預測結果區域 -->
+                <!-- Prediction Results Area -->
                 <div id="predError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
                 <div id="predictionResults" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- 預測結果卡片將動態插入此處 -->
+                    <!-- Prediction result cards will be dynamically inserted here -->
                 </div>
             </div>
 
-            <!-- 2. 搭配驗證 (Validation) 內容 -->
+            <!-- 2. Validation Content -->
             <div id="validationContent" class="hidden">
                 <form id="validationForm" class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
                     <div>
-                        <label for="valInput1" class="block text-sm font-medium text-gray-300 mb-2">搭配片語 - 前半部 (Initial Phrase)</label>
-                        <input type="text" id="valInput1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：make a">
+                        <label for="valInput1" class="block text-sm font-medium text-gray-300 mb-2">Collocation - Initial Phrase</label>
+                        <input type="text" id="valInput1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., make a">
                     </div>
                     <div>
-                        <label for="valInput2" class="block text-sm font-medium text-gray-300 mb-2">搭配片語 - 後半部 (Target Word/Phrase)</label>
-                        <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：decision">
+                        <label for="valInput2" class="block text-sm font-medium text-gray-300 mb-2">Collocation - Target Word/Phrase</label>
+                        <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., decision">
                     </div>
                     
-                    <!-- v2.6 IGPVL 新增: 驗證輸入的錯誤回報區域 -->
+                    <!-- v2.6 IGPVL Add: Validation input error reporting area -->
                     <div id="igpvlValError" class="text-sm rounded-lg"></div>
 
                     <button type="submit" id="valButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
-                        <span id="valButtonText">驗證搭配 (Validate Collocation)</span>
+                        <span id="valButtonText">Validate Collocation</span>
                         <div id="valLoading" class="spinner hidden"></div>
                     </button>
                 </form>
 
-                <!-- 驗證結果區域 -->
+                <!-- Validation Results Area -->
                 <div id="valError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
                 <div id="validationResults" class="mt-8 bg-gray-800 p-6 rounded-lg shadow-xl hidden">
-                    <!-- 驗證結果將動態插入此處 -->
+                    <!-- Validation results will be dynamically inserted here -->
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- JavaScript 邏輯 -->
+    <!-- JavaScript Logic -->
     <script type="module">
-        // --- Gemini API 金鑰 (保留為空字串，Canvas 將自動填入) ---
-        // v2.6 IGPVL 註記: IGPVL 和 GVL 使用相同的 API 端點和金鑰
+        // --- Gemini API Key (Leave as an empty string, Canvas will auto-fill) ---
+        // v2.6 IGPVL Note: IGPVL and GVL use the same API endpoint and key
         const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-        // --- DOM 元素參照 ---
+        // --- DOM Element References ---
         const tabs = {
             prediction: document.getElementById('tabPrediction'),
             validation: document.getElementById('tabValidation')
@@ -205,31 +206,31 @@
             validation: document.getElementById('validationContent')
         };
         
-        // 預測 (Prediction) 相關元素
+        // Prediction-related elements
         const predForm = document.getElementById('predictionForm');
         const predInput = document.getElementById('predInput');
         const predPos = document.getElementById('predPos');
         const predTask = document.getElementById('predTask');
         const predTemp = document.getElementById('predTemp');
         const predTopP = document.getElementById('predTopP');
-        const predContextLen = document.getElementById('predContextLen'); // T1.4 抓取 DOM
+        const predContextLen = document.getElementById('predContextLen'); // T1.4 Get DOM
         const predButton = document.getElementById('predButton');
         const predButtonText = document.getElementById('predButtonText');
         const predLoading = document.getElementById('predLoading');
         const predError = document.getElementById('predError');
         const predictionResults = document.getElementById('predictionResults');
-        const igpvlPredError = document.getElementById('igpvlPredError'); // v2.6 IGPVL 新增
+        const igpvlPredError = document.getElementById('igpvlPredError'); // v2.6 IGPVL Add
 
-        // 自定詞彙 (Custom Word) 相關元素
+        // Custom Word-related elements
         const customWordForm = document.getElementById('customWordForm');
         const customWordInput = document.getElementById('customWordInput');
         const customButton = document.getElementById('customButton');
         const customButtonText = document.getElementById('customButtonText');
         const customLoading = document.getElementById('customLoading');
         const customResults = document.getElementById('customResults');
-        const igpvlCustomError = document.getElementById('igpvlCustomError'); // v2.6 IGPVL 新增
+        const igpvlCustomError = document.getElementById('igpvlCustomError'); // v2.6 IGPVL Add
 
-        // 驗證 (Validation) 相關元素
+        // Validation-related elements
         const valForm = document.getElementById('validationForm');
         const valInput1 = document.getElementById('valInput1');
         const valInput2 = document.getElementById('valInput2');
@@ -238,62 +239,61 @@
         const valLoading = document.getElementById('valLoading');
         const valError = document.getElementById('valError');
         const validationResults = document.getElementById('validationResults');
-        const igpvlValError = document.getElementById('igpvlValError'); // v2.6 IGPVL 新增
+        const igpvlValError = document.getElementById('igpvlValError'); // v2.6 IGPVL Add
 
-        // T1.8 / T2.8 Fix: 重新生成歷史紀錄
+        // T1.8 / T2.8 Fix: Regeneration history
         const regenerationHistory = {};
 
         // --- v2.6 IGPVL (Input Grammar Pre-Validation Layer) Schema ---
-        // 根據使用者 v2.6 規格定義的 Schema
+        // Schema defined according to user's v2.6 specification
         const igpvlSchema = {
             "type": "OBJECT",
-            "description": "Input Grammar Pre-Validation Layer (IGPVL) 的即時回饋",
+            "description": "Real-time feedback from Input Grammar Pre-Validation Layer (IGPVL)",
             "properties": {
-                "input_id": { "type": "STRING", "description": "對應請求的唯一 ID" },
-                "status": { "type": "STRING", "enum": ["passed", "warning", "blocked"], "description": "驗證狀態" },
-                "error_count": { "type": "NUMBER", "description": "偵測到的文法錯誤總數" },
-                "severity": { "type": "STRING", "enum": ["none", "minor", "major"], "description": "整體錯誤嚴重性" },
+                "input_id": { "type": "STRING", "description": "Unique ID corresponding to the request" },
+                "status": { "type": "STRING", "enum": ["passed", "warning", "blocked"], "description": "Validation status" },
+                "error_count": { "type": "NUMBER", "description": "Total number of grammar errors detected" },
+                "severity": { "type": "STRING", "enum": ["none", "minor", "major"], "description": "Overall error severity" },
                 "errors": {
                     "type": "ARRAY",
-                    "description": "偵測到的錯誤列表",
+                    "description": "List of detected errors",
                     "items": {
                         "type": "OBJECT",
                         "properties": {
-                            "type": { "type": "STRING", "enum": ["subject_verb_agreement","tense_error","article_error","pronoun_error","number_agreement","dangling_modifier","incomplete_comparison","double_negative","inconsistent_tense_shift","spelling","contextual_spelling","capitalization_error","number_format_error","hyphenation_error","end_punctuation","internal_punctuation","quotation_marks"],"description": "錯誤類型，必須從預先定義的清單中選取，以確保與四大檢查類別相符。" },
-                            "message": { "type": "STRING", "description": "錯誤的描述" },
-                            "suggestion": { "type": "STRING", "description": "文法正確的修正建議 (可能是完整句子或片段)" },
-                            "severity": { "type": "STRING", "enum": ["minor", "major"], "description": "此錯誤的嚴重性" },
-                            "code": { "type": "STRING", "description": "符合規範的錯誤代碼 (e.g., 'IGPVL-CORE-XX')" }
+                            "type": { "type": "STRING", "enum": ["subject_verb_agreement","tense_error","article_error","pronoun_error","number_agreement","dangling_modifier","incomplete_comparison","double_negative","inconsistent_tense_shift","spelling","contextual_spelling","capitalization_error","number_format_error","hyphenation_error","end_punctuation","internal_punctuation","quotation_marks"],"description": "Error type, must be selected from a predefined list to match the four major check categories." },
+                            "message": { "type": "STRING", "description": "Description of the error" },
+                            "suggestion": { "type": "STRING", "description": "Grammatically correct suggestion (can be a full sentence or fragment)" },
+                            "severity": { "type": "STRING", "enum": ["minor", "major"], "description": "Severity of this error" },
+                            "code": { "type": "STRING", "description": "Standard-compliant error code (e.g., 'IGPVL-CORE-XX')" }
                         },
                         "required": ["type", "message", "suggestion", "code"]
                     }
                 },
-                "recommendation": { "type": "STRING", "description": "給使用者的總體建議,且提供文法正確句子" },
-                "timestamp": { "type": "STRING", "format": "date-time", "description": "ISO 8601 格式的時間戳" }
+                "recommendation": { "type": "STRING", "description": "Overall recommendation for the user, providing a grammatically correct sentence" },
+                "timestamp": { "type": "STRING", "format": "date-time", "description": "Timestamp in ISO 8601 format" }
             },
             "required": ["input_id", "status", "error_count", "severity", "errors", "recommendation", "timestamp"]
         };
 
         // --- v3.0 GVL (Grammar Validation Layer) Schema ---
-        // 根據使用者提供的規格 (I-IV) 定義的共用 Schema
+        // Shared schema defined according to user's specification (I-IV)
         const grammarValidationSchemaObject = {
             "type": "OBJECT",
-            "description": "Grammar Validation Layer v3.0 的詳細分析結果",
+            "description": "Detailed analysis results from Grammar Validation Layer v3.0",
             "properties": {
                 "correctness": {
                     "type": "OBJECT",
                     "properties": {
                         "errors": {
                             "type": "ARRAY",
-							"description": "I. 正確性 (Grammar, Spelling, Punctuation)",
-                            "description": "所有「正確性」相關的文法、拼寫、標點錯誤列表。空陣列 [] 表示「檢查通過」。",
+							"description": "I. Correctness (Grammar, Spelling, Punctuation). List of all 'Correctness' related grammar, spelling, punctuation errors. Empty array [] means 'Check passed'.",
                             "items": {
                                 "type": "OBJECT",
                                 "properties": {
-                                    "type": { "type": "STRING", "description": "錯誤類型 (e.g., '主謂一致', '時態錯誤', '冠詞錯誤','代名詞錯誤','單複數不一致','懸垂修飾語','不完整比較','雙重否定','時態轉換不一致','一般拼寫錯誤','語境拼寫錯誤','大小寫錯誤','數字格式錯誤','連字符錯誤','句尾標點錯誤','內部標點誤用 - 含逗號/分號/冒號')"},
-                                    "original": { "type": "STRING", "description": "錯誤的原文片段" },
-                                    "correction": { "type": "STRING", "description": "修正建議" },
-                                    "explanation": { "type": "STRING", "description": "簡短解釋" }
+                                    "type": { "type": "STRING", "description": "Error type (e.g., 'Subject-Verb Agreement', 'Tense Error', 'Article Error', 'Pronoun Error', 'Number Agreement', 'Dangling Modifier', 'Incomplete Comparison', 'Double Negative', 'Inconsistent Tense Shift', 'General Spelling', 'Contextual Spelling', 'Capitalization Error', 'Number Format Error', 'Hyphenation Error', 'End Punctuation Error', 'Internal Punctuation Misuse - incl. Comma/Semicolon/Colon')"},
+                                    "original": { "type": "STRING", "description": "Original incorrect fragment" },
+                                    "correction": { "type": "STRING", "description": "Correction suggestion" },
+                                    "explanation": { "type": "STRING", "description": "Brief explanation" }
                                 },
                                 "required": ["type", "original", "correction"]
                             }
@@ -303,21 +303,21 @@
                 },
                 "clarity": {
                     "type": "OBJECT",
-					"description": "II. 清晰度 (Clarity) - 建議性",
+					"description": "II. Clarity - Suggestive",
                     "properties": {
-                        "feedback": { "type": "ARRAY", "description": "清晰度問題 (e.g., '流水句','片段句', '贅詞', '語言流暢度')", "items": { "type": "STRING" } },
-                        "rewrite_suggestion": { "type": "STRING", "description": "針對複雜句子的完整重寫建議 (若無則為空字串)" },
-                        "passive_voice_warning": { "type": "BOOLEAN", "description": "是否過度使用被動語態" }
+                        "feedback": { "type": "ARRAY", "description": "Clarity issues (e.g., 'Run-on Sentence', 'Sentence Fragment', 'Wordiness', 'Fluency')", "items": { "type": "STRING" } },
+                        "rewrite_suggestion": { "type": "STRING", "description": "Complete rewrite suggestion for complex sentences (empty string if none)" },
+                        "passive_voice_warning": { "type": "BOOLEAN", "description": "Whether passive voice is overused" }
                     },
                     "required": ["feedback", "rewrite_suggestion", "passive_voice_warning"]
                 },
                 "engagement": {
                     "type": "OBJECT",
                     "properties": {
-                        "feedback": { "type": "ARRAY", "description": "參與度問題 (e.g., '詞彙單調', '句子結構重複')", "items": { "type": "STRING" } },
+                        "feedback": { "type": "ARRAY", "description": "Engagement issues (e.g., 'Monotonous Vocabulary', 'Repetitive Sentence Structure')", "items": { "type": "STRING" } },
                         "vocab_suggestions": {
                             "type": "ARRAY",
-							"description": "詞彙增強建議 (替換乏味或過度使用的詞)",
+							"description": "Vocabulary enhancement suggestions (replace dull or overused words)",
                             "items": {
                                 "type": "OBJECT",
                                 "properties": {
@@ -332,11 +332,11 @@
                 },
                 "delivery": {
                     "type": "OBJECT",
-					"description": "IV. 傳遞性 (Delivery / Tone)",
+					"description": "IV. Delivery / Tone",
                     "properties": {
-                        "detected_tone": { "type": "STRING", "description": "偵測到的語氣" },
-                        "formality": { "type": "STRING", "description": "正式程度 (e.g., '正式', '非正式', '口語化')" },
-                        "inclusive_language_warning": { "type": "BOOLEAN", "description": "是否包含不具包容性的語言" }
+                        "detected_tone": { "type": "STRING", "description": "Detected tone" },
+                        "formality": { "type": "STRING", "description": "Formality (e.g., 'Formal', 'Informal', 'Colloquial')" },
+                        "inclusive_language_warning": { "type": "BOOLEAN", "description": "Whether non-inclusive language is present" }
                     },
                     "required": ["detected_tone", "formality", "inclusive_language_warning"]
                 }
@@ -344,171 +344,171 @@
             "required": ["correctness", "clarity", "engagement", "delivery"]
         };
 
-        // --- 核心輔助函式 ---
+        // --- Core Helper Functions ---
 
         /**
-         * T1.4 Fix: 截斷上下文以符合最後 N 個詞
-         * @param {string} text - 完整輸入文字
-         * @param {number} wordCount - 需要保留的最後詞彙數量
-         * @returns {string} - 截斷後的文字
+         * T1.4 Fix: Truncate context to the last N words
+         * @param {string} text - Full input text
+         * @param {number} wordCount - Number of last words to keep
+         * @returns {string} - Truncated text
          */
         function truncateContext(text, wordCount) {
             if (!text) return "";
-            const words = text.trim().split(/\s+/); // 按空白拆分
-            const count = parseInt(wordCount, 10) || 20; // 預設 20
+            const words = text.trim().split(/\s+/); // Split by whitespace
+            const count = parseInt(wordCount, 10) || 20; // Default 20
             
             if (words.length <= count) {
-                return text.trim(); // 不需要截斷
+                return text.trim(); // No truncation needed
             }
             
-            return words.slice(-count).join(' '); // 取最後 N 個詞
+            return words.slice(-count).join(' '); // Take last N words
         }
 
         /**
-         * 根據PPL獲取 Band 評語 (Cohesion & Coherence)
-         * @param {number} ppl - 困惑度
+         * Get Band commentary based on PPL (Cohesion & Coherence)
+         * @param {number} ppl - Perplexity
          * @returns {object} - { band, summary, color }
          */
         function getCohesionBandDetails(ppl) {
             if (ppl <= 20) {
-                return { band: 9, summary: '句意流暢、銜接自然、連貫度極高。', color: 'bg-indigo-600' };
+                return { band: 9, summary: 'Fluent, natural cohesion, extremely high coherence.', color: 'bg-indigo-600' };
             } else if (ppl <= 40) {
-                return { band: 8, summary: '結構清晰、銜接順暢、僅偶有輕微不自然。', color: 'bg-purple-600' };
+                return { band: 8, summary: 'Clear structure, smooth cohesion, only occasional minor unnaturalness.', color: 'bg-purple-600' };
             } else if (ppl <= 60) {
-                return { band: 7, summary: '句法連貫但略顯機械，部分連接詞或指代使用不精確。', color: 'bg-blue-600' };
+                return { band: 7, summary: 'Coherent but slightly mechanical; some connectors or references are imprecise.', color: 'bg-blue-600' };
             } else if (ppl <= 80) {
-                return { band: 6, summary: '有整體邏輯但語篇銜接偶有失衡或重複。', color: 'bg-yellow-600' };
+                return { band: 6, summary: 'Overall logic exists, but discourse cohesion is occasionally unbalanced or repetitive.', color: 'bg-yellow-600' };
             } else {
-                return { band: 5, summary: '結構鬆散、句與句間缺乏自然銜接或過度機械。', color: 'bg-red-600' };
+                return { band: 5, summary: 'Loose structure, lacking natural or overly mechanical links between sentences.', color: 'bg-red-600' };
             }
         }
 
         /**
-         * 【S_Naturalness v2.1 修正版】
-         * 根據 S_Naturalness 獲取 Band 評語 (Lexical Resource)
-         * @param {number} s - S_Naturalness 自然度分數
+         * [S_Naturalness v2.1 Revised]
+         * Get Band commentary based on S_Naturalness (Lexical Resource)
+         * @param {number} s - S_Naturalness score
          * @returns {object} - { band, summary, color }
          */
         function getLexicalBandDetails(s) {
              if (s >= 0.85) {
-                return { band: 9, summary: '完全自然、極高搭配強度；接近母語級表達。', color: 'bg-indigo-600' };
+                return { band: 9, summary: 'Completely natural, very high collocation strength; near-native expression.', color: 'bg-indigo-600' };
             } else if (s >= 0.75) {
-                return { band: 8, summary: '流暢靈活、少許誤用；仍屬高階搭配。', color: 'bg-purple-600' };
+                return { band: 8, summary: 'Fluent and flexible, minor misuse; still high-level collocation.', color: 'bg-purple-600' };
             } else if (s >= 0.60) {
-                return { band: 7, summary: '可理解且常見，但略顯機械或重複。', color: 'bg-blue-600' };
+                return { band: 7, summary: 'Understandable and common, but slightly mechanical or repetitive.', color: 'bg-blue-600' };
             } else if (s >= 0.40) {
-                return { band: 6, summary: '中等自然度；語意清楚但搭配不地道。', color: 'bg-yellow-600' };
+                return { band: 6, summary: 'Moderate naturalness; meaning is clear but collocation is not idiomatic.', color: 'bg-yellow-600' };
             } else {
                 // S < 0.40
-                return { band: 5, summary: '不自然或生硬；建議替換。', color: 'bg-red-600' };
+                return { band: 5, summary: 'Unnatural or awkward; replacement suggested.', color: 'bg-red-600' };
             }
         }
 
         /**
-         * 高亮顯示例句中的片語
-         * @param {string} text - 完整的例句
-         * @param {string} phraseToHighlight - 需要高亮的片語
-         * @returns {string} - 包含 HTML <span class="highlight"> 的字串
+         * Highlight a phrase within an example sentence
+         * @param {string} text - The full example sentence
+         * @param {string} phraseToHighlight - The phrase to highlight
+         * @returns {string} - String containing HTML <span class="highlight">
          */
         function highlight(text, phraseToHighlight) {
             if (!text || !phraseToHighlight) return text;
-            // 替換所有非單詞字元為空白，以確保正確匹配詞彙邊界
+            // Replace all non-word characters with whitespace to ensure correct word boundary matching
             const cleanedPhrase = phraseToHighlight.trim().replace(/[\W_]+/g,"\\s*");
-            // 使用正則表達式進行不區分大小寫的替換
+            // Use regex for case-insensitive replacement
             const regex = new RegExp(`(${cleanedPhrase})`, 'gi');
             
-            // 使用 match 函式確保原始大小寫被保留
+            // Use match function to preserve original case
             return text.replace(regex, (match, p1) => {
-                // p1 是原始匹配的群組，確保我們只高亮這部分
+                // p1 is the original matched group, ensure we only highlight this part
                 return `<span class="highlight">${match}</span>`;
             });
         }
 
         /**
-         * v3.0: 渲染 Grammar Validation Layer 的 HTML 報告
-         * @param {object} validation - grammar_validation 物件
-         * @returns {string} - 格式化後的 HTML
+         * v3.0: Render HTML report for Grammar Validation Layer
+         * @param {object} validation - grammar_validation object
+         * @returns {string} - Formatted HTML
          */
         function renderGrammarValidation(validation) {
             if (!validation) {
-                return '<div class="text-xs text-red-400">文法驗證資料缺失。</div>';
+                return '<div class="text-xs text-red-400">Grammar validation data missing.</div>';
             }
 
-            let html = '<div class="space-y-2 mt-2 pt-2 border-t border-gray-600 text-xs text-left">'; // 改為 text-left
+            let html = '<div class="space-y-2 mt-2 pt-2 border-t border-gray-600 text-xs text-left">'; // Change to text-left
             
-            // I. 正確性
+            // I. Correctness
             const { correctness, clarity, engagement, delivery } = validation;
-            html += '<h5 class="font-semibold text-gray-300">文法驗證報告 (v3.1)</h5>';
+            html += '<h5 class="font-semibold text-gray-300">Grammar Validation Report (v3.1)</h5>';
             
             if (correctness && correctness.errors && correctness.errors.length > 0) {
-                html += `<div class="text-yellow-400">I. 正確性: ${correctness.errors.length} 個嚴重錯誤</div>`;
+                html += `<div class="text-yellow-400">I. Correctness: ${correctness.errors.length} critical error(s) found</div>`;
                 html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
-                correctness.errors.slice(0, 10).forEach(err => { // 最多顯示 10 個
+                correctness.errors.slice(0, 10).forEach(err => { // Show max 10
                     html += `<li>[${err.type}] <strong>"${err.original}"</strong> &rarr; <strong>"${err.correction}"</strong></li>`;
                 });
                 html += '</ul>';
             } else {
-                html += '<div class="text-green-400">I. 正確性: 檢查通過。</div>';
+                html += '<div class="text-green-400">I. Correctness: Check passed.</div>';
             }
 
-            // II. 清晰度
+            // II. Clarity
             if (clarity && (clarity.feedback.length > 0 || clarity.rewrite_suggestion || clarity.passive_voice_warning)) {
-                html += `<div class="text-blue-300 mt-1">II. 清晰度:</div>`;
+                html += `<div class="text-blue-300 mt-1">II. Clarity:</div>`;
                 html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
-                clarity.feedback.slice(0, 10).forEach(fb => html += `<li>${fb}</li>`); // 最多 10 個
-                if (clarity.passive_voice_warning) html += '<li>提醒: 過度使用被動語態。</li>';
-                if (clarity.rewrite_suggestion) html += `<li>重寫建議: <span class="text-blue-200">${clarity.rewrite_suggestion}</span></li>`;
+                clarity.feedback.slice(0, 10).forEach(fb => html += `<li>${fb}</li>`); // Max 10
+                if (clarity.passive_voice_warning) html += '<li>Note: Excessive use of passive voice.</li>';
+                if (clarity.rewrite_suggestion) html += `<li>Rewrite Suggestion: <span class="text-blue-200">${clarity.rewrite_suggestion}</span></li>`;
                 html += '</ul>';
             } else {
-                html += '<div class="text-green-400">II. 清晰度: 檢查通過。</div>';
+                html += '<div class="text-green-400">II. Clarity: Check passed.</div>';
             }
 
-            // III. 參與度
+            // III. Engagement
             if (engagement && (engagement.feedback.length > 0 || engagement.vocab_suggestions.length > 0)) {
-                html += `<div class="text-purple-300 mt-1">III. 參與度:</div>`;
+                html += `<div class="text-purple-300 mt-1">III. Engagement:</div>`;
                 html += '<ul class="list-disc list-inside text-gray-400 pl-2">';
                 engagement.feedback.slice(0, 10).forEach(fb => html += `<li>${fb}</li>`);
-                engagement.vocab_suggestions.slice(0, 1).forEach(vs => html += `<li>詞彙建議: ${vs.original} &rarr; ${vs.suggestion}</li>`);
+                engagement.vocab_suggestions.slice(0, 1).forEach(vs => html += `<li>Vocab Suggestion: ${vs.original} &rarr; ${vs.suggestion}</li>`);
                 html += '</ul>';
             }
 
-            // IV. 傳遞性
+            // IV. Delivery
             if (delivery) {
-                html += `<div class="text-gray-300 mt-1">IV. 語氣: ${delivery.detected_tone} | 正式度: ${delivery.formality}</div>`;
-                if(delivery.inclusive_language_warning) html += '<div class="text-yellow-400">提醒: 包含不具包容性的語言。</div>';
+                html += `<div class="text-gray-300 mt-1">IV. Tone: ${delivery.detected_tone} | Formality: ${delivery.formality}</div>`;
+                if(delivery.inclusive_language_warning) html += '<div class="text-yellow-400">Note: Contains non-inclusive language.</div>';
             }
 
             html += '</div>';
             return html;
         }
 
-        // --- API 呼叫邏輯 ---
+        // --- API Call Logic ---
 
         /**
-         * 呼叫 Gemini API
-         * @param {string} systemPrompt - 系統提示 (System Instruction)
-         * @param {string} userQuery - 使用者查詢
-         * @param {object|null} schema - JSON 輸出結構 (若需要)
-         * @param {number} temperature - 採樣溫度
-         * @param {number} topP - Top-P 採樣參數
-         * @param {number} maxRetries - 最大重試次數
-         * @returns {Promise<object>} - API 回應或錯誤物件
+         * Call the Gemini API
+         * @param {string} systemPrompt - System Instruction
+         * @param {string} userQuery - User Query
+         * @param {object|null} schema - JSON output schema (if needed)
+         * @param {number} temperature - Sampling temperature
+         * @param {number} topP - Top-P sampling parameter
+         * @param {number} maxRetries - Maximum retry attempts
+         * @returns {Promise<object>} - API response or error object
          */
         async function callGeminiAPI(systemPrompt, userQuery, schema = null, temperature = 0.7, topP = 0.95, maxRetries = 3) {
             
 			// ===============================================
-			// 🚨 這是您要的檢查點：印出給 AI 的 Prompt 內容
+			// 🚨 This is your checkpoint: Print Prompt content for AI
 			// ===============================================
-			console.log("--- 發送給 AI 的 System Prompt ---");
+			console.log("--- Sending System Prompt to AI ---");
 			console.log(systemPrompt);
 			console.log("----------------------------------");
 			
-			console.log("--- 發送給 AI 的 User Query ---");
+			console.log("--- Sending User Query to AI ---");
 			console.log(userQuery);
 			console.log("-------------------------------");
 			
-			// 由於您的 System Prompt 非常長，您可以將它們一起印出
-			console.log("--- 完整的 API 請求 Payload 內容 (除錯用) ---");
+			// Since your System Prompt is very long, you can print them together
+			console.log("--- Full API Request Payload (Debug) ---");
 			
 			const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
@@ -528,7 +528,7 @@
             }
             payload.generationConfig = generationConfig;
             
-            // 印出整個 payload 物件
+            // Print the entire payload object
 			console.log(JSON.stringify(payload, null, 2));
 			console.log("----------------------------------------------");
 
@@ -541,7 +541,7 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+                        throw new Error(`API request failed, status code: ${response.status}`);
                     }
 
                     const result = await response.json();
@@ -549,64 +549,64 @@
                     const candidate = result.candidates?.[0];
 
                     if (!candidate || !candidate.content?.parts?.[0]) {
-                        throw new Error("API 返回了無效的回應結構或被過濾。");
+                        throw new Error("API returned an invalid response structure or was filtered.");
                     }
 
                     const part = candidate.content.parts[0];
                     
                     if (schema) {
-                        // 處理 JSON 回應
+                        // Handle JSON response
                         const jsonText = part.text;
                         return JSON.parse(jsonText);
                     } else {
-                        // 處理純文字回應
+                        // Handle plain text response
                         return part.text;
                     }
 
                 } catch (error) {
-                    console.error(`API 呼叫第 ${attempt} 次失敗:`, error);
+                    console.error(`API call attempt ${attempt} failed:`, error);
                     if (attempt === maxRetries) {
-                        return { isError: true, message: `API 請求失敗: ${error.message}` };
+                        return { isError: true, message: `API request failed: ${error.message}` };
                     }
-                    // 指數退避
+                    // Exponential backoff
                     await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
             }
         }
 
-        // --- v2.6 IGPVL (Input Grammar Pre-Validation Layer) 邏輯 ---
+        // --- v2.6 IGPVL (Input Grammar Pre-Validation Layer) Logic ---
 
         /**
-         * 執行 IGPVL 檢查 (模擬 API 呼叫)
-         * @param {string} text - 要檢查的完整文字
-         * @param {string} inputId - 呼叫來源的 ID
-         * @param {string} context - 寫作情境 (e.g., 'academic')
-         * @returns {Promise<object>} - 符合 igpvlSchema 的物件或錯誤
+         * Execute IGPVL check (Simulates API call)
+         * @param {string} text - The full text to check
+         * @param {string} inputId - ID of the calling source
+         * @param {string} context - Writing context (e.g., 'academic')
+         * @returns {Promise<object>} - Object matching igpvlSchema or an error
          */
         async function validateInputGrammar(text, inputId, context) {
             
             // v2.6 IGPVL System Prompt
-			const systemPrompt = `你是一個專門且嚴格的「輸入文法預驗證層 (IGPVL) v2.6」。
-你的「絕對唯一」任務是分析使用者輸入的文字，並「僅」根據 v2.6 規格回傳 JSON 物件。
-你「絕對禁止」在 JSON 之外輸出任何額外的文字、註釋或解釋。
+			const systemPrompt = `You are a specialized and strict "Input Grammar Pre-Validation Layer (IGPVL) v2.6".
+Your "absolute sole" task is to analyze the user's input text and return "only" a JSON object according to the v2.6 specification.
+You are "absolutely forbidden" from outputting any additional text, notes, or explanations outside the JSON.
 
-你「必須」執行所有四類檢查，並嚴格標記所有錯誤：
-1.  **Core Grammar (IGPVL-CORE-XX)**: 主謂一致, 時態, 冠詞, 代名詞, 單複數詞。
-2.  **Advanced Grammar (IGPVL-ADV-XX)**: 懸垂修飾語, 不完整比較, 雙重否定, 時態轉換不一致, **語義搭配錯誤 (Collocation Errors) 或 主語/動詞搭配不當**。
-3.  **Spelling & Consistency (IGPVL-SPC-XX)**: 拼寫錯誤, 語境拼寫 (e.g., their/there), 大小寫, 數字格式, 連字符。
-4.  **Punctuation (IGPVL-PUN-XX)**: **當**輸入的**最後一個字元是標點符號**時，才檢查句尾標點, 逗號/分號/冒號誤用。
-    **【強制例外規則】**: 若輸入被判定為**片段/片語**（非完整陳述句或問句），則**不得**標記 'end_punctuation' 錯誤。
+You "must" perform all four check categories and strictly flag all errors:
+1.  **Core Grammar (IGPVL-CORE-XX)**: Subject-verb agreement, Tense, Articles, Pronouns, Number agreement.
+2.  **Advanced Grammar (IGPVL-ADV-XX)**: Dangling modifiers, Incomplete comparisons, Double negatives, Inconsistent tense shifts, **Semantic Collocation Errors or improper Subject/Verb pairings**.
+3.  **Spelling & Consistency (IGPVL-SPC-XX)**: Spelling errors, Contextual spelling (e.g., their/there), Capitalization, Number formats, Hyphenation.
+4.  **Punctuation (IGPVL-PUN-XX)**: **Only when** the **last character** of the input **is a punctuation mark**, check end punctuation, comma/semicolon/colon misuse.
+    **[Mandatory Exception Rule]**: If the input is judged to be a **fragment/phrase** (not a complete statement or question), you **must not** flag an 'end_punctuation' error.
 
-**規則:**
-1.  **最高嚴格檢查**: 即使是微小的錯誤 (如 'He go') 也要標記。
-2.  **錯誤計數 (error_count)**: 必須「精確」反映 'errors' 陣列的長度。
-3.  **驗證機制 (Status & Severity):**
-    * error_count = 0: 'status' = 'passed', 'severity' = 'none', 'recommendation' = '文法正確，準備生成。'
-    * 1 $\le$ error_count $\le$ 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = '偵測到 \${error_count} 個輕微錯誤。請參考建議，已允許繼續生成。'
-    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = '偵測到 \${error_count} 個嚴重錯誤。請修正輸入後再試。'
-4.  **錯誤代碼**: 'code' 欄位必須符合規範 (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01')。
-5.  **時間戳**: 必須提供 ISO 8601 格式的當前 UTC 時間。
-6.  **絕對禁止**: 你的回覆「不得」包含 JSON 以外的任何文字。`;
+**Rules:**
+1.  **Maximum Strictness Check**: Flag even minor errors (e.g., 'He go').
+2.  **Error Count (error_count)**: Must "precisely" reflect the length of the 'errors' array.
+3.  **Validation Mechanism (Status & Severity):**
+    * error_count = 0: 'status' = 'passed', 'severity' = 'none', 'recommendation' = 'Grammar correct, ready to generate.'
+    * 1 <= error_count <= 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = 'Detected ${error_count} minor errors. Please review suggestions. Generation is permitted.'
+    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = 'Detected ${error_count} major errors. Please correct the input and try again.'
+4.  **Error Codes**: 'code' field must follow specifications (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01').
+5.  **Timestamp**: Must provide the current UTC time in ISO 8601 format.
+6.  **Absolute Prohibition**: Your response "must not" contain any text other than the JSON.`;
             
 
             const userQuery = `
@@ -618,10 +618,10 @@
   "validation_mode": "strict"
 }
 `;
-            // 使用 0.1 溫度以確保 IGPVL 檢查的穩定性和一致性
+            // Use 0.1 temperature to ensure stability and consistency of IGPVL check
             const result = await callGeminiAPI(systemPrompt, userQuery, igpvlSchema, 0.1, 1.0);
             
-            // 確保時間戳存在 (模型有時會忘記)
+            // Ensure timestamp exists (model sometimes forgets)
             if (result && !result.isError && !result.timestamp) {
                 result.timestamp = new Date().toISOString();
             }
@@ -629,18 +629,18 @@
         }
 
         /**
-         * 在 UI 上顯示 IGPVL 的回饋
-         * @param {HTMLElement} el - 要顯示回饋的 DOM 元素
-         * @param {object} result - 來自 validateInputGrammar 的結果物件
-         * @returns {boolean} - 是否阻止了流程 (isBlocked)
+         * Display IGPVL feedback on the UI
+         * @param {HTMLElement} el - The DOM element to display feedback in
+         * @param {object} result - The result object from validateInputGrammar
+         * @returns {boolean} - Whether the flow was blocked (isBlocked)
          */
         function displayIgpvlFeedback(el, result) {
             el.innerHTML = '';
             
             if (result.isError) {
                 el.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                el.innerHTML = `<strong>IGPVL 檢查失敗:</strong> ${result.message}`;
-                return true; // 阻止流程
+                el.innerHTML = `<strong>IGPVL Check Failed:</strong> ${result.message}`;
+                return true; // Block flow
             }
 
             if (result.status === 'blocked') {
@@ -648,51 +648,51 @@
                 let html = `<p class="font-semibold">${result.recommendation}</p>`;
                 html += '<ul class="list-disc list-inside text-xs">';
                 result.errors.forEach(err => {
-                    html += `<li>[${err.code}] ${err.message} (建議: <strong>${err.suggestion}</strong>)</li>`;
+                    html += `<li>[${err.code}] ${err.message} (Suggestion: <strong>${err.suggestion}</strong>)</li>`;
                 });
                 html += '</ul>';
                 el.innerHTML = html;
-                return true; // 阻止流程
+                return true; // Block flow
             
             } else if (result.status === 'warning') {
                 el.className = 'text-sm p-3 rounded-lg bg-yellow-900/50 text-yellow-400 space-y-2';
                 let html = `<p class="font-semibold">${result.recommendation}</p>`;
                 html += '<ul class="list-disc list-inside text-xs">';
                 result.errors.forEach(err => {
-                    html += `<li>[${err.code}] ${err.message} (建議: <strong>${err.suggestion}</strong>)</li>`;
+                    html += `<li>[${err.code}] ${err.message} (Suggestion: <strong>${err.suggestion}</strong>)</li>`;
                 });
                 html += '</ul>';
                 el.innerHTML = html;
-                return false; // 不阻止流程
+                return false; // Do not block
             
             } else {
                 // 'passed'
                 el.className = 'text-sm p-3 rounded-lg bg-green-900/50 text-green-400';
                 el.innerHTML = `<p class="font-semibold">${result.recommendation}</p>`;
-                return false; // 不阻止流程
+                return false; // Do not block
             }
         }
 
 
-        // --- Prediction Tab 邏輯 ---
+        // --- Prediction Tab Logic ---
 
-        // v3.0 更新: 使用 v3.0 Grammar Validation Layer Schema
+        // v3.0 Update: Use v3.0 Grammar Validation Layer Schema
         const predictionSchema = {
             type: "ARRAY",
             maxItems: 6,
             items: {
                 type: "OBJECT",
                 properties: {
-                    "word": { "type": "STRING", "description": "預測的下一個詞彙" },
-                    "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
-                    "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
-                    "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
-                    "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
-                    "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
-                    "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
-                    "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+                    "word": { "type": "STRING", "description": "Predicted next word" },
+                    "p_w_n": { "type": "NUMBER", "description": "Conditional probability P(w_n | context), between 0 and 1" },
+                    "ppl": { "type": "NUMBER", "description": "Perplexity of the example sentence" },
+                    "band": { "type": "NUMBER", "description": "Corresponding IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
+                    "band_summary": { "type": "STRING", "description": "IELTS examiner-style summary description (based on PPL coherence assessment)" },
+                    "example": { "type": "STRING", "description": "Example sentence, max 25 words" },
+                    "consistency_score": { "type": "NUMBER", "description": "Semantic consistency score (0-100)" },
+                    "grammar_validation": grammarValidationSchemaObject // v3.0 Replace
                 },
-                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
+                required: ["word", "p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 Replace
             }
         };
         
@@ -700,97 +700,98 @@
             e.preventDefault();
             const phrase = predInput.value.trim();
             
-            // v2.6 IGPVL 整合: 清空舊訊息
+            // v2.6 IGPVL Integration: Clear old messages
             igpvlPredError.innerHTML = '';
             igpvlPredError.className = 'text-sm rounded-lg';
-            predError.classList.add('hidden'); // 隱藏舊的生成錯誤
-            predictionResults.innerHTML = ''; // 清空舊結果
+            predError.classList.add('hidden'); // Hide old generation errors
+            predictionResults.innerHTML = ''; // Clear old results
 
             if (!phrase) {
-                displayError(predError, "請輸入英文片語。", predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
+                displayError(predError, "Please enter an English phrase.", predLoading, predButton, predButtonText, "Get 6 Predictions");
                 return;
             }
 
-            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
-            displayLoading(predError, predLoading, predButton, predButtonText, "1/2 正在驗證輸入...");
+            // Set UI to loading (v2.6: Before IGPVL)
+            displayLoading(predError, predLoading, predButton, predButtonText, "1/2 Validating Input...");
 
-            // --- v2.6 IGPVL 執行 ---
+            // --- v2.6 IGPVL Execution ---
             const igpvlResult = await validateInputGrammar(phrase, 'predInput', 'academic');
             const isBlocked = displayIgpvlFeedback(igpvlPredError, igpvlResult);
 
             if (isBlocked) {
-                displayDone(predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
-                return; // 停止執行
+                displayDone(predLoading, predButton, predButtonText, "Get 6 Predictions");
+                return; // Stop execution
             }
-            // --- IGPVL 結束 ---
+            // --- IGPVL End ---
 
-            // 設置 UI 為載入中 (v2.6: 更新狀態)
-            displayLoading(predError, predLoading, predButton, predButtonText, "2/2 正在預測...");
+            // Set UI to loading (v2.6: Update status)
+            displayLoading(predError, predLoading, predButton, predButtonText, "2/2 Generating Predictions...");
 
-            // 準備 API 請求
-            const posFilter = predPos.value === 'any' ? '任何詞性' : predPos.value;
-            const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
+            // Prepare API request
+            const posFilter = predPos.value === 'any' ? 'Any POS' : predPos.value;
+            const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
             const temp = predTemp.value;
             const topP = predTopP.value;
-            // T1.4 Fix: 讀取並截斷上下文
+            // T1.4 Fix: Read and truncate context
             const contextLen = predContextLen.value;
             const truncatedPhrase = truncateContext(phrase, contextLen);
 
-            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
-			// 提示詞優化流程紀錄: https://gemini.google.com/share/c74d88da14dc
-            const systemPrompt = `你是一個多功能寫作風格助教（IELTS 與 Technical Writing）。你的任務是以最高學術標準（IELTS）或最高清晰度標準（Tech Guide），根據使用者輸入的片語，預測 6 個最常見、最自然的下一個詞彙。
+            // v3.0 (User Custom) Update: Strictly implement Grammar Validation Layer
+			// Prompt optimization log: https://gemini.google.com/share/c74d88da14dc
+            const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to predict the 6 most common and natural next words based on the user's input phrase, adhering to the highest academic standards (IELTS) or the highest clarity standards (Tech Guide).
 
-【內部參照：英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**此參照將用於規則 8 的嚴格檢查。
+[Internal Reference: English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.** This reference will be used for the strict check in Rule 8.
 
-規則：
-1. 【**輸入校驗與修正**】: **如果使用者輸入的片語包含基礎拼寫或嚴重文法錯誤** (例如 'cycly' 或 'the lives are'), **你必須在輸出 JSON 的 'initial_phrase_correction' 欄位中提供修正後的片語** (e.g., 'the life cycle ends,')，並以該修正後的片語作為所有預測的上下文。如果輸入正確，則返回空字串。
+Rules:
+1.  [**Input Validation & Correction**]: **If the user's input phrase contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all predictions. If the input is correct, return an empty string.
 
-2. 【🔥 **Task 風格約束 (核心優化)**】: 必須嚴格遵守使用者指定的「詞性 (POS)」和「寫作任務 (Task)」上下文來生成 'example' 句子。
-    a. **若 Task = Task 1 (圖表描述):** 'example' 必須是**正式 (Formal)**、**客觀 (Objective)** 且**學術性**的。語氣必須**中立**，專注於描述數據、趨勢或比較 (例如：*soared, plummeted, whereas, significantly*)。**絕對禁止**使用 "I think", "In my opinion" 等任何主觀或情感表達。
-    b. **若 Task = Task 2 (議論文):** 'example' 必須是**正式 (Formal)** 或 **半正式 (Semi-formal)** 的，語氣應為**說服性 (Persuasive)** 或 **分析性 (Analytical)**。句子應側重於邏輯論證、因果關係或提出正式觀點 (例如：*consequently, It is widely argued that, however*)。**必須避免**口語化表達或縮寫 (如 "don't")。
-    c. **若 Task = 'Tech Guide' (技術手冊):** 'example' 必須是**清晰 (Clear)**、**直接 (Direct)** 且**具指導性 (Instructional)** 的。語氣必須**客觀且專注於指令**。
-        * **(i) 核心要求:** 句子**必須**優先使用**祈使句** (Imperative, e.g., "**Click** the button") 或**主動語態的第二人稱** (Active Voice, e.g., "**You** must **enter** the password")。
-        * **(ii) 格式慣例:** 應嚴格使用技術寫作格式：**使用粗體 (Bold) 標示介面元素** (e.g., **Save** button, **File** menu)；**使用等寬字體 (Monospace/Code) 標示程式碼、指令或路徑** (e.g., 'npm install', 'C:\ProgramData')。
-        * **(iii) 絕對禁止:** 必須**嚴格避免**使用**被動語態** (e.g., "The button is clicked by...") 或**模糊的建議性語言** (e.g., "You might want to...", "It is possible to...")。
+2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'POS' and 'Task' context when generating 'example' sentences.
+    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
+    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
+    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
+        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
+        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
+        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
 
-3. 【**絕對規則**】: 你生成的「所有」'example' 句子都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
-4. 為每個預測詞提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
-5. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
-6. 【重點】例句中，預測的詞彙必須「緊密且唯一地」緊接在使用者輸入片語的「最後一個字」之後。如果使用者輸入片語的最後一個字是標點符號，預測的詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
-7. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性，並為每次生成提供「一致性分數 (consistency_score)」(0-100)。
+3.  [**Absolute Rule**]: 'All' 'example' sentences you generate 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 8 below. **This check is mandatory and cannot be skipped or done superficially**.
+4.  For each predicted word, provide 'Conditional Probability P(w_n | context)', 'Concise Example (example)', 'Perplexity (ppl)', and 'IELTS Cohesion & Coherence Band Assessment'.
+5.  [PPL-Band Mapping]: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5.
+6.  [Key Point] In the example sentence, the predicted word must "closely and uniquely" follow the "last word" of the user's input phrase. If the last character of the user's input phrase is punctuation, the predicted word must "closely and uniquely" follow the punctuation mark, separated by a single space.
+7.  Simulate three rounds of Self-Consistency sampling for each example generation to ensure semantic stability, and provide a "consistency_score" (0-100) for each generation.
 
-8. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
-**這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'grammar_validation' 物件。
+8.  [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+**This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'grammar_validation' object.
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法與 Task 規範錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
-        * **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        * **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        * **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
-        * **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
-        * **(🔥) Task 規範:** 必須嚴格檢查是否違反 **規則 2** 的 Task 風格。
-            * **Task 1 違規 (Critical):** 偵測到任何主觀表達 (如 "I think", "In my opinion", "feels")。錯誤 'type' 應為 "Task 1 Violation"。
-            * **Task 2 違規 (High):** 偵測到口語縮寫 (如 "don't", "it's") 或過度口語化的詞彙。錯誤 'type' 應為 "Formality Violation"。
-            * **Tech Guide 違規 (High):** 偵測到**被動語態** (e.g., "The file is saved by..."), **模糊/非指令性語言** (e.g., "It is recommended to..."), 或**遺漏 UI/Code 格式標記** (e.g., 未將 'Save button' 標為 '**Save** button')。錯誤 'type' 應為 "Tech Guide Violation"。
+    a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax and Task compliance errors**)
+    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as major syntax errors (like comma splices/fragments)**. If no errors, must return an empty array [].
+        * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
+        * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
+        * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
+        * **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
+        * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
+            * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
+            * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or
+overly informal vocabulary. Error 'type' should be "Formality Violation".
+            * **Tech Guide Violation (High):** Detected **passive voice** (e.g., "The file is saved by..."), **vague/non-instructional language** (e.g., "It is recommended to..."), or **missing UI/Code formatting** (e.g., failing to mark 'Save button' as '**Save** button'). Error 'type' should be "Tech Guide Violation".
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**不處理 I 級句法錯誤**。
-        * **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態 (在 Task 1/2 中是建議，在 Tech Guide 中是錯誤)。
-        * **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
+    Provide "suggestions". **Does not handle Level I syntax errors**.
+        * **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice (a suggestion in Task 1/2, an error in Tech Guide).
+        * **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        * **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        * **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
+    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
+    Provide "suggestions".
+        * **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
+        * **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
 
-    d. 【IV. 傳遞性 (Delivery)】: (🔥 Task 強化標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
-    **'formality' 和 'detected_tone' 的評估必須嚴格對應規則 2 中指定的 Task 類型：**
-        * **Task 1:** 'formality' 必須評為 "Formal (Academic)"，'detected_tone' 必須評為 "Objective" 或 "Neutral"。
-        * **Task 2:** 'formality' 必須評為 "Formal" 或 "Semi-formal"，'detected_tone' 必須評為 "Persuasive" 或 "Analytical"。
-        * **Tech Guide:** 'formality' 必須評為 "Neutral" 或 "Informal" (指 "Direct"，非 "Casual")，'detected_tone' 必須評為 "Instructional" 或 "Direct"。
+    d.  [IV. Delivery]: (🔥 Task-Reinforced Standard)
+    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
+    **'formality' and 'detected_tone' assessment must strictly correspond to the Task type specified in Rule 2:**
+        * **Task 1:** 'formality' must be rated "Formal (Academic)", 'detected_tone' must be "Objective" or "Neutral".
+        * **Task 2:** 'formality' must be rated "Formal" or "Semi-formal", 'detected_tone' must be "Persuasive" or "Analytical".
+        * **Tech Guide:** 'formality' must be rated "Neutral" or "Informal" (meaning "Direct", not "Casual"), 'detected_tone' must be "Instructional" or "Direct".
 
-9. 【輸出格式 (JSON Schema)】: **你的輸出「必須」嚴格遵守以下 JSON 結構的物件。**
+9.  [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
 
 \`\`\`json
 {
@@ -811,7 +812,7 @@
               "type": "STRING", 
               "description": "STRING", 
               "suggestion": "STRING",
-              "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+              "priority": "STRING" // Must be one of "Critical", "High", "Low"
             }
           ]
         },
@@ -833,73 +834,73 @@
   ]
 }
 \`\`\`
-10. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
+10. **Output ONLY the requested JSON format object.**`;
 
             const userQuery = `
-輸入片語 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
-詞性過濾: ${posFilter}
-寫作任務: ${taskContext}
-採樣參數 (T=${temp}, TopP=${topP})
+Input Phrase (Using only last ${contextLen} words): "${truncatedPhrase}"
+POS Filter: ${posFilter}
+Writing Task: ${taskContext}
+Sampling Params (T=${temp}, TopP=${topP})
 `;
 
-            // 呼叫 API
+            // Call API
             const results = await callGeminiAPI(systemPrompt, userQuery, predictionSchema, temp, topP);
             
-			// ⭐️ 在這裡加入檢查點：印出 API 的原始回應
-			console.log("--- Gemini API 原始回應 (results) ---");
+			// ⭐️ Checkpoint: Print the raw API response
+			console.log("--- Raw Gemini API Response (results) ---");
 			console.log(results);
 			console.log("-----------------------------------------");
-            // 恢復 UI
-            displayDone(predLoading, predButton, predButtonText, "獲取 6 個預測詞彙 (Get Predictions)");
+            // Restore UI
+            displayDone(predLoading, predButton, predButtonText, "Get 6 Predictions");
 
-            // 處理 API 回應
+            // Process API response
             if (results.isError) {
                 displayError(predError, results.message);
             } else if (Array.isArray(results)) {
-                displayPredictionResults(results, truncatedPhrase); // T1.4 Fix: 傳遞截斷後的片語
+                displayPredictionResults(results, truncatedPhrase); // T1.4 Fix: Pass truncated phrase
             } else {
-                displayError(predError, "收到非預期的回應格式。");
+                displayError(predError, "Received unexpected response format.");
             }
         }
         
-        // v3.0: 更新 customSchema
+        // v3.0: Update customSchema
         const customSchema = {
             type: "OBJECT",
             properties: {
-                "p_w_n": { "type": "NUMBER", "description": "條件機率 P(w_n | context), 0到1之間" },
-                "ppl": { "type": "NUMBER", "description": "該示例句的困惑度 (Perplexity)" },
-                "band": { "type": "NUMBER", "description": "對應的 IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
-                "band_summary": { "type": "STRING", "description": "IELTS 考官角度摘要描述 (基於PPL的連貫性評估)" },
-                "example": { "type": "STRING", "description": "不超過 25 個字的例句" },
-                "consistency_score": { "type": "NUMBER", "description": "語義一致性分數 (0-100)" },
-                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+                "p_w_n": { "type": "NUMBER", "description": "Conditional probability P(w_n | context), between 0 and 1" },
+                "ppl": { "type": "NUMBER", "description": "Perplexity of the example sentence" },
+                "band": { "type": "NUMBER", "description": "Corresponding IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
+                "band_summary": { "type": "STRING", "description": "IELTS examiner-style summary description (based on PPL coherence assessment)" },
+                "example": { "type": "STRING", "description": "Example sentence, max 25 words" },
+                "consistency_score": { "type": "NUMBER", "description": "Semantic consistency score (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace
             },
-            required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 替換
+            required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 Replace
         };
 
-        // 處理自定詞彙驗證
+        // Handle custom word validation
         async function handleCustomWordCheck(e) {
             e.preventDefault();
             const phrase = predInput.value.trim();
             const customWord = customWordInput.value.trim();
 
-            // v2.6 IGPVL 整合: 清空舊訊息
+            // v2.6 IGPVL Integration: Clear old messages
             igpvlCustomError.innerHTML = '';
             igpvlCustomError.className = 'text-sm rounded-lg mt-4';
-            customResults.innerHTML = ''; // 清空舊結果
+            customResults.innerHTML = ''; // Clear old results
 
             if (!phrase || !customWord) {
                 igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                igpvlCustomError.innerHTML = '請輸入上下文和自定詞彙。';
+                igpvlCustomError.innerHTML = 'Please enter context and a custom word.';
                 return;
             }
 
-            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
+            // Set UI to loading (v2.6: Before IGPVL)
             customLoading.classList.remove('hidden');
             customButton.disabled = true;
-            customButtonText.textContent = "1/2 驗證輸入...";
+            customButtonText.textContent = "1/2 Validating Input...";
 
-            // --- v2.6 IGPVL 執行 (僅檢查上下文 phrase) ---
+            // --- v2.6 IGPVL Execution (Check context phrase only) ---
             const igpvlResult = await validateInputGrammar(phrase, 'predInput_custom', 'academic');
             const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
 
@@ -907,81 +908,81 @@
                 customLoading.classList.add('hidden');
                 customButton.disabled = false;
                 customButtonText.textContent = "Check Word";
-                return; // 停止執行
+                return; // Stop execution
             }
-            // --- IGPVL 結束 ---
+            // --- IGPVL End ---
 
-            // 設置 UI 為載入中 (v2.6: 更新狀態)
-            customButtonText.textContent = "2/2 檢查中...";
+            // Set UI to loading (v2.6: Update status)
+            customButtonText.textContent = "2/2 Checking...";
 
-            // 準備 API 請求 (使用單詞模式)
-            // T1.4 Fix: 讀取並截斷上下文
-			const taskContext = predTask.value === 'general' ? '通用寫作' : `IELTS ${predTask.value}`;
+            // Prepare API request (single word mode)
+            // T1.4 Fix: Read and truncate context
+			const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
             const temp = predTemp.value;
             const topP = predTopP.value;
             const contextLen = predContextLen.value;
             const truncatedPhrase = truncateContext(phrase, contextLen);
             const fullPhrase = `${truncatedPhrase} ${customWord}`;
 
-            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
-           const systemPrompt = `你是一個多功能寫作風格助教（IELTS 與 Technical Writing）。你的任務是驗證使用者輸入的詞彙「\${customWord}」在上下文「\${truncatedPhrase}」之後的自然度，並嚴格遵循指定的「Task」風格。
+            // v3.0 (User Custom) Update: Strictly implement Grammar Validation Layer
+           const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to validate the naturalness of the user's input word "\${customWord}" following the context "\${truncatedPhrase}", strictly adhering to the specified "Task" style.
 
-規則：
-1. 【**輸入校驗與修正**】: **如果使用者輸入的上下文片語 \${truncatedPhrase} 包含基礎拼寫或嚴重文法錯誤** (例如 'cycly' 或 'the lives are'), **你必須在輸出 JSON 的 'initial_phrase_correction' 欄位中提供修正後的片語** (e.g., 'the life cycle ends,')，並以該修正後的片語作為所有例句生成的上下文。如果輸入正確，則返回空字串。
+Rules:
+1.  [**Input Validation & Correction**]: **If the user's input context phrase \${truncatedPhrase} contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all example generations. If the input is correct, return an empty string.
 
-2. 【🔥 **Task 風格約束 (核心優化)**】: 必須嚴格遵守使用者指定的「寫作任務 (Task)」上下文來生成 'example' 句子。
-    a. **若 Task = Task 1 (圖表描述):** 'example' 必須是**正式 (Formal)**、**客觀 (Objective)** 且**學術性**的。語氣必須**中立**，專注於描述數據、趨勢或比較 (例如：*soared, plummeted, whereas, significantly*)。**絕對禁止**使用 "I think", "In my opinion" 等任何主觀或情感表達。
-    b. **若 Task = Task 2 (議論文):** 'example' 必須是**正式 (Formal)** 或 **半正式 (Semi-formal)** 的，語氣應為**說服性 (Persuasive)** 或 **分析性 (Analytical)**。句子應側重於邏輯論證、因果關係或提出正式觀點 (例如：*consequently, It is widely argued that, however*)。**必須避免**口語化表達或縮寫 (如 "don't")。
-    c. **若 Task = 'Tech Guide' (技術手冊):** 'example' 必須是**清晰 (Clear)**、**直接 (Direct)** 且**具指導性 (Instructional)** 的。語氣必須**客觀且專注於指令**。
-        * **(i) 核心要求:** 句子**必須**優先使用**祈使句** (Imperative, e.g., "**Click** the button") 或**主動語態的第二人稱** (Active Voice, e.g., "**You** must **enter** the password")。
-        * **(ii) 格式慣例:** 應嚴格使用技術寫作格式：**使用粗體 (Bold) 標示介面元素** (e.g., **Save** button, **File** menu)；**使用等寬字體 (Monospace/Code) 標示程式碼、指令或路徑** (e.g., 'npm install', 'C:\ProgramData')。
-        * **(iii) 絕對禁止:** 必須**嚴格避免**使用**被動語態** (e.g., "The button is clicked by...") 或**模糊的建議性語言** (e.g., "You might want to...", "It is possible to...")。
+2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'Task' context when generating 'example' sentences.
+    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
+    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
+    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
+        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
+        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
+        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
 
-3. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 9 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
-4. 為該搭配提供「條件機率 P(w_n | context)」、「精簡例句 (example)」、「困惑度 (ppl)」和「IELTS Cohesion & Coherence Band 評估」。
-5. 【PPL-Band 映射】: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5。
-6. 【重點】例句中，驗證的詞彙 \${customWord} 必須「緊密且唯一地」緊接在上下文 \${truncatedPhrase} 的「最後一個字」之後。如果上下文的最後一個字是標點符号，該詞彙必須在標点符號之後「緊密且唯一地」以一個空格隔開**。**
-7. 每次例句生成模擬執行三輪 Self-Consistency 採樣，以確保語義穩定性。
-8. 為每次生成提供「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+3.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 10 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 9 below. **This check is mandatory and cannot be skipped or done superficially**.
+4.  For this collocation, provide 'Conditional Probability P(w_n | context)', 'Concise Example (example)', 'Perplexity (ppl)', and 'IELTS Cohesion & Coherence Band Assessment'.
+5.  [PPL-Band Mapping]: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5.
+6.  [Key Point] In the example sentence, the validated word \${customWord} must "closely and uniquely" follow the "last word" of the context \${truncatedPhrase}. If the last character of the context is punctuation, the word must "closely and uniquely" follow the punctuation mark, separated by a single space.
+7.  Simulate three rounds of Self-Consistency sampling for each example generation to ensure semantic stability.
+8.  Provide a "consistency_score" (0-100) for each generation, calculated based on semantic similarity, lexical variance, and syntactic stability.
 
-9. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
-**這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'grammar_validation' 物件。
+9.  [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+**This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'grammar_validation' object.
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法與 Task 規範錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
-        * **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        * **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        * **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
-        * **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
-        * **(🔥) Task 規範:** 必須嚴格檢查是否違反 **規則 2** 的 Task 風格。
-            * **Task 1 違規 (Critical):** 偵測到任何主觀表達 (如 "I think", "In my opinion", "feels")。錯誤 'type' 應為 "Task 1 Violation"。
-            * **Task 2 違規 (High):** 偵測到口語縮寫 (如 "don't", "it's") 或過度口語化的詞彙。錯誤 'type' 應為 "Formality Violation"。
-            * **Tech Guide 違規 (High):** 偵測到**被動語態** (e.g., "The file is saved by..."), **模糊/非指令性語言** (e.g., "It is recommended to..."), 或**遺漏 UI/Code 格式標記** (e.g., 未將 'Save button' 標為 '**Save** button')。錯誤 'type' 應為 "Tech Guide Violation"。
+    a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax and Task compliance errors**)
+    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as major syntax errors (like comma splices/fragments)**. If no errors, must return an empty array [].
+        * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
+        * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
+        * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
+        * **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
+        * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
+            * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
+            * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or overly informal vocabulary. Error 'type' should be "Formality Violation".
+            * **Tech Guide Violation (High):** Detected **passive voice** (e.g., "The file is saved by..."), **vague/non-instructional language** (e.g., "It is recommended to..."), or **missing UI/Code formatting** (e.g., failing to mark 'Save button' as '**Save** button'). Error 'type' should be "Tech Guide Violation".
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**不處理 I 級句法錯誤**。
-        * **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態 (在 Task 1/2 中是建議，在 Tech Guide 中是錯誤)。
-        * **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
+    Provide "suggestions". **Does not handle Level I syntax errors**.
+        * **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice (a suggestion in Task 1/2, an error in Tech Guide).
+        * **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        * **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        * **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
+    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
+    Provide "suggestions".
+        * **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
+        * **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
 
-    d. 【IV. 傳遞性 (Delivery)】: (🔥 Task 強化標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
-    **'formality' 和 'detected_tone' 的評估必須嚴格對應規則 2 中指定的 Task 類型：**
-        * **Task 1:** 'formality' 必須評為 "Formal (Academic)"，'detected_tone' 必須評為 "Objective" 或 "Neutral"。
-        * **Task 2:** 'formality' 必須評為 "Formal" 或 "Semi-formal"，'detected_tone' 必須評為 "Persuasive" 或 "Analytical"。
-        * **Tech Guide:** 'formality' 必須評為 "Neutral" 或 "Informal" (指 "Direct"，非 "Casual")，'detected_tone' 必須評為 "Instructional" 或 "Direct"。
+    d.  [IV. Delivery]: (🔥 Task-Reinforced Standard)
+    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
+    **'formality' and 'detected_tone' assessment must strictly correspond to the Task type specified in Rule 2:**
+        * **Task 1:** 'formality' must be rated "Formal (Academic)", 'detected_tone' must be "Objective" or "Neutral".
+        * **Task 2:** 'formality' must be rated "Formal" or "Semi-formal", 'detected_tone' must be "Persuasive" or "Analytical".
+        * **Tech Guide:** 'formality' must be rated "Neutral" or "Informal" (meaning "Direct", not "Casual"), 'detected_tone' must be "Instructional" or "Direct".
 
-10. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+10. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
 
-11. 【輸出格式 (JSON Schema)】: **你的輸出「必須」嚴格遵守以下 JSON 結構的物件。**
+11. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
 
 \`\`\`json
 {
-  "initial_phrase_correction": "STRING", // 規則 1 要求的修正
+  "initial_phrase_correction": "STRING", // Correction required by Rule 1
   "P(w_n|context)": "NUMBER",
   "example": "STRING",
   "ppl": "NUMBER",
@@ -995,7 +996,7 @@
           "type": "STRING", 
           "description": "STRING", 
           "suggestion": "STRING",
-          "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+          "priority": "STRING" // Must be one of "Critical", "High", "Low"
         }
       ]
     },
@@ -1015,33 +1016,33 @@
   }
 }
 \`\`\`
-12. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
+12. **Output ONLY the requested JSON format object.**`;
 
             const userQuery = `
-上下文 (僅使用最後 ${contextLen} 詞): "${truncatedPhrase}"
-自定詞彙: "${customWord}"
-寫作任務: "${taskContext}"
-採樣參數 (T=${temp}, TopP=${topP})
+Context (Using only last ${contextLen} words): "${truncatedPhrase}"
+Custom Word: "${customWord}"
+Writing Task: "${taskContext}"
+Sampling Params (T=${temp}, TopP=${topP})
 `;
 
             const result = await callGeminiAPI(systemPrompt, userQuery, customSchema, temp, topP);
 
-            // 恢復 UI
+            // Restore UI
             customLoading.classList.add('hidden');
             customButton.disabled = false;
             customButtonText.textContent = "Check Word";
 
             if (result.isError) {
-                customResults.innerHTML = `<p class="text-red-400">驗證失敗: ${result.message}</p>`;
+                customResults.innerHTML = `<p class="text-red-400">Validation Failed: ${result.message}</p>`;
             } else if (result.band !== undefined) {
-                // 獲取 Band 資訊 (雖然模型已返回，但我們使用本地函數來標準化顏色)
+                // Get Band info (although model returns it, we use local function to standardize color)
                 const bandInfo = getCohesionBandDetails(result.ppl);
                 
-                // v3.0 更新: 顯示 Grammar Validation Layer
+                // v3.0 Update: Display Grammar Validation Layer
                 customResults.innerHTML = `
                     <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
                         <div class="flex items-center justify-between">
-                            <h4 class="text-lg font-bold text-yellow-300">自定詞彙：${customWord}</h4>
+                            <h4 class="text-lg font-bold text-yellow-300">Custom Word: ${customWord}</h4>
                             <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
                         </div>
                         <p class="text-sm text-gray-400">${result.band_summary}</p>
@@ -1054,29 +1055,29 @@
                         <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
                             ${highlight(result.example, fullPhrase)}
                         </div>
-                        <!-- v3.0 Grammar Validation Layer 注入點 -->
+                        <!-- v3.0 Grammar Validation Layer Injection Point -->
                         ${renderGrammarValidation(result.grammar_validation)}
                     </div>
                 `;
             } else {
-                customResults.innerHTML = `<p class="text-red-400">收到非預期的回應格式。</p>`;
+                customResults.innerHTML = `<p class="text-red-400">Received unexpected response format.</p>`;
             }
         }
 
 
-        // v3.0: 更新顯示預測結果
+        // v3.0: Update displayPredictionResults
         function displayPredictionResults(results, inputPhrase) {
             if (results.length === 0) {
-                predictionResults.innerHTML = `<p class="text-gray-400 md:col-span-2 text-center">找不到符合條件的預測詞彙。</p>`;
+                predictionResults.innerHTML = `<p class="text-gray-400 md:col-span-2 text-center">No matching predictions found.</p>`;
                 return;
             }
 
             results.forEach((item, index) => {
                 const fullPhrase = `${inputPhrase} ${item.word}`;
-                // 使用本地函數獲取顏色
+                // Use local function to get color
                 const bandInfo = getCohesionBandDetails(item.ppl);
 
-                // v3.0 更新: 處理 consistency 狀態
+                // v3.0 Update: Handle consistency status
                 const consistencyStatus = item.consistency_score >= 85 ? 'Stable' : 'Check';
 
                 const card = document.createElement('div');
@@ -1097,11 +1098,11 @@
                     <div id="example-container-${index}" class="bg-gray-700 p-3 rounded-md text-gray-200">
                         ${highlight(item.example, fullPhrase)}
                     </div>
-                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
+                    <!-- v3.0 Update: Show Consistency and Grammar Validation Layer -->
                     <div id="metrics-container-${index}" class="text-xs text-gray-400 text-right mt-1 space-y-1">
                         <div>Consistency: ${item.consistency_score} (${consistencyStatus})</div>
                     </div>
-                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <!-- v3.0 Grammar Validation Layer Injection Point -->
                     <div id="grammar-validation-${index}">
                         ${renderGrammarValidation(item.grammar_validation)}
                     </div>
@@ -1120,7 +1121,7 @@
                                 data-context="${inputPhrase}"
                                 data-word="${item.word}"
                                 data-type="prediction">
-                            <span class="regen-text">🔄 重新生成</span>
+                            <span class="regen-text">🔄 Regenerate</span>
                             <div class="spinner regen-loading hidden"></div>
                         </button>
                     </div>
@@ -1129,9 +1130,9 @@
             });
         }
         
-        // 統一的 UI 狀態輔助函數
+        // Unified UI state helper functions
         function displayLoading(errorEl, loadingEl, buttonEl, textEl, message) {
-            errorEl.classList.add('hidden'); // v2.6: 保持隱藏主錯誤
+            errorEl.classList.add('hidden'); // v2.6: Keep main error hidden
             loadingEl.classList.remove('hidden');
             buttonEl.disabled = true;
             textEl.textContent = message;
@@ -1149,18 +1150,18 @@
             if (loadingEl) displayDone(loadingEl, buttonEl, textEl, buttonMessage);
         }
 
-        // v3.0: 更新 regenSchema
+        // v3.0: Update regenSchema
         const regenSchema = {
             type: "OBJECT",
             properties: {
-                "example": { "type": "STRING", "description": "新生成的例句, $\le 25$ 詞" },
-                "consistency_score": { "type": "NUMBER", "description": "新例句的語義一致性分數 (0-100)" },
-                "grammar_validation": grammarValidationSchemaObject // v3.0 替換
+                "example": { "type": "STRING", "description": "Newly generated example sentence, <= 25 words" },
+                "consistency_score": { "type": "NUMBER", "description": "Semantic consistency score of the new sentence (0-100)" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace
             },
-            required: ["example", "consistency_score", "grammar_validation"] // v3.0 替換
+            required: ["example", "consistency_score", "grammar_validation"] // v3.0 Replace
         };
 
-        // 統一的例句重新生成邏輯 (Prediction & Validation 共用)
+        // Unified example regeneration logic (Shared by Prediction & Validation)
         async function handleRegeneration(button, band, context, word, type) {
             const index = button.dataset.index;
             const fullPhrase = type === 'prediction' ? `${context} ${word}` : context; // Validation case: context is the full phrase
@@ -1169,66 +1170,66 @@
             const regenText = button.querySelector('.regen-text');
             const regenLoading = button.querySelector('.regen-loading');
 
-            // T1.8 Fix: 檢查這是否為自動重試
+            // T1.8 Fix: Check if this is an auto-retry
             const isAutoRetry = button.dataset.isAutoRetry === 'true';
 
-            // 設置 UI 為載入中
+            // Set UI to loading
             button.disabled = true;
             regenText.classList.add('hidden');
             regenLoading.classList.remove('hidden');
-            // T1.8 Fix: 更新載入訊息
-            exampleContainer.innerHTML = `<span class="text-gray-400">正在生成 Band ${band} 例句... ${isAutoRetry ? '(自動回溯重試...)' : '(Self-Consistency 3x)'}</span>`;
+            // T1.8 Fix: Update loading message
+            exampleContainer.innerHTML = `<span class="text-gray-400">Generating Band ${band} example... ${isAutoRetry ? '(Auto-Traceback Retry...)' : '(Self-Consistency 3x)'}</span>`;
 
-            // 獲取 Consistency Manager 參數
+            // Get Consistency Manager parameters
             const temp = predTemp.value;
             const topP = predTopP.value;
 
-            // 準備 API 請求
-            const bandRules = `Band ${band} - 詞彙與句式特征: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}。`;
+            // Prepare API request
+            const bandRules = `Band ${band} - Vocabulary and Sentence Feature: ${type === 'prediction' ? 'Cohesion & Coherence' : 'Lexical Resource'}.`;
             
-            // v3.0 (使用者自訂) 更新: 嚴格實作 Grammar Validation Layer
-            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是根據使用者指定的「完整搭配片語」(\${fullPhrase}) 和「目標 Band」(\${band})，生成一個「單一、精簡（最多 25 詞）」的例句。
+            // v3.0 (User Custom) Update: Strictly implement Grammar Validation Layer
+            const systemPrompt = `You are an IELTS Writing Assistant. Your task is to generate a "single, concise (max 25 words)" example sentence based on the user-specified "full collocation phrase" (\${fullPhrase}) and "target Band" (\${band}).
 
-規則：
-1. 【**搭配片語校驗**】: **如果使用者輸入的搭配片語 \${fullPhrase} 包含基礎拼寫或嚴重文法錯誤** (e.g., 'significantlly' $\rightarrow$ 'significantly'), **你必須在輸出 JSON 的 'phrase_correction' 欄位中提供修正後的片語**，並以該修正後的片語作為例句生成的基礎。如果輸入正確，則返回空字串。
-2. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 8 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
-3. **語義一致性 ($\ge 0.9$):** 新生成的例句必須與當前例句語義保持高度一致，差異僅在於句法結構和詞彙選擇。
-4. **Band 遵循:** 例句必須嚴格符合目標 Band (\${band}) 的語法複雜度、連貫性與詞彙密度要求。
-5. **搭配完整:** 確保例句中包含**完整且修正後**的搭配「\${fullPhrase}」。
-6. **連續性:** 確保搭配中的詞彙是連續且不被標點符號分隔。
-7. Self-Consistency: 模擬執行三輪 Self-Consistency 採樣，以確保輸出的穩定性。
-8. 輸出「一致性分數 (consistency_score)」(0-100)，基於語義相似度、詞彙變異度、句法穩定性計算。
+Rules:
+1.  [**Collocation Phrase Validation**]: **If the user's input collocation phrase \${fullPhrase} contains basic spelling or severe grammatical errors** (e.g., 'significantlly' -> 'significantly'), **you must provide the corrected phrase in the 'phrase_correction' field of the output JSON**, and use this corrected phrase as the basis for example generation. If the input is correct, return an empty string.
+2.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 10 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 8 below. **This check is mandatory and cannot be skipped or done superficially**.
+3.  **Semantic Consistency (>= 0.9):** The newly generated example must remain highly consistent semantically with the current example, differing only in syntactic structure and lexical choice.
+4.  **Band Adherence:** The example must strictly conform to the target Band (\${band}) requirements for grammatical complexity, coherence, and lexical density.
+5.  **Complete Collocation:** Ensure the example sentence contains the **complete and corrected** collocation "\${fullPhrase}".
+6.  **Continuity:** Ensure the words in the collocation are continuous and not separated by punctuation.
+7.  Self-Consistency: Simulate three rounds of Self-Consistency sampling to ensure output stability.
+8.  Output a "consistency_score" (0-100), calculated based on semantic similarity, lexical variance, and syntactic stability.
 
-9. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
-**這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'grammar_validation' 物件。
+9.  [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+**This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'grammar_validation' object.
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 嚴格強化 - **包含句法錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及主要的句法錯誤 (如逗號黏連/片段句)**。如果沒有錯誤，必須返回空陣列 []。
-        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        - **複雜文法/句法:** 懸垂修飾語, 時態轉換不一致, 雙重否定, 平行結構錯誤, **流水句, 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        - **拼寫:** 基礎拼寫, 語境拼寫, 大小寫/數字格式, 連字符/破折號。
-        - **標點:** 基礎標點 (句尾), 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+    a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax errors**)
+    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as major syntax errors (like comma splices/fragments)**. If no errors, must return an empty array [].
+        -   **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
+        -   **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
+        -   **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
+        -   **Punctuation:** Basic punctuation (end-of-sentence), Advanced punctuation (semicolons, colon structure, quotation mark conventions).
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**不處理 I 級句法錯誤**。
-        - **優化:** 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態。
-        - **句子重寫 (rewrite_suggestion):** **必須**提供一個完整句子重寫，該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
+    Provide "suggestions". **Does not handle Level I syntax errors**.
+        -   **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice.
+        -   **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        - **結構:** 透過 'feedback' 提醒 句子多樣性 或 內容重複 的問題。
+    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
+    Provide "suggestions".
+        -   **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
+        -   **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
 
-    d. 【IV. 傳遞性 (Delivery)】: (維持原標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    d.  [IV. Delivery]: (Maintain original standard)
+    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
 
-10. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+10. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
 
-11. 【輸出格式 (JSON Schema)】: **你的輸出「必須」嚴格遵守以下 JSON 結構的物件。**
+11. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
 
 \`\`\`json
 {
-  "phrase_correction": "STRING", // 規則 1 要求的修正
+  "phrase_correction": "STRING", // Correction required by Rule 1
   "example": "STRING",
   "consistency_score": "NUMBER",
   "grammar_validation": {
@@ -1239,7 +1240,7 @@
           "type": "STRING", 
           "description": "STRING", 
           "suggestion": "STRING",
-          "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+          "priority": "STRING" // Must be one of "Critical", "High", "Low"
         }
       ]
     },
@@ -1259,72 +1260,72 @@
   }
 }
 \`\`\`
-12. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
+12. **Output ONLY the requested JSON format object.**`;
 
             const userQuery = `
-完整搭配片語: "${fullPhrase}"
-目標 Band: ${band}
-Band 規則: ${bandRules}
-採樣參數 (T=${temp}, TopP=${topP})
+Full Collocation: "${fullPhrase}"
+Target Band: ${band}
+Band Rules: ${bandRules}
+Sampling Params (T=${temp}, TopP=${topP})
 `;
 
-            // 呼叫 API
+            // Call API
             const result = await callGeminiAPI(systemPrompt, userQuery, regenSchema, temp, topP);
 
-            // 恢復 UI (在 T1.8 檢查前先恢復，以免按鈕卡住)
+            // Restore UI (Restore before T1.8 check to prevent button getting stuck)
             button.disabled = false;
             regenText.classList.remove('hidden');
             regenLoading.classList.add('hidden');
 
-            // 顯示結果
+            // Display results
             if (result.isError) {
-                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: ${result.message || '未知錯誤'}</span>`;
+                exampleContainer.innerHTML = `<span class="text-red-400">Generation Failed: ${result.message || 'Unknown error'}</span>`;
             } else if (result.example && result.consistency_score !== undefined && result.grammar_validation) {
                 
-                // T1.8 / T2.8 Fix: 儲存歷史紀錄
+                // T1.8 / T2.8 Fix: Store history
                 const historyKey = `${type}-${index}`;
                 if (!regenerationHistory[historyKey]) {
                     regenerationHistory[historyKey] = [];
                 }
                 regenerationHistory[historyKey].push(result.consistency_score);
-                if (regenerationHistory[historyKey].length > 5) { // 保留最近 5 次
+                if (regenerationHistory[historyKey].length > 5) { // Keep last 5
                     regenerationHistory[historyKey].shift();
                 }
 
-                // T1.8 / T2.8 Fix: Semantic Traceback 模擬
-                // 如果分數低，且這不是一次自動重試
+                // T1.8 / T2.8 Fix: Semantic Traceback simulation
+                // If score is low, and this is not an auto-retry
                 if (result.consistency_score < 85 && !isAutoRetry) {
-                    console.warn(`Semantic Traceback (T1.8) 觸發於 ${historyKey}. 分數: ${result.consistency_score}. 自動重試中...`);
+                    console.warn(`Semantic Traceback (T1.8) triggered for ${historyKey}. Score: ${result.consistency_score}. Auto-retrying...`);
                     
-                    // v3.0 更新: 抓取 metrics container
+                    // v3.0 Update: Get metrics container
                     const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
                     if (metricsContainer) {
                         metricsContainer.innerHTML = `
-                            <div>Consistency: ${result.consistency_score} (<span class="text-yellow-400">低分! 自動回溯重試...</span>)</div>
+                            <div>Consistency: ${result.consistency_score} (<span class="text-yellow-400">Low score! Auto-Traceback Retry...</span>)</div>
                         `;
                     }
-                    // v3.0 更新: 抓取 grammar container
+                    // v3.0 Update: Get grammar container
                     const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
                     if (grammarContainer) {
                         grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
                     }
 
 
-                    // 標記並重試一次
+                    // Flag and retry once
                     button.dataset.isAutoRetry = 'true';
                     await handleRegeneration(button, band, context, word, type);
                     
-                    // 重試後，清除標記並退出
+                    // After retry, clear flag and exit
                     button.dataset.isAutoRetry = 'false';
-                    return; // 終止此函數，防止顯示低分結果
+                    return; // Terminate this function to prevent showing low-score result
                 }
 
-                // --- 正常顯示結果 (分數 $\ge$ 85 或已重試過) ---
+                // --- Display Normal Result (Score >= 85 or already retried) ---
                 
-                // 更新例句
+                // Update example
                 exampleContainer.innerHTML = highlight(result.example, fullPhrase);
                 
-                // v3.0 更新: 更新 metrics container
+                // v3.0 Update: Update metrics container
                 const metricsContainer = document.getElementById(type === 'prediction' ? `metrics-container-${index}` : `val-metrics-container`);
                 if (metricsContainer) {
                     const consistencyStatus = result.consistency_score >= 85 ? 'Stable' : 'Check';
@@ -1332,24 +1333,24 @@ Band 規則: ${bandRules}
                         <div>Consistency: ${result.consistency_score} (${consistencyStatus})</div>
                     `;
                 }
-                // v3.0 更新: 更新 grammar container
+                // v3.0 Update: Update grammar container
                 const grammarContainer = document.getElementById(type === 'prediction' ? `grammar-validation-${index}` : `val-grammar-validation`);
                 if (grammarContainer) {
                     grammarContainer.innerHTML = renderGrammarValidation(result.grammar_validation);
                 }
             } else {
-                exampleContainer.innerHTML = `<span class="text-red-400">生成失敗: 收到非預期的回應格式 (缺少 grammar_validation)。</span>`;
+                exampleContainer.innerHTML = `<span class="text-red-400">Generation Failed: Received unexpected response format (missing grammar_validation).</span>`;
             }
         }
 
-        // 預測結果區域的事件委派 (重新生成)
+        // Event delegation for prediction results area (Regeneration)
         predictionResults.addEventListener('click', async function(e) {
             const button = e.target.closest('.regen-button');
             if (!button || button.dataset.type !== 'prediction') return;
 
             e.preventDefault();
             const index = button.dataset.index;
-            // T1.4 Fix: 確保傳遞截斷後的 context
+            // T1.4 Fix: Ensure truncated context is passed
             const context = truncateContext(button.dataset.context, predContextLen.value);
             const word = button.dataset.word;
             
@@ -1359,22 +1360,22 @@ Band 規則: ${bandRules}
             await handleRegeneration(button, band, context, word, 'prediction');
         });
 
-        // --- Validation Tab 邏輯 ---
+        // --- Validation Tab Logic ---
 
-        // v3.0: 更新 validationSchema
+        // v3.0: Update validationSchema
         const validationSchema = {
             type: "OBJECT",
             properties: {
-                "Fpm": { "type": "NUMBER", "description": "該片語在語料庫中每百萬詞的出現頻率 (Per Million)" },
-                "MI": { "type": "NUMBER", "description": "互資訊值 (Mutual Information)" },
-                "L_acc_norm": { "type": "NUMBER", "description": "語言學準確度 (1.0 = 正確; 0.5 = 小錯; 0.0 = 錯誤)" },
-                "example": { "type": "STRING", "description": "不超過 25 個詞的例句" },
-                "grammarCheck": { "type": "STRING", "description": "語法驗證結果的簡短說明 (應與 L_acc_norm 一致)" },
-                "spellingSuggestion": { "type": "STRING", "description": "拼寫修正建議或替代搭配建議 (若無則為空字串)" },
-                "consistency_score": { "type": "NUMBER", "description": "範例句的語義一致性分數 (0-100)" },
-                "example_grammar_validation": grammarValidationSchemaObject // v3.0 替換
+                "Fpm": { "type": "NUMBER", "description": "Frequency per million words in the corpus" },
+                "MI": { "type": "NUMBER", "description": "Mutual Information value" },
+                "L_acc_norm": { "type": "NUMBER", "description": "Linguistic accuracy (1.0 = correct; 0.5 = minor error; 0.0 = error)" },
+                "example": { "type": "STRING", "description": "Example sentence, max 25 words" },
+                "grammarCheck": { "type": "STRING", "description": "Brief description of grammar validation result (should align with L_acc_norm)" },
+                "spellingSuggestion": { "type": "STRING", "description": "Spelling correction suggestion or alternative collocation (empty string if none)" },
+                "consistency_score": { "type": "NUMBER", "description": "Semantic consistency score of the example (0-100)" },
+                "example_grammar_validation": grammarValidationSchemaObject // v3.0 Replace
             },
-            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score", "example_grammar_validation"] // v3.0 替換
+            required: ["Fpm", "MI", "L_acc_norm", "example", "grammarCheck", "spellingSuggestion", "consistency_score", "example_grammar_validation"] // v3.0 Replace
         };
 
         async function handleValidationSubmit(e) {
@@ -1383,74 +1384,74 @@ Band 規則: ${bandRules}
             const phrase2 = valInput2.value.trim();
             const fullPhrase = `${phrase1} ${phrase2}`.trim();
 
-            // v2.6 IGPVL 整合: 清空舊訊息
+            // v2.6 IGPVL Integration: Clear old messages
             igpvlValError.innerHTML = '';
             igpvlValError.className = 'text-sm rounded-lg';
-            valError.classList.add('hidden'); // 隱藏舊的生成錯誤
+            valError.classList.add('hidden'); // Hide old generation errors
             validationResults.classList.add('hidden');
             validationResults.innerHTML = '';
 
             if (!phrase1 || !phrase2) {
-                displayError(valError, "請輸入初始片語和目標詞彙。", valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
+                displayError(valError, "Please enter an initial phrase and target word.", valLoading, valButton, valButtonText, "Validate Collocation");
                 return;
             }
 
-            // 設置 UI 為載入中 (v2.6: 在 IGPVL 之前)
-            displayLoading(valError, valLoading, valButton, valButtonText, "1/2 正在驗證輸入...");
+            // Set UI to loading (v2.6: Before IGPVL)
+            displayLoading(valError, valLoading, valButton, valButtonText, "1/2 Validating Input...");
 
-            // --- v2.6 IGPVL 執行 ---
+            // --- v2.6 IGPVL Execution ---
             const igpvlResult = await validateInputGrammar(fullPhrase, 'valInput', 'academic');
             const isBlocked = displayIgpvlFeedback(igpvlValError, igpvlResult);
 
             if (isBlocked) {
-                displayDone(valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
-                return; // 停止執行
+                displayDone(valLoading, valButton, valButtonText, "Validate Collocation");
+                return; // Stop execution
             }
-            // --- IGPVL 結束 ---
+            // --- IGPVL End ---
 
-            // 設置 UI 為載入中 (v2.6: 更新狀態)
-            displayLoading(valError, valLoading, valButton, valButtonText, "2/2 正在驗證...");
+            // Set UI to loading (v2.6: Update status)
+            displayLoading(valError, valLoading, valButton, valButtonText, "2/2 Validating...");
             
-            // S_Naturalness v3.0 (使用者自訂) 修正版 System Prompt
-            const systemPrompt = `你是一個 IELTS 寫作助教。你的任務是評估使用者提供的「完整搭配片語」(\${fullPhrase}) 的自然度與正確性，並提供計算 S_Naturalness 所需的原始數據。
+            // S_Naturalness v3.0 (User Custom) Revised System Prompt
+            const systemPrompt = `You are an IELTS Writing Assistant. Your task is to evaluate the naturalness and correctness of the user-provided "full collocation phrase" (\${fullPhrase}) and provide the raw data needed to calculate S_Naturalness.
 
-規則：
-1. 【**搭配片語校驗**】: **如果使用者輸入的搭配片語 \${fullPhrase} 包含基礎拼寫或嚴重文法錯誤** (e.g., 'significantlly' $\rightarrow$ 'significantly'), **你必須在輸出 JSON 的 'phrase_correction' 欄位中提供修正後的片語**，並以該修正後的片語作為例句生成的基礎。如果輸入正確，則返回空字串。
-2. 【**絕對規則**】: 你生成的「所有」'example' 句子必須滿足下面第 10 點**英文句子定義**而且都「**必須**」經過下面第 9 點 GVL (Grammar Validation Layer) 的「**徹底且嚴格**」的檢查。**此檢查是強制性的，不得跳過或敷衍**。
-3. 提供「Fpm」 (該片語在語料庫中每百萬詞的出現頻率)。
-4. 提供「MI」 (互資訊值)。
-5. 根據語法與詞形正確性，提供「L_acc_norm」 (語言學準確度分數：1.0 = 完全正確, 0.5 = 可理解但有小錯, 0.0 = 嚴重錯誤)。
-6. 提供一個「精簡例句 (example)」（最多 25 詞）。
-7. 提供「語法驗證 (grammarCheck)」的簡短結果 (這應與 L_acc_norm 一致)。
-8. 如果搭配不自然或有明顯拼寫錯誤，提供「替代搭配 (spellingSuggestion)」或修正建議；若無，則返回空字串。
-9. 為 'example' 提供「一致性分數 (consistency_score)」(0-100)。
+Rules:
+1.  [**Collocation Phrase Validation**]: **If the user's input collocation phrase \${fullPhrase} contains basic spelling or severe grammatical errors** (e.g., 'significantlly' -> 'significantly'), **you must provide the corrected phrase in the 'phrase_correction' field of the output JSON**, and use this corrected phrase as the basis for example generation. If the input is correct, return an empty string.
+2.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 10 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 9 below. **This check is mandatory and cannot be skipped or done superficially**.
+3.  Provide "Fpm" (Frequency per million words in the corpus).
+4.  Provide "MI" (Mutual Information value).
+5.  Based on grammatical and morphological correctness, provide "L_acc_norm" (Linguistic accuracy score: 1.0 = Fully correct, 0.5 = Understandable but with minor errors, 0.0 = Severe error).
+6.  Provide a "Concise Example (example)" (max 25 words).
+7.  Provide a brief result for "Grammar Check (grammarCheck)" (this should align with L_acc_norm).
+8.  If the collocation is unnatural or has clear spelling errors, provide an "Alternative Collocation (spellingSuggestion)" or correction; otherwise, return an empty string.
+9.  Provide a "consistency_score" (0-100) for the 'example'.
 
-10. 【Grammar Validation Layer (最新規格)】: ✨ 終極驗證標準
-**這是最重要的步驟。** 對生成的 'example' 執行**絕對嚴格**的文法驗證，並填入 'example_grammar_validation' 物件。
+10. [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+**This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'example_grammar_validation' object.
 
-    a. 【I. 正確性 (Strict Correctness)】: (🔥 **最終統一強化** - **包含所有結構錯誤**)
-    'correctness.errors' 陣列「必須」包含所有偵測到的錯誤。**這包括最微小的錯誤，以及所有的句法結構錯誤**。如果沒有錯誤，必須返回空陣列 []。
-        - **核心文法:** 主謂一致, 基礎時態錯誤, 代名詞格位, 冠詞錯誤 (**多餘、遺漏或誤用**), 單複數名詞。
-        - **複雜句法結構:** 懸垂修飾語/錯置修飾語, 時態轉換不一致, 不完整比較, 雙重否定, 平行結構錯誤, **流水句 (Run-on Sentences), 逗號黏連 (Comma Splices), 片段句 (Sentence Fragments)**。
-        - **拼寫:** 基礎拼寫, 語境拼寫 (**易混淆詞**), 大小寫/數字格式, 連字符/破折號。
-        - **標點:** 基礎標點, 進階標點 (分號, 冒號前後結構, 引號內外慣例)。
+    a.  [I. Correctness (Strict Correctness)]: (🔥 **Final Unified Reinforcement** - **Includes all structural errors**)
+    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as all syntactic structural errors**. If no errors, must return an empty array [].
+        -   **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
+        -   **Complex Syntax/Structure:** Dangling/Misplaced modifiers, Inconsistent tense shifts, Incomplete comparisons, Double negatives, Parallel structure errors, **Run-on Sentences, Comma Splices, Sentence Fragments**.
+        -   **Spelling:** Basic spelling, Contextual spelling (**confused words**), Capitalization/Number format, Hyphenation/Dashes.
+        -   **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
 
-    b. 【II. 清晰度 (Clarity)】: (💡 建議強化 - 專注於風格、簡潔性和語義)
-    提供「建議」。**此部分不再處理結構錯誤。**
-        - **優化:** 提供 **簡潔性建議 (贅詞)**, 偵測 **過度使用被動語態**。
-        - **完整句子重寫 (rewrite_suggestion):** **必須**在需要時提供，且該重寫應**修正 I. 正確性中的所有錯誤**，並使語義更清晰、簡潔。
+    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
+    Provide "suggestions". **This section no longer handles structural errors.**
+        -   **Optimization:** Provide **brevity suggestions (wordiness)**, detect **overuse of passive voice**.
+        -   **Full Sentence Rewrite (rewrite_suggestion):** **Must** be provided when needed, and this rewrite should **correct all errors from I. Correctness** and make the meaning clearer and more concise.
 
-    c. 【III. 參與度 (Engagement)】: (🌟 建議強化)
-    提供「建議」。
-        - **詞彙:** 透過 'vocab_suggestions' **必須**建議替換 **過度使用或乏味** 的基礎詞彙。
-        - **結構:** 透過 'feedback' 提醒 **句子多樣性 (Sentence Variety)** 或 **內容重複** 的問題。
+    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
+    Provide "suggestions".
+        -   **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
+        -   **Structure:** Via 'feedback', alert to issues with **Sentence Variety** or **content repetition**.
 
-    d. 【IV. 傳遞性 (Delivery)】: (維持原標準)
-    偵測 'detected_tone', 'formality', 並檢查 'inclusive_language_warning'。
+    d.  [IV. Delivery]: (Maintain original standard)
+    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
 
-11. 【英文句子定義】：**一個完整的英文句子必須包含主詞和述語，表達一個完整的意思（獨立子句），且句首大寫，句尾以句點、問號或驚嘆號作結。**
+11. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
 
-12. 【輸出格式 (JSON Schema)】: **你的輸出「必須」嚴格遵守以下 JSON 結構的物件。**
+12. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
 
 \`\`\`json
 {
@@ -1470,7 +1471,7 @@ Band 規則: ${bandRules}
           "type": "STRING", 
           "description": "STRING", 
           "suggestion": "STRING",
-          "priority": "STRING" // 必須為 "Critical", "High", "Low" 之一
+          "priority": "STRING" // Must be one of "Critical", "High", "Low"
         }
       ]
     },
@@ -1490,119 +1491,119 @@ Band 規則: ${bandRules}
   }
 }
 \`\`\`
-13. **僅以要求的 JSON 格式物件 (Object) 輸出。**`;
+13. **Output ONLY the requested JSON format object.**`;
             
             const userQuery = `
-完整搭配片語: "${fullPhrase}"
+Full Collocation: "${fullPhrase}"
 `;
             
-            // 呼叫 API (使用 Prediction tab 的 Consistency Manager 參數)
+            // Call API (Use Consistency Manager params from Prediction tab)
             const result = await callGeminiAPI(systemPrompt, userQuery, validationSchema, predTemp.value, predTopP.value);
 
-            // 恢復 UI
-            displayDone(valLoading, valButton, valButtonText, "驗證搭配 (Validate Collocation)");
+            // Restore UI
+            displayDone(valLoading, valButton, valButtonText, "Validate Collocation");
             
-            // 處理 API 回應
+            // Process API response
             if (result.isError) {
                 displayError(valError, result.message);
             } else if (result.Fpm !== undefined && result.MI !== undefined && result.L_acc_norm !== undefined && result.example_grammar_validation !== undefined) {
-                // v3.0 修正版：檢查新欄位
+                // v3.0 Revised: Check for new field
                 displayValidationResult(result, fullPhrase);
             } else {
-                displayError(valError, "收到非預期的回應格式 (缺少 example_grammar_validation)。");
+                displayError(valError, "Received unexpected response format (missing example_grammar_validation).");
             }
         }
 
-        // v3.0: 顯示驗證結果
+        // v3.0: Display validation result
         function displayValidationResult(result, fullPhrase) {
-            // 根據 S_Naturalness 流程解構 API 回應
-            // v3.0 更新: 解構新欄位
+            // Deconstruct API response according to S_Naturalness flow
+            // v3.0 Update: Deconstruct new fields
             const { Fpm, MI, L_acc_norm, example, grammarCheck, spellingSuggestion, consistency_score, example_grammar_validation } = result;
             
-            // S_Naturalness 運算 (七步驟流程)
-            // 範例參數（正規化基準）
+            // S_Naturalness Calculation (7-step process)
+            // Example parameters (normalization base)
             const N_LOG_MIN = 0;
             const N_LOG_MAX = 2.0043213738; // log10(100 + 1)
             const M_MIN = 0;
             const M_MAX = 6;
             
-            // 權重
+            // Weights
             const W_FPM = 0.4;
             const W_MI = 0.4;
             const W_L_ACC = 0.2;
 
-            // 步驟 3: 對數轉換
+            // Step 3: Log transform
             const N_Log = Math.log10(Fpm + 1);
-            // 步驟 4: N-gram 正規化
+            // Step 4: N-gram normalization
             const N_norm = (N_Log - N_LOG_MIN) / (N_LOG_MAX - N_LOG_MIN);
-            // 步驟 5: MI 正規化
+            // Step 5: MI normalization
             const M_norm = (MI - M_MIN) / (M_MAX - M_MIN);
-            // 步驟 7: 計算最終自然度評分
+            // Step 7: Calculate final naturalness score
             const S_Naturalness = (W_FPM * N_norm) + (W_MI * M_norm) + (W_L_ACC * L_acc_norm);
 
-            // 根據 S_Naturalness 獲取 Band 資訊 (使用已修正的函數)
+            // Get Band info based on S_Naturalness (using revised function)
             const bandInfo = getLexicalBandDetails(S_Naturalness);
 
             let suggestionHtml = '';
             if (spellingSuggestion && spellingSuggestion.trim() !== '') {
                 suggestionHtml = `
                     <div class="mt-4">
-                        <h4 class="font-semibold text-yellow-300">建議 (Suggestion/Alternative)</h4>
+                        <h4 class="font-semibold text-yellow-300">Suggestion/Alternative</h4>
                         <p class="text-yellow-400 bg-yellow-900/50 p-3 rounded-md">${spellingSuggestion}</p>
                     </div>
                 `;
             }
 
-            // v3.0 更新: 處理 consistency 狀態
+            // v3.0 Update: Handle consistency status
             const consistencyStatus = consistency_score >= 85 ? 'Stable' : 'Check';
 
             validationResults.innerHTML = `
                 <div class="text-center mb-6 border-b border-gray-700 pb-4">
                     <span class="text-xs font-semibold uppercase text-gray-400">IELTS Lexical Resource Band</span>
                     <div class="flex items-center justify-center my-2">
-                        <!-- S_Naturalness v2.1 修正版: Band 顯示基於 S_Naturalness -->
+                        <!-- S_Naturalness v2.1 Revised: Band display based on S_Naturalness -->
                         <span class="band-tag ${bandInfo.color} text-white text-3xl p-3">Band ${bandInfo.band}</span>
                     </div>
                     <p class="text-gray-300 mt-2 max-w-md mx-auto">${bandInfo.summary}</p>
                 </div>
 
                 <div class="space-y-4">
-                    <!-- S_Naturalness v2.1 修正版: 顯示 S_Naturalness 計算詳情 -->
+                    <!-- S_Naturalness v2.1 Revised: Show S_Naturalness calculation details -->
                     <div class="bg-gray-700/50 p-4 rounded-md space-y-3">
-                        <h4 class="font-semibold text-gray-300 text-center">S_Naturalness (自然度) 計算詳情</h4>
+                        <h4 class="font-semibold text-gray-300 text-center">S_Naturalness (Naturalness) Calculation Details</h4>
                         <div class="grid grid-cols-3 text-sm text-gray-300 text-center">
-                            <p><strong>Fpm (原始頻率):</strong> <span class="text-green-300">${Fpm.toFixed(4)}</span></p>
-                            <p><strong>MI (互資訊):</strong> <span class="text-green-300">${MI.toFixed(3)}</span></p>
-                            <p><strong>L_Acc (準確度):</strong> <span class="text-green-300">${L_acc_norm.toFixed(1)}</span></p>
+                            <p><strong>Fpm (Raw Frequency):</strong> <span class="text-green-300">${Fpm.toFixed(4)}</span></p>
+                            <p><strong>MI (Mutual Information):</strong> <span class="text-green-300">${MI.toFixed(3)}</span></p>
+                            <p><strong>L_Acc (Accuracy):</strong> <span class="text-green-300">${L_acc_norm.toFixed(1)}</span></p>
                         </div>
                         <hr class="border-gray-600">
                         <div class="grid grid-cols-2 text-sm text-gray-300 text-center">
-                            <p><strong>N_norm (頻率正規化):</strong> <span class="text-blue-300">${N_norm.toFixed(4)}</span> (w: ${W_FPM * 100}%)</p>
-                            <p><strong>M_norm (MI 正規化):</strong> <span class="text-blue-300">${M_norm.toFixed(4)}</span> (w: ${W_MI * 100}%)</p>
+                            <p><strong>N_norm (Frequency Norm.):</strong> <span class="text-blue-300">${N_norm.toFixed(4)}</span> (w: ${W_FPM * 100}%)</p>
+                            <p><strong>M_norm (MI Norm.):</strong> <span class="text-blue-300">${M_norm.toFixed(4)}</span> (w: ${W_MI * 100}%)</p>
                         </div>
                         <div class="text-center pt-2">
-                            <p class="font-semibold text-gray-300">最終 S_Naturalness 分數</p>
+                            <p class="font-semibold text-gray-300">Final S_Naturalness Score</p>
                             <p class="text-2xl font-bold text-white">${S_Naturalness.toFixed(4)}</p>
                             <p class="text-xs text-gray-400">(${W_FPM}*${N_norm.toFixed(3)} + ${W_MI}*${M_norm.toFixed(3)} + ${W_L_ACC}*${L_acc_norm.toFixed(1)})</p>
                         </div>
                     </div>
                     
                     <div>
-                        <h4 class="font-semibold text-gray-300">語法驗證 (Grammar Check)</h4>
+                        <h4 class="font-semibold text-gray-300">Grammar Check</h4>
                         <p class="text-gray-300">${grammarCheck}</p>
                     </div>
 
                     <div>
-                        <h4 class="font-semibold text-gray-300">範例 (Example) - <span class="text-xs text-gray-400">可切換 Band 等級</span></h4>
+                        <h4 class="font-semibold text-gray-300">Example - <span class="text-xs text-gray-400">Band level can be changed</span></h4>
                         <div id="val-example-container" class="bg-gray-700 p-4 rounded-md text-gray-200 text-lg">
                             ${highlight(example, fullPhrase)}
                         </div>
                     </div>
-                    <!-- v3.0 更新: 顯示 Consistency 和 Grammar Validation Layer -->
+                    <!-- v3.0 Update: Show Consistency and Grammar Validation Layer -->
                     <div id="val-metrics-container" class="text-xs text-gray-400 text-right mt-1 space-y-1">
                         <div>Consistency: ${consistency_score} (${consistencyStatus})</div>
                     </div>
-                    <!-- v3.0 Grammar Validation Layer 注入點 -->
+                    <!-- v3.0 Grammar Validation Layer Injection Point -->
                     <div id="val-grammar-validation">
                         ${renderGrammarValidation(example_grammar_validation)}
                     </div>
@@ -1621,7 +1622,7 @@ Band 規則: ${bandRules}
                                 data-context="${fullPhrase}"
                                 data-word=""
                                 data-type="validation">
-                            <span class="regen-text">🔄 重新生成</span>
+                            <span class="regen-text">🔄 Regenerate</span>
                             <div class="spinner regen-loading hidden"></div>
                         </button>
                     </div>
@@ -1631,7 +1632,7 @@ Band 規則: ${bandRules}
             `;
             validationResults.classList.remove('hidden');
 
-            // 綁定 Validation Tab 的重新生成事件
+            // Bind regeneration event for Validation Tab
             document.querySelector('#validationResults .regen-button').addEventListener('click', async function(e) {
                 e.preventDefault();
                 const button = e.currentTarget;
@@ -1642,44 +1643,44 @@ Band 規則: ${bandRules}
         }
 
 
-        // --- 分頁切換邏輯 ---
+        // --- Tab Switching Logic ---
         function switchTab(activeTab) {
             // ... ( unchanged switchTab logic )
             if (activeTab === 'prediction') {
-                // 啟動 Prediction
+                // Activate Prediction
                 tabs.prediction.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
                 tabs.prediction.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
                 contents.prediction.classList.remove('hidden');
                 
-                // 關閉 Validation
+                // Deactivate Validation
                 tabs.validation.classList.add('text-gray-400', 'hover:bg-gray-800/50');
                 tabs.validation.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
                 contents.validation.classList.add('hidden');
             } else {
-                // 啟動 Validation
+                // Activate Validation
                 tabs.validation.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
                 tabs.validation.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
                 contents.validation.classList.remove('hidden');
 
-                // 關閉 Prediction
+                // Deactivate Prediction
                 tabs.prediction.classList.add('text-gray-400', 'hover:bg-gray-800/50');
                 tabs.prediction.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
                 contents.prediction.classList.add('hidden');
             }
         }
 
-        // --- 初始綁定事件 ---
+        // --- Initial Event Bindings ---
         tabs.prediction.addEventListener('click', () => switchTab('prediction'));
         tabs.validation.addEventListener('click', () => switchTab('validation'));
         predForm.addEventListener('submit', handlePredictionSubmit);
-        customWordForm.addEventListener('submit', handleCustomWordCheck); // 綁定自定詞彙表單
+        customWordForm.addEventListener('submit', handleCustomWordCheck); // Bind custom word form
         valForm.addEventListener('submit', handleValidationSubmit);
 
-        // 預設選中第一個分頁
+        // Select first tab by default
         switchTab('prediction');
 
-        // v2.6 IGPVL: 版本註記
-        console.log("IGPVL v2.6 已載入並整合到提交表單中。");
+        // v2.6 IGPVL: Version note
+        console.log("IGPVL v2.6 loaded and integrated into submission forms.");
 
     </script>
 </body>
