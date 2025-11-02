@@ -260,14 +260,14 @@
                         "properties": {
                             "type": { "type": "STRING", "enum": ["subject_verb_agreement","tense_error","article_error","pronoun_error","number_agreement","dangling_modifier","incomplete_comparison","double_negative","inconsistent_tense_shift","spelling","contextual_spelling","capitalization_error","number_format_error","hyphenation_error","end_punctuation","internal_punctuation","quotation_marks"],"description": "錯誤類型，必須從預先定義的清單中選取，以確保與四大檢查類別相符。" },
                             "message": { "type": "STRING", "description": "錯誤的描述" },
-                            "suggestion": { "type": "STRING", "description": "修正建議 (可能是完整句子或片段)" },
+                            "suggestion": { "type": "STRING", "description": "文法正確的修正建議 (可能是完整句子或片段)" },
                             "severity": { "type": "STRING", "enum": ["minor", "major"], "description": "此錯誤的嚴重性" },
                             "code": { "type": "STRING", "description": "符合規範的錯誤代碼 (e.g., 'IGPVL-CORE-XX')" }
                         },
                         "required": ["type", "message", "suggestion", "code"]
                     }
                 },
-                "recommendation": { "type": "STRING", "description": "給使用者的總體建議" },
+                "recommendation": { "type": "STRING", "description": "給使用者的總體建議,且提供文法正確句子" },
                 "timestamp": { "type": "STRING", "format": "date-time", "description": "ISO 8601 格式的時間戳" }
             },
             "required": ["input_id", "status", "error_count", "severity", "errors", "recommendation", "timestamp"]
@@ -591,8 +591,8 @@
 1.  **Core Grammar (IGPVL-CORE-XX)**: 主謂一致, 時態, 冠詞, 代名詞, 單複詞。
 2.  **Advanced Grammar (IGPVL-ADV-XX)**: 懸垂修飾語, 不完整比較, 雙重否定, 時態轉換不一致。
 3.  **Spelling & Consistency (IGPVL-SPC-XX)**: 拼寫錯誤, 語境拼寫 (e.g., their/there), 大小寫, 數字格式, 連字符。
-4.  **Punctuation (IGPVL-PUN-XX)**: 句尾標點, 逗號/分號/冒號誤用。
-    **【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
+4.  **Punctuation (IGPVL-PUN-XX)**: **當**輸入的**最後一個字元是標點符號**時，才檢查句尾標點, 逗號/分號/冒號誤用。
+    **【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。
 
 **規則:**
 1.  **嚴格檢查**: 即使是微小的錯誤 (如 'He go') 也要標記。
@@ -748,7 +748,7 @@
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
-		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
+		
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -1057,7 +1057,7 @@
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
-		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
+		
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
@@ -1234,7 +1234,7 @@ Band 規則: ${bandRules}
         - 複雜文法: 懸垂修飾語, 時態轉換不一致, 不完整比較, 雙重否定。
         - 拼寫: 基礎拼寫, 語境拼寫 (there/their), 大小寫/數字格式, 連字符。
         - 標點: 基礎標點 (句尾), 進階標點 (逗號, 分號, 冒號)。
-		**【句尾標點例外規則】**: 若輸入被判定為**非完整陳述句或問句**（即為**片段/片語**），則**不得**標記 'end_punctuation' 錯誤。只有當輸入在語法上構成一個**完整的句子**時，才強制檢查句尾標點。
+		
     b. 【II. 清晰度 (Clarity)】: 提供「建議」。
         - 結構: 檢查 流水句, 片段句。
         - 優化: 提供 簡潔性建議 (贅詞), 偵測 過度使用被動語態, 並在需要時提供 完整句子重寫 (rewrite_suggestion) 或 語言流暢度 (feedback) 建議。
