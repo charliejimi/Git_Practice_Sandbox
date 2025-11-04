@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- v2.9.3-en: Changed lang to English and translated all UI elements -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Vocabulary & Collocation System</title>
+    <title>Smart Vocabulary & Collocation System (v2.9.3)</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Inter Font -->
@@ -56,30 +57,37 @@ Ensure highlighted part does not wrap */
     <div class="max-w-4xl mx-auto">
         <!-- Title -->
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white">Smart Vocabulary & Collocation System</h1>
-            <!-- v2.6 IGPVL Update: Modified title -->
-            <p class="text-lg text-gray-400 mt-2">Integrating PPL, S_Naturalness, GVL (v3.0) & IGPVL (v2.6)</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Smart Vocabulary & Collocation System (v2.9.3)</h1>
+            <!-- v2.9.3-en: Translated -->
+            <p class="text-lg text-gray-400 mt-2">
+                Integrating Grammar Validation (GVL), Correction (GCE), and Cohesion & Coherence (C&C) Analysis
+            </p>
         </header>
 
-        <!-- === [MODIFICATION START] API Key Input === -->
+        <!-- API Key Input -->
         <div class="max-w-xl mx-auto mb-6 p-4 bg-gray-800 rounded-lg shadow-inner border border-gray-700">
             <label for="apiKeyInput" class="block text-sm font-medium text-gray-300 mb-2">
                 Gemini API Key
             </label>
-            <input type="password" id="apiKeyInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="請在此輸入您的 API 金鑰..." value="AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo">
+            <!-- v2.9.3-en: Translated -->
+            <input type="password" id="apiKeyInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your API key here..." value="AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs">
+            <!-- v2.9.3-en: Translated -->
             <p class="text-xs text-gray-500 mt-2">
-                The default key may become invalid at any time. It is recommended that you paste your own Gemini API key here to ensure the service is available.
+                Please paste your own Gemini API key to ensure service availability.
             </p>
         </div>
-        <!-- === [MODIFICATION END] API Key Input === -->
-
+        
         <!-- Feature Tabs -->
+        <!-- v2.9.3-en: Translated -->
         <div class="flex justify-center mb-6 border-b border-gray-700">
             <button id="tabPrediction" class="tab-button px-6 py-3 font-semibold text-white bg-gray-800 rounded-t-lg -mb-px border-t border-l border-r border-gray-700">
-                1. Prediction
+                1. Word Prediction
             </button>
             <button id="tabValidation" class="tab-button px-6 py-3 font-semibold text-gray-400 hover:bg-gray-800/50 rounded-t-lg">
-                2. Validation
+                2. Collocation Validation
+            </button>
+            <button id="tabContinuation" class="tab-button px-6 py-3 font-semibold text-gray-400 hover:bg-gray-800/50 rounded-t-lg">
+                3. Paragraph Analysis
             </button>
         </div>
 
@@ -89,17 +97,19 @@ Ensure highlighted part does not wrap */
             <div id="predictionContent">
                 <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
                     <form id="predictionForm" class="space-y-4">
+                        <!-- v2.9.3-en: Translated -->
                         <label for="predInput" class="block text-sm font-medium text-gray-300 mb-2">Input Context Phrase</label>
                         <input type="text" id="predInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., The government should implement effective policies to...">
                         
-                        <!-- v2.6 IGPVL Add: Prediction input error reporting area -->
                         <div id="igpvlPredError" class="text-sm rounded-lg"></div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
+                                <!-- v2.9.3-en: Translated -->
                                 <label for="predPos" class="block text-sm font-medium text-gray-300 mb-2">Specify Word Class</label>
                                 <select id="predPos" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="any">Word Class (Any)</option>
+                                    <!-- v2.9.3-en: Translated -->
+                                    <option value="any">Any</option>
                                     <option value="N">Noun</option>
                                     <option value="V">Verb</option>
                                     <option value="Adj">Adjective</option>
@@ -107,8 +117,10 @@ Ensure highlighted part does not wrap */
                                 </select>
                             </div>
                             <div>
+                                <!-- v2.9.3-en: Translated -->
                                 <label for="predTask" class="block text-sm font-medium text-gray-300 mb-2">Writing Mode</label>
                                 <select id="predTask" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <!-- v2.9.3-en: Translated -->
                                     <option value="general">General</option>
                                     <option value="task1">Data & Visual Report</option>
                                     <option value="task2">Academic Essay</option>
@@ -118,6 +130,7 @@ Ensure highlighted part does not wrap */
                         </div>
                         
                         <div class="pt-4 border-t border-gray-700">
+                            <!-- v2.9.3-en: Translated -->
                             <h3 class="text-sm font-medium text-gray-300 mb-2">Consistency Manager</h3>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <label class="block">
@@ -130,7 +143,6 @@ Ensure highlighted part does not wrap */
                                 </label>
                                 <label class="block">
                                     <span class="text-xs text-gray-400">Context Words</span>
-                                    <!-- T1.4 Fix: Remove disabled -->
                                     <input type="number" id="predContextLen" value="20" min="5" max="50" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-sm">
                                 </label>
                                 <label class="block">
@@ -141,6 +153,7 @@ Ensure highlighted part does not wrap */
                         </div>
 
                         <button type="submit" id="predButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 mt-4">
+                            <!-- v2.9.3-en: Translated -->
                             <span id="predButtonText">Get 6 Predictions</span>
                             <div id="predLoading" class="spinner hidden"></div>
                         </button>
@@ -148,17 +161,19 @@ Ensure highlighted part does not wrap */
 
                     <!-- Custom Word Validation Area -->
                     <div class="pt-6 border-t border-gray-700 mt-6">
+                        <!-- v2.9.3-en: Translated -->
                         <h2 class="text-xl font-semibold text-white mb-3">2. Custom Word Check</h2>
                         <form id="customWordForm" class="space-y-4">
                             <div class="grid grid-cols-2 gap-4">
-                                <input type="text" id="customWordInput" class="bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" placeholder="Enter desired word (e.g., 'growth')">
+                                <!-- v2.9.3-en: Translated -->
+                                <input type="text" id="customWordInput" class="bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" placeholder="Enter word to check (e.g., 'growth')">
                                 <button type="submit" id="customButton" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                                    <!-- v2.9.3-en: Translated -->
                                     <span id="customButtonText">Check Word</span>
                                     <div id="customLoading" class="spinner hidden"></div>
                                 </button>
                             </div>
                         </form>
-                        <!-- v2.6 IGPVL Add: Custom word error reporting area -->
                         <div id="igpvlCustomError" class="text-sm rounded-lg mt-4"></div>
                         <div id="customResults" class="mt-4"></div>
                     </div>
@@ -175,18 +190,20 @@ Ensure highlighted part does not wrap */
             <div id="validationContent" class="hidden">
                 <form id="validationForm" class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
                     <div>
+                        <!-- v2.9.3-en: Translated -->
                         <label for="valInput1" class="block text-sm font-medium text-gray-300 mb-2">Collocation - Initial Phrase</label>
                         <input type="text" id="valInput1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., make a">
                     </div>
                     <div>
+                        <!-- v2.9.3-en: Translated -->
                         <label for="valInput2" class="block text-sm font-medium text-gray-300 mb-2">Collocation - Target Word/Phrase</label>
                         <input type="text" id="valInput2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., decision">
                     </div>
                     
-                    <!-- v2.6 IGPVL Add: Validation input error reporting area -->
                     <div id="igpvlValError" class="text-sm rounded-lg"></div>
 
                     <button type="submit" id="valButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                        <!-- v2.9.3-en: Translated -->
                         <span id="valButtonText">Validate Collocation</span>
                         <div id="valLoading" class="spinner hidden"></div>
                     </button>
@@ -198,26 +215,132 @@ Ensure highlighted part does not wrap */
                     <!-- Validation results will be dynamically inserted here -->
                 </div>
             </div>
+
+            <!-- 3. Continuation Content -->
+            <div id="continuationContent" class="hidden">
+                <!-- Form 1: Paragraph Continuation -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6">
+                    <!-- v2.9.3-en: Translated -->
+                    <h2 class="text-xl font-semibold text-white">1. Paragraph Continuation & Analysis</h2>
+                    <form id="continuationForm" class="space-y-4">
+                        <div>
+                            <!-- v2.9.3-en: Translated -->
+                            <label for="contInput" class="block text-sm font-medium text-gray-300 mb-2">Input Paragraph</label>
+                            <textarea id="contInput" rows="5" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., The silk industry has a long history in Asia..."></textarea>
+                        </div>
+                        
+                        <!-- IGPVL Error Area -->
+                        <div id="igpvlContError" class="text-sm rounded-lg"></div>
+
+                        <button type="submit" id="contButton" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                            <!-- v2.9.3-en: Translated -->
+                            <span id="contButtonText">Predict Next Sentence & Analyze</span>
+                            <div id="contLoading" class="spinner hidden"></div>
+                        </button>
+                    </form>
+                    <!-- Continuation Results Area -->
+                    <div id="contError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                    <div id="continuationResult" class="mt-6 hidden">
+                        <!-- Continuation results will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <!-- Form 2: Sentence Band Prediction -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6 mt-8">
+                    <!-- v2.9.3-en: Translated -->
+                    <h2 class="text-xl font-semibold text-white">2. Single Sentence Band Prediction</h2>
+                    <form id="bandPredictionForm" class="space-y-4">
+                        <div>
+                            <!-- v2.9.3-en: Translated -->
+                            <label for="bandInput" class="block text-sm font-medium text-gray-300 mb-2">Input Sentence</label>
+                            <input type="text" id="bandInput" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., This process begins with the cultivation of silkworms.">
+                        </div>
+                        
+                        <!-- IGPVL Error Area -->
+                        <div id="igpvlBandError" class="text-sm rounded-lg"></div>
+
+                        <button type="submit" id="bandButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                            <!-- v2.9.3-en: Translated -->
+                            <span id="bandButtonText">Predict Sentence Band</span>
+                            <div id="bandLoading" class="spinner hidden"></div>
+                        </button>
+                    </form>
+                    <!-- Band Prediction Results Area -->
+                    <div id="bandError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                    <div id="bandPredictionResult" class="mt-6 hidden">
+                        <!-- Band prediction results will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <!-- === [MODIFICATION START] v2.9.3 SWOT Analysis Form === -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl space-y-6 mt-8">
+                    <!-- v2.9.3-en: Translated -->
+                    <h2 class="text-xl font-semibold text-white">3. Cohesion &amp; Coherence (C&C) SWOT Analysis</h2>
+                    <!-- v2.9.3-en: Translated -->
+                    <p class="text-sm text-gray-400">
+                        Evaluates the logical coherence between the 'Previous Paragraph' and the 'Opening Sentence of the next'.
+                        <br>
+                        <strong class="text-teal-300">v2.9.3 Update:</strong> Enter two options, and the system will compare and analyze the best choice.
+                    </p>
+                    <form id="swotForm" class="space-y-4">
+                        <div>
+                            <!-- v2.9.3-en: Translated -->
+                            <label for="swotInputParagraph" class="block text-sm font-medium text-gray-300 mb-2">Input Full Previous Paragraph</label>
+                            <textarea id="swotInputParagraph" rows="5" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., ...This reliance on private vehicles has led to significant traffic congestion."></textarea>
+                        </div>
+                        <div>
+                            <!-- v2.9.3-en: Translated -->
+                            <label for="swotInputSentence1" class="block text-sm font-medium text-gray-300 mb-2">Input Next Paragraph Opening (Option 1)</label>
+                            <input type="text" id="swotInputSentence1" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., However, the government has failed to invest in public transport.">
+                        </div>
+                        <!-- v2.9.3 Add -->
+                        <div>
+                            <!-- v2.9.3-en: Translated -->
+                            <label for="swotInputSentence2" class="block text-sm font-medium text-gray-300 mb-2">Input Next Paragraph Opening (Option 2)</label>
+                            <input type="text" id="swotInputSentence2" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., To address this issue, improving public transportation is essential.">
+                        </div>
+                        
+                        <!-- IGPVL Error Area -->
+                        <div id="igpvlSwotError" class="text-sm rounded-lg"></div>
+
+                        <button type="submit" id="swotButton" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+                            <!-- v2.9.3-en: Translated -->
+                            <span id="swotButtonText">Compare & Run SWOT Analysis</span>
+                            <div id="swotLoading" class="spinner hidden"></div>
+                        </button>
+                    </form>
+                    <!-- SWOT Results Area -->
+                    <div id="swotError" class="text-red-400 bg-red-900/50 p-4 rounded-lg mt-6 hidden"></div>
+                    <div id="swotResult" class="mt-6 hidden">
+                        <!-- SWOT results will be dynamically inserted here -->
+                    </div>
+                </div>
+                <!-- === [MODIFICATION END] v2.9.3 SWOT Analysis Form === -->
+
+            </div>
+
         </main>
     </div>
 
     <!-- JavaScript Logic -->
     <script type="module">
         // --- [MODIFICATION] Gemini API Key ---
-        // API 金鑰現在從 HTML 中的 'apiKeyInput' 欄位讀取。
-        // const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // 舊的硬編碼金鑰
-        // API URL 現在在 callGeminiAPI() 內部動態建構。
+        // API Key is now read from the 'apiKeyInput' field in the HTML.
+        // const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // Old hard-coded key
+        // API URL is now dynamically constructed inside callGeminiAPI().
         // const apiUrl = `...`;
         // --- [MODIFICATION END] ---
 
         // --- DOM Element References ---
         const tabs = {
             prediction: document.getElementById('tabPrediction'),
-            validation: document.getElementById('tabValidation')
+            validation: document.getElementById('tabValidation'),
+            continuation: document.getElementById('tabContinuation') // v2.8 Add
         };
         const contents = {
             prediction: document.getElementById('predictionContent'),
-            validation: document.getElementById('validationContent')
+            validation: document.getElementById('validationContent'),
+            continuation: document.getElementById('continuationContent') // v2.8 Add
         };
         
         // Prediction-related elements
@@ -255,9 +378,43 @@ Ensure highlighted part does not wrap */
         const validationResults = document.getElementById('validationResults');
         const igpvlValError = document.getElementById('igpvlValError'); // v2.6 IGPVL Add
         
+        // v2.8 Add: Continuation-related elements
+        const continuationForm = document.getElementById('continuationForm');
+        const contInput = document.getElementById('contInput');
+        const contButton = document.getElementById('contButton');
+        const contButtonText = document.getElementById('contButtonText');
+        const contLoading = document.getElementById('contLoading');
+        const igpvlContError = document.getElementById('igpvlContError');
+        const contError = document.getElementById('contError');
+        const continuationResult = document.getElementById('continuationResult');
+
+        // v2.8 Add: Band Prediction-related elements
+        const bandPredictionForm = document.getElementById('bandPredictionForm');
+        const bandInput = document.getElementById('bandInput');
+        const bandButton = document.getElementById('bandButton');
+        const bandButtonText = document.getElementById('bandButtonText');
+        const bandLoading = document.getElementById('bandLoading');
+        const igpvlBandError = document.getElementById('igpvlBandError');
+        const bandError = document.getElementById('bandError');
+        const bandPredictionResult = document.getElementById('bandPredictionResult');
+
         // --- [MODIFICATION START] API Key Input ---
         const apiKeyInput = document.getElementById('apiKeyInput');
         // --- [MODIFICATION END] ---
+
+        // v2.9 Add: SWOT Analysis elements
+        const swotForm = document.getElementById('swotForm');
+        const swotInputParagraph = document.getElementById('swotInputParagraph');
+        // v2.9.3: Rename
+        const swotInputSentence1 = document.getElementById('swotInputSentence1');
+        // v2.9.3: Add
+        const swotInputSentence2 = document.getElementById('swotInputSentence2'); 
+        const swotButton = document.getElementById('swotButton');
+        const swotButtonText = document.getElementById('swotButtonText');
+        const swotLoading = document.getElementById('swotLoading');
+        const igpvlSwotError = document.getElementById('igpvlSwotError');
+        const swotError = document.getElementById('swotError');
+        const swotResult = document.getElementById('swotResult');
 
         // T1.8 / T2.8 Fix: Regeneration history
         const regenerationHistory = {};
@@ -294,7 +451,8 @@ Ensure highlighted part does not wrap */
         };
 
         // --- v3.0 GVL (Grammar Validation Layer) Schema ---
-        // Shared schema defined according to user's specification (I-IV)
+        // This is the *original* GVL schema for Tabs 1 & 2.
+        // It will be *preserved* to maintain original functionality.
         const grammarValidationSchemaObject = {
             "type": "OBJECT",
             "description": "Detailed analysis results from Grammar Validation Layer v3.0",
@@ -361,6 +519,151 @@ Ensure highlighted part does not wrap */
             },
             "required": ["correctness", "clarity", "engagement", "delivery"]
         };
+        
+        // --- v2.8 GVL Schema (NEW) ---
+        // This is the new schema from the v2.8 spec (Section VIII).
+        // It will be used ONLY for the new Continuation Tab (Tab 3).
+        const v2_8_Schema = {
+            "type": "OBJECT",
+            "description": "Full analysis report based on v2.8 specification.",
+            "properties": {
+                "input_text": { "type": "STRING", "description": "The user's original input text." },
+                "correctness": {
+                    "type": "OBJECT",
+                    "description": "GVL/GCE Layer. Errors MUST be corrected by GCE.",
+                    "properties": {
+                        "errors": {
+                            "type": "ARRAY",
+                            "description": "List of errors detected by GVL. Must be empty if GCE passed.",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "code": { "type": "STRING", "description": "e.g., GVL-NAC-01" },
+                                    "message": { "type": "STRING", "description": "Error description." },
+                                    "suggestion": { "type": "STRING", "description": "Correction." }
+                                },
+                                "required": ["code", "message", "suggestion"]
+                            }
+                        },
+                        "validated": { "type": "BOOLEAN", "description": "Must be true if GCE pass." }
+                    },
+                    "required": ["errors", "validated"]
+                },
+                "clarity": {
+                    "type": "OBJECT",
+                    "description": "Clarity Layer.",
+                    "properties": {
+                        "rewrite_suggestion": { "type": "STRING", "description": "Suggestion for wordiness, fluency, etc." },
+                        "fluency_feedback": { "type": "STRING", "description": "Feedback on flow." }
+                    },
+                    "required": ["rewrite_suggestion", "fluency_feedback"]
+                },
+                "engagement": {
+                    "type": "OBJECT",
+                    "description": "Engagement Layer.",
+                    "properties": {
+                        "vocab_suggestions": {
+                            "type": "ARRAY",
+                            "description": "Suggestions for dull words.",
+                            "items": { "type": "STRING" }
+                        },
+                        "feedback": { "type": "STRING", "description": "Feedback on repetitive structure." }
+                    },
+                    "required": ["vocab_suggestions", "feedback"]
+                },
+                "delivery": {
+                    "type": "OBJECT",
+                    "description": "Delivery & Tone Layer.",
+                    "properties": {
+                        "detected_tone": { "type": "STRING", "enum": ["Formal", "Neutral", "Friendly"] },
+                        "formality": { "type": "STRING", "description": "Formality level." },
+                        "inclusive_language_warning": { "type": "BOOLEAN" }
+                    },
+                    "required": ["detected_tone", "formality", "inclusive_language_warning"]
+                },
+                "continuation": {
+                    "type": "OBJECT",
+                    "description": "Continuation Module (User Story 3).",
+                    "properties": {
+                        "predicted_sentence": { "type": "STRING", "description": "Predicted next sentence (must pass GVL/GCE)." },
+                        "band_prediction": { "type": "NUMBER", "description": "IELTS Band prediction (e.g., 8.0)." }
+                    },
+                    "required": ["predicted_sentence", "band_prediction"]
+                },
+                "validation_result": { "type": "STRING", "enum": ["Passed"], "description": "Must be 'Passed' after GCE." }
+            },
+            "required": ["input_text", "correctness", "clarity", "engagement", "delivery", "continuation", "validation_result"]
+        };
+
+        // v2.8 Add: Schema for *only* Band Prediction
+        const bandPredictionSchema = {
+            "type": "OBJECT",
+            "description": "Band prediction for a single sentence.",
+            "properties": {
+                "band_prediction": { "type": "NUMBER", "description": "IELTS Band prediction (e.g., 8.0)." },
+                "validation_result": { "type": "STRING", "enum": ["Passed"], "description": "Grammar validation result." }
+            },
+            "required": ["band_prediction", "validation_result"]
+        };
+
+        // v2.9 Add: Schema for SWOT Analysis
+        const swotSchema = {
+            "type": "OBJECT",
+            "description": "SWOT analysis of paragraph-to-sentence cohesion based on IELTS Cohesion & Coherence criteria.",
+            "properties": {
+                "strengths": {
+                    "type": "ARRAY",
+                    "description": "Strengths (S): Positive cohesion/coherence links.",
+                    "items": { "type": "STRING" }
+                },
+                "weaknesses": {
+                    "type": "ARRAY",
+                    "description": "Weaknesses (W): Errors or poor links in cohesion/coherence.",
+                    "items": { "type": "STRING" }
+                },
+                "opportunities": {
+                    "type": "ARRAY",
+                    "description": "Opportunities (O): Specific suggestions for improvement.",
+                    "items": { "type": "STRING" }
+                },
+                "threats": {
+                    "type": "ARRAY",
+                    "description": "Threats (T): Risks/warnings if weaknesses persist.",
+                    "items": { "type": "STRING" }
+                },
+                "overall_assessment": {
+                    "type": "STRING",
+                    "description": "A brief summary of the connection's quality."
+                },
+                "cohesion_band_estimate": {
+                    "type": "NUMBER",
+                    "description": "Estimated IELTS C&C band score (5.0-9.0) for this specific transition."
+                }
+            },
+            "required": ["strengths", "weaknesses", "opportunities", "threats", "overall_assessment", "cohesion_band_estimate"]
+        };
+        
+        // v2.9.3 Add: Schema for SWOT Comparison
+        const swotComparisonSchema = {
+            "type": "OBJECT",
+            "description": "Compares two opening sentences for C&C against a paragraph.",
+            "properties": {
+                "best_option_index": { 
+                    "type": "NUMBER", 
+                    "description": "Index of the better sentence (0 for Option 1, 1 for Option 2)." 
+                },
+                "comparison_reason": { 
+                    "type": "STRING", 
+                    "description": "Detailed reason why the best option is better, citing C&C principles (e.g., 'Option 2 provides a clearer lexical link ('this issue') to the paragraph's topic...')."
+                },
+                "worst_option_feedback": {
+                    "type": "STRING",
+                    "description": "Brief C&C feedback on the weaker option (e.g., 'Option 1 felt abrupt.')"
+                }
+            },
+            "required": ["best_option_index", "comparison_reason", "worst_option_feedback"]
+        };
+
 
         // --- Core Helper Functions ---
 
@@ -443,7 +746,7 @@ Ensure highlighted part does not wrap */
         }
 
         /**
-         * v3.0: Render HTML report for Grammar Validation Layer
+         * v3.0: Render HTML report for Grammar Validation Layer (Tabs 1 & 2)
          * @param {object} validation - grammar_validation object
          * @returns {string} - Formatted HTML
          */
@@ -499,6 +802,52 @@ Ensure highlighted part does not wrap */
             html += '</div>';
             return html;
         }
+
+        // v2.8 Add: Render HTML report for *new* v2.8 Schema (Tab 3)
+        function renderV2_8_Validation(result) {
+            let html = '<div class="space-y-3 mt-4 pt-4 border-t border-gray-600 text-sm">';
+            
+            const { correctness, clarity, engagement, delivery } = result;
+
+            // I. Correctness (GVL / GCE)
+            html += '<h5 class="font-semibold text-white">I. Correctness (GVL/GCE)</h5>';
+            if (correctness && correctness.errors.length === 0 && correctness.validated) {
+                html += '<p class="text-green-400">✅ Grammar Check Passed (GCE Validated).</p>';
+            } else {
+                html += `<p class="text-yellow-400">⚠️ ${correctness.errors.length} error(s) found by GVL:</p>`;
+                html += '<ul class="list-disc list-inside text-gray-400 pl-2 text-xs">';
+                correctness.errors.forEach(err => {
+                    html += `<li>[${err.code}] ${err.message} &rarr; <strong>${err.suggestion}</strong></li>`;
+                });
+                html += '</ul>';
+            }
+
+            // II. Clarity
+            html += '<h5 class="font-semibold text-white mt-3">II. Clarity</h5>';
+            html += `<p class="text-gray-300"><strong>Fluency:</strong> ${clarity.fluency_feedback || 'N/A'}</p>`;
+            if (clarity.rewrite_suggestion) {
+                html += `<p class="text-gray-300"><strong>Rewrite Suggestion:</strong> <span class="text-blue-300">${clarity.rewrite_suggestion}</span></p>`;
+            }
+
+            // III. Engagement
+            html += '<h5 class="font-semibold text-white mt-3">III. Engagement</h5>';
+            html += `<p class="text-gray-300"><strong>Feedback:</strong> ${engagement.feedback || 'N/A'}</p>`;
+            if (engagement.vocab_suggestions && engagement.vocab_suggestions.length > 0) {
+                html += `<p class="text-gray-300"><strong>Vocabulary:</strong> Suggests replacing: <span class="text-purple-300">${engagement.vocab_suggestions.join(', ')}</span></p>`;
+            }
+
+            // IV. Delivery
+            html += '<h5 class="font-semibold text-white mt-3">IV. Delivery (Tone)</h5>';
+            let deliveryInfo = `<strong>Detected Tone:</strong> ${delivery.detected_tone} | <strong>Formality:</strong> ${delivery.formality}`;
+            if (delivery.inclusive_language_warning) {
+                deliveryInfo += ` | <span class="text-yellow-400">Inclusive Language Warning!</span>`;
+            }
+            html += `<p class="text-gray-300">${deliveryInfo}</p>`;
+            
+            html += '</div>';
+            return html;
+        }
+
 
         // --- API Call Logic ---
 
@@ -622,26 +971,91 @@ Ensure highlighted part does not wrap */
             
             // v2.6 IGPVL System Prompt
 			const systemPrompt = `You are a specialized and strict "Input Grammar Pre-Validation Layer (IGPVL) v2.6".
-Your "absolute sole" task is to analyze the user's input text and return "only" a JSON object according to the v2.6 specification.
-You are "absolutely forbidden" from outputting any additional text, notes, or explanations outside the JSON.
+Your absolute sole task is to analyze the user's input text and return only one valid JSON object according to the v2.6 specification.
+You are absolutely forbidden from outputting any additional text, notes, or explanations outside the JSON.
 
-You "must" perform all four check categories and strictly flag all errors:
-1.  **Core Grammar (IGPVL-CORE-XX)**: Subject-verb agreement, Tense, Articles, Pronouns, Number agreement.
-2.  **Advanced Grammar (IGPVL-ADV-XX)**: Dangling modifiers, Incomplete comparisons, Double negatives, Inconsistent tense shifts, **Semantic Collocation Errors or improper Subject/Verb pairings**.
-3.  **Spelling & Consistency (IGPVL-SPC-XX)**: Spelling errors, Contextual spelling (e.g., their/there), Capitalization, Number formats, Hyphenation.
-4.  **Punctuation (IGPVL-PUN-XX)**: **Only when** the **last character** of the input **is a punctuation mark**, check end punctuation, comma/semicolon/colon misuse.
-    **[Mandatory Exception Rule]**: If the input is judged to be a **fragment/phrase** (not a complete statement or question), you **must not** flag an 'end_punctuation' error.
+You must perform all four check categories and strictly flag all errors:
+1. Core Grammar (IGPVL-CORE-XX): Subject-verb agreement, Tense, Articles, Pronouns, Number agreement.
+2. Advanced Grammar (IGPVL-ADV-XX): Dangling modifiers, Incomplete comparisons, Double negatives, Inconsistent tense shifts, Semantic Collocation Errors or improper Subject/Verb pairings.
+3. Spelling & Consistency (IGPVL-SPC-XX): Spelling errors, Contextual spelling (e.g., their/there), Capitalization, Number formats, Hyphenation.
+4. Punctuation (IGPVL-PUN-XX): Only when the last character of the input is a punctuation mark, check end punctuation, comma/semicolon/colon misuse.
+   Mandatory Exception Rule: If the input is judged to be a fragment or phrase (not a complete statement or question), do NOT flag an 'end_punctuation' error.
 
-**Rules:**
-1.  **Maximum Strictness Check**: Flag even minor errors (e.g., 'He go').
-2.  **Error Count (error_count)**: Must "precisely" reflect the length of the 'errors' array.
-3.  **Validation Mechanism (Status & Severity):**
-    * error_count = 0: 'status' = 'passed', 'severity' = 'none', 'recommendation' = 'Grammar correct, ready to generate.'
-    * 1 <= error_count <= 3: 'status' = 'warning', 'severity' = 'minor', 'recommendation' = 'Detected \${error_count} minor errors. Please review suggestions. Generation is permitted.'
-    * error_count > 3: 'status' = 'blocked', 'severity' = 'major', 'recommendation' = 'Detected \${error_count} major errors. Please correct the input and try again.'
-4.  **Error Codes**: 'code' field must follow specifications (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01').
-5.  **Timestamp**: Must provide the current UTC time in ISO 8601 format.
-6.  **Absolute Prohibition**: Your response "must not" contain any text other than the JSON.`;
+Rules:
+- Maximum strictness check: Flag even minor errors (e.g., 'He go').
+- Error count (error_count) must precisely reflect the length of the 'errors' array.
+- Validation mechanism (status & severity):
+   * error_count = 0: status = 'passed', severity = 'none', recommendation = 'Grammar correct, ready to generate.'
+   * 1 <= error_count <= 3: status = 'warning', severity = 'minor', recommendation = 'Detected \${error_count} minor errors. Please review suggestions. Generation is permitted.'
+   * error_count > 3: status = 'blocked', severity = 'major', recommendation = 'Detected \${error_count} major errors. Please correct the input and try again.'
+- Error codes: 'code' field must follow specifications (e.g., 'IGPVL-CORE-01', 'IGPVL-SPC-01').
+- Timestamp: must provide the current UTC time in ISO 8601 format.
+- Absolute prohibition: Your response must not contain any text other than the JSON.
+
+Each error object must contain:
+{
+  "code": string,              // e.g., "IGPVL-CORE-01"
+  "category": string,          // one of ["core", "advanced", "spelling", "punctuation"]
+  "message": string,           // clear error description
+  "span": {                   // error range in user input (character indexes)
+    "start": integer,
+    "end": integer
+  },
+  "confidence": number,        // float between 0 and 1, representing confidence level
+  "evidence_type": string      // one of ["rules", "case", "embedding"] indicating source of evidence
+}
+
+The JSON object must include top-level fields:
+{
+  "status": string,            // "passed", "warning", "blocked"
+  "severity": string,          // "none", "minor", "major"
+  "error_count": integer,      // count of errors detected
+  "errors": array of error objects,
+  "recommendation": string,
+  "timestamp": string          // ISO 8601 UTC timestamp, e.g., "2025-11-04T00:00:00Z"
+}
+
+
+{
+  "IGPVL-CORE-01": {
+    "category": "core",
+    "description": "Subject-verb agreement error",
+    "example_incorrect": "She go to school.",
+    "example_correct": "She goes to school."
+  },
+  "IGPVL-CORE-02": {
+    "category": "core",
+    "description": "Incorrect verb tense",
+    "example_incorrect": "He eat breakfast yesterday.",
+    "example_correct": "He ate breakfast yesterday."
+  },
+  "IGPVL-ADV-01": {
+    "category": "advanced",
+    "description": "Dangling modifier",
+    "example_incorrect": "Walking down the street, the car almost hit me.",
+    "example_correct": "Walking down the street, I almost got hit by a car."
+  },
+  "IGPVL-ADV-05": {
+    "category": "advanced",
+    "description": "Semantic collocation error",
+    "example_incorrect": "Make a photo.",
+    "example_correct": "Take a photo."
+  },
+  "IGPVL-SPC-02": {
+    "category": "spelling",
+    "description": "Contextual spelling error",
+    "example_incorrect": "Their going to the park.",
+    "example_correct": "They're going to the park."
+  },
+  "IGPVL-PUN-01": {
+    "category": "punctuation",
+    "description": "Missing end punctuation",
+    "example_incorrect": "How are you",
+    "example_correct": "How are you?"
+  }
+}
+
+If the first attempt outputs an invalid JSON, rewrite once to valid JSON without changing the error detections or judgments.`;
             
 
             const userQuery = `
@@ -676,10 +1090,13 @@ You "must" perform all four check categories and strictly flag all errors:
             
             if (result.isError) {
                 el.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+                // v2.9.3-en: Translated
                 el.innerHTML = `<strong>IGPVL Check Failed:</strong> ${result.message}`;
                 return true; // Block flow
             }
 
+            // Note: result.recommendation and result.message are already in English
+            // as per the System Prompt.
             if (result.status === 'blocked') {
                 el.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400 space-y-2';
                 let html = `<p class="font-semibold">${result.recommendation}</p>`;
@@ -711,7 +1128,7 @@ You "must" perform all four check categories and strictly flag all errors:
         }
 
 
-        // --- Prediction Tab Logic ---
+        // --- Prediction Tab Logic (Unchanged) ---
 
         // v3.0 Update: Use v3.0 Grammar Validation Layer Schema
         const predictionSchema = {
@@ -739,8 +1156,8 @@ You "must" perform all four check categories and strictly flag all errors:
             // --- [MODIFICATION START] Get API Key First ---
             const userApiKey = apiKeyInput.value.trim();
             if (!userApiKey) {
-                // Use predError for main form errors
-                displayError(predError, "API key is empty. Please provide a valid API key in the top input field.", predLoading, predButton, predButtonText, "Get 6 Predictions");
+                // v2.9.3-en: Translated
+                displayError(predError, "API key is empty. Please provide a valid API key in the field above.", predLoading, predButton, predButtonText, "Get 6 Predictions");
                 // Clear any old IGPVL errors
                 igpvlPredError.innerHTML = '';
                 igpvlPredError.className = 'text-sm rounded-lg';
@@ -757,11 +1174,13 @@ You "must" perform all four check categories and strictly flag all errors:
             predictionResults.innerHTML = ''; // Clear old results
 
             if (!phrase) {
+                // v2.9.3-en: Translated
                 displayError(predError, "Please enter an English phrase.", predLoading, predButton, predButtonText, "Get 6 Predictions");
                 return;
             }
 
             // Set UI to loading (v2.6: Before IGPVL)
+            // v2.9.3-en: Translated
             displayLoading(predError, predLoading, predButton, predButtonText, "1/2 Validating Input...");
 
             // --- v2.6 IGPVL Execution ---
@@ -771,12 +1190,14 @@ You "must" perform all four check categories and strictly flag all errors:
             const isBlocked = displayIgpvlFeedback(igpvlPredError, igpvlResult);
 
             if (isBlocked) {
+                // v2.9.3-en: Translated
                 displayDone(predLoading, predButton, predButtonText, "Get 6 Predictions");
                 return; // Stop execution
             }
             // --- IGPVL End ---
 
             // Set UI to loading (v2.6: Update status)
+            // v2.9.3-en: Translated
             displayLoading(predError, predLoading, predButton, predButtonText, "2/2 Generating Predictions...");
 
             // Prepare API request
@@ -905,6 +1326,7 @@ Sampling Params (T=${temp}, TopP=${topP})
 			console.log(results);
 			console.log("-----------------------------------------");
             // Restore UI
+            // v2.9.3-en: Translated
             displayDone(predLoading, predButton, predButtonText, "Get 6 Predictions");
 
             // Process API response
@@ -940,7 +1362,8 @@ Sampling Params (T=${temp}, TopP=${topP})
             const userApiKey = apiKeyInput.value.trim();
             if (!userApiKey) {
                 igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the top input field.';
+                // v2.9.3-en: Translated
+                igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the field above.';
                 // Clear old results
                 customResults.innerHTML = '';
                 return;
@@ -957,13 +1380,15 @@ Sampling Params (T=${temp}, TopP=${topP})
 
             if (!phrase || !customWord) {
                 igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                igpvlCustomError.innerHTML = 'Please enter context and a custom word.';
+                // v2.9.3-en: Translated
+                igpvlCustomError.innerHTML = 'Please enter both context and a custom word.';
                 return;
             }
 
             // Set UI to loading (v2.6: Before IGPVL)
             customLoading.classList.remove('hidden');
             customButton.disabled = true;
+            // v2.9.3-en: Translated
             customButtonText.textContent = "1/2 Validating Input...";
 
             // --- v2.6 IGPVL Execution (Check context phrase only) ---
@@ -975,12 +1400,14 @@ Sampling Params (T=${temp}, TopP=${topP})
             if (isBlocked) {
                 customLoading.classList.add('hidden');
                 customButton.disabled = false;
+                // v2.9.3-en: Translated
                 customButtonText.textContent = "Check Word";
                 return; // Stop execution
             }
             // --- IGPVL End ---
 
             // Set UI to loading (v2.6: Update status)
+            // v2.9.3-en: Translated
             customButtonText.textContent = "2/2 Checking...";
 
             // Prepare API request (single word mode)
@@ -1021,7 +1448,7 @@ Rules:
         * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
         * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
         * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
-        * **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
+		* **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
         * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
             * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
             * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or overly informal vocabulary. Error 'type' should be "Formality Violation".
@@ -1099,6 +1526,7 @@ Sampling Params (T=${temp}, TopP=${topP})
             // Restore UI
             customLoading.classList.add('hidden');
             customButton.disabled = false;
+            // v2.9.3-en: Translated
             customButtonText.textContent = "Check Word";
 
             if (result.isError) {
@@ -1298,7 +1726,7 @@ Rules:
     b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
     Provide "suggestions". **Does not handle Level I syntax errors**.
         -   **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice.
-        -   **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
+        -   **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. CorrectCness** and makes the meaning clearer and more concise.
 
     c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
     Provide "suggestions".
@@ -1447,7 +1875,7 @@ Sampling Params (T=${temp}, TopP=${topP})
             await handleRegeneration(button, band, context, word, 'prediction');
         });
 
-        // --- Validation Tab Logic ---
+        // --- Validation Tab Logic (Unchanged) ---
 
         // v3.0: Update validationSchema
         const validationSchema = {
@@ -1471,7 +1899,8 @@ Sampling Params (T=${temp}, TopP=${topP})
             // --- [MODIFICATION START] Get API Key First ---
             const userApiKey = apiKeyInput.value.trim();
             if (!userApiKey) {
-                displayError(valError, "API key is empty. Please provide a valid API key in the top input field.", valLoading, valButton, valButtonText, "Validate Collocation");
+                // v2.9.3-en: Translated
+                displayError(valError, "API key is empty. Please provide a valid API key in the field above.", valLoading, valButton, valButtonText, "Validate Collocation");
                 // Clear any old IGPVL errors
                 igpvlValError.innerHTML = '';
                 igpvlValError.className = 'text-sm rounded-lg';
@@ -1491,11 +1920,13 @@ Sampling Params (T=${temp}, TopP=${topP})
             validationResults.innerHTML = '';
 
             if (!phrase1 || !phrase2) {
-                displayError(valError, "Please enter an initial phrase and target word.", valLoading, valButton, valButtonText, "Validate Collocation");
+                // v2.9.3-en: Translated
+                displayError(valError, "Please enter both an initial phrase and a target word.", valLoading, valButton, valButtonText, "Validate Collocation");
                 return;
             }
 
             // Set UI to loading (v2.6: Before IGPVL)
+            // v2.9.3-en: Translated
             displayLoading(valError, valLoading, valButton, valButtonText, "1/2 Validating Input...");
 
             // --- v2.6 IGPVL Execution ---
@@ -1505,12 +1936,14 @@ Sampling Params (T=${temp}, TopP=${topP})
             const isBlocked = displayIgpvlFeedback(igpvlValError, igpvlResult);
 
             if (isBlocked) {
+                // v2.9.3-en: Translated
                 displayDone(valLoading, valButton, valButtonText, "Validate Collocation");
                 return; // Stop execution
             }
             // --- IGPVL End ---
 
             // Set UI to loading (v2.6: Update status)
+            // v2.9.3-en: Translated
             displayLoading(valError, valLoading, valButton, valButtonText, "2/2 Validating...");
             
             // S_Naturalness v3.0 (User Custom) Revised System Prompt
@@ -1604,6 +2037,7 @@ Full Collocation: "${fullPhrase}"
             // --- [MODIFICATION END] ---
 
             // Restore UI
+            // v2.9.3-en: Translated
             displayDone(valLoading, valButton, valButtonText, "Validate Collocation");
             
             // Process API response
@@ -1660,6 +2094,7 @@ Full Collocation: "${fullPhrase}"
             // v3.0 Update: Handle consistency status
             const consistencyStatus = consistency_score >= 85 ? 'Stable' : 'Check';
 
+            // v2.9.3-en: Translated
             validationResults.innerHTML = `
                 <div class="text-center mb-6 border-b border-gray-700 pb-4">
                     <span class="text-xs font-semibold uppercase text-gray-400">Lexical Resource Band</span>
@@ -1744,46 +2179,526 @@ Full Collocation: "${fullPhrase}"
                 await handleRegeneration(button, band, context, '', 'validation');
             });
         }
+        
+        // --- v2.8 Add: Continuation Tab Logic ---
+
+        /**
+         * v2.8: Handle Paragraph Continuation & Full Analysis
+         */
+        async function handleContinuationSubmit(e) {
+            e.preventDefault();
+
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                // v2.9.3-en: Translated
+                displayError(contError, "API key is empty. Please provide a valid API key in the field above.", contLoading, contButton, contButtonText, "Predict Next Sentence & Analyze");
+                igpvlContError.innerHTML = '';
+                igpvlContError.className = 'text-sm rounded-lg';
+                return;
+            }
+
+            const paragraph = contInput.value.trim();
+
+            // Clear old messages
+            igpvlContError.innerHTML = '';
+            igpvlContError.className = 'text-sm rounded-lg';
+            contError.classList.add('hidden');
+            continuationResult.classList.add('hidden');
+            continuationResult.innerHTML = '';
+
+            if (!paragraph) {
+                // v2.9.3-en: Translated
+                displayError(contError, "Please enter a paragraph.", contLoading, contButton, contButtonText, "Predict Next Sentence & Analyze");
+                return;
+            }
+
+            // Set UI to loading (Before IGPVL)
+            // v2.9.3-en: Translated
+            displayLoading(contError, contLoading, contButton, contButtonText, "1/2 Validating Input...");
+
+            // --- IGPVL Execution ---
+            const igpvlResult = await validateInputGrammar(userApiKey, paragraph, 'contInput', 'academic_essay');
+            const isBlocked = displayIgpvlFeedback(igpvlContError, igpvlResult);
+
+            if (isBlocked) {
+                // v2.9.3-en: Translated
+                displayDone(contLoading, contButton, contButtonText, "Predict Next Sentence & Analyze");
+                return; // Stop execution
+            }
+            // --- IGPVL End ---
+
+            // Set UI to loading
+            // v2.9.3-en: Translated
+            displayLoading(contError, contLoading, contButton, contButtonText, "2/2 Analyzing & Predicting...");
+
+            // --- Define System Prompt based on v2.8 Spec ---
+            const systemPrompt = `You are the "IELTS Writing Assistant (v2.8)". Your task is to perform a full analysis on the user's input text and generate a continuation, strictly adhering to the v2.8 specification.
+
+Your process must follow this exact flow:
+1.  **Receive Input:** Get the user's text.
+2.  **GVL (Grammar Validation Layer):** Perform a "Grammarly Premium-Level" check. You must check ALL categories from the v2.8 spec:
+    * Core Grammar (GVL-CG-01 to 04)
+    * Advanced Grammar (GVL-AG-01 to 04)
+    * Spelling & Consistency (GVL-SP-01 to 04)
+    * Punctuation (GVL-PU-01 to 02)
+    * Number Agreement (GVL-NAC-01)
+3.  **GCE (Grammar Correction Engine):** Automatically correct ALL errors found by GVL.
+4.  **Re-Validation:** The corrected text MUST pass GVL again.
+5.  **Run Layers:** Using the GCE-corrected text, run the Clarity, Engagement, and Delivery layers.
+6.  **Continuation:** Generate a 'predicted_next_sentence' that is cohesive and logically follows the corrected text. This new sentence MUST also pass GVL/GCE.
+7.  **Band Mapping:** Provide a 'band_prediction' (e.g., 8.0) for the *user's input*.
+8.  **Output JSON:** Return a single JSON object matching the v2.8 (Section VIII) schema.
+
+**Key Rules:**
+* The 'correctness.errors' array MUST be empty, as GCE has fixed all errors. 'correctness.validated' MUST be true.
+* 'validation_result' MUST be "Passed".
+* All fields in the v2.8 (Section VIII) schema are mandatory.
+`;
+            const userQuery = `
+Input Text:
+"${paragraph}"
+`;
+
+            // Call API
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, v2_8_Schema, 0.7, 0.95);
+
+            // Restore UI
+            // v2.9.3-en: Translated
+            displayDone(contLoading, contButton, contButtonText, "Predict Next Sentence & Analyze");
+
+            // Process API response
+            if (result.isError) {
+                displayError(contError, result.message);
+            } else if (result.validation_result === "Passed" && result.continuation) {
+                displayContinuationResult(result);
+            } else {
+                displayError(contError, "Received unexpected response format from v2.8 analysis.");
+                console.error("Unexpected v2.8 response:", result);
+            }
+        }
+
+        /**
+         * v2.8: Handle Single Sentence Band Prediction
+         */
+        async function handleBandPredictionSubmit(e) {
+            e.preventDefault();
+
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                // v2.9.3-en: Translated
+                displayError(bandError, "API key is empty. Please provide a valid API key in the field above.", bandLoading, bandButton, bandButtonText, "Predict Sentence Band");
+                igpvlBandError.innerHTML = '';
+                igpvlBandError.className = 'text-sm rounded-lg';
+                return;
+            }
+
+            const sentence = bandInput.value.trim();
+
+            // Clear old messages
+            igpvlBandError.innerHTML = '';
+            igpvlBandError.className = 'text-sm rounded-lg';
+            bandError.classList.add('hidden');
+            bandPredictionResult.classList.add('hidden');
+            bandPredictionResult.innerHTML = '';
+
+            if (!sentence) {
+                // v2.9.3-en: Translated
+                displayError(bandError, "Please enter a sentence.", bandLoading, bandButton, bandButtonText, "Predict Sentence Band");
+                return;
+            }
+
+            // Set UI to loading (Before IGPVL)
+            // v2.9.3-en: Translated
+            displayLoading(bandError, bandLoading, bandButton, bandButtonText, "1/2 Validating Input...");
+
+            // --- IGPVL Execution ---
+            const igpvlResult = await validateInputGrammar(userApiKey, sentence, 'bandInput', 'academic_sentence');
+            const isBlocked = displayIgpvlFeedback(igpvlBandError, igpvlResult);
+
+            if (isBlocked) {
+                // v2.9.3-en: Translated
+                displayDone(bandLoading, bandButton, bandButtonText, "Predict Sentence Band");
+                return; // Stop execution
+            }
+            // --- IGPVL End ---
+
+            // Set UI to loading
+            // v2.9.3-en: Translated
+            displayLoading(bandError, bandLoading, bandButton, bandButtonText, "2/2 Predicting Band...");
+
+            // --- Define System Prompt based on v2.8 Spec (Task B) ---
+            const systemPrompt = `You are the "IELTS Band Mapper (v2.8)". Your task is to analyze the user's single input sentence and predict its IELTS Band score.
+1.  Run the GVL/GCE process to ensure the sentence is 100% grammatically correct.
+2.  Evaluate the corrected sentence for lexical resource, grammatical range, and coherence.
+3.  Return a single JSON object matching the 'bandPredictionSchema'.
+4.  'validation_result' must be "Passed".
+`;
+            const userQuery = `Input Sentence: "${sentence}"`;
+
+            // Call API
+            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, bandPredictionSchema, 0.5, 0.95);
+
+            // Restore UI
+            // v2.9.3-en: Translated
+            displayDone(bandLoading, bandButton, bandButtonText, "Predict Sentence Band");
+
+            // Process API response
+            if (result.isError) {
+                displayError(bandError, result.message);
+            } else if (result.band_prediction) {
+                displayBandPredictionResult(result);
+            } else {
+                displayError(bandError, "Received unexpected response format for band prediction.");
+            }
+        }
+
+        /**
+         * v2.8: Display results for Paragraph Continuation
+         */
+        function displayContinuationResult(result) {
+            const { continuation } = result;
+
+            // v2.9.3-en: Translated
+            let html = `
+                <div class="bg-gray-700 p-5 rounded-lg border border-purple-500/50 space-y-4">
+                    <h3 class="text-xl font-bold text-white">Analysis & Continuation Complete</h3>
+                    
+                    <!-- V. Continuation Result -->
+                    <div>
+                        <h5 class="font-semibold text-white">V. Continuation (User Story 3)</h5>
+                        <p class="text-gray-400">Predicted Band for your text: <span class="band-tag bg-purple-600 text-white">Band ${continuation.band_prediction.toFixed(1)}</span></p>
+                        <p class="font-semibold text-gray-300 mt-2">Predicted Next Sentence:</p>
+                        <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-1">
+                            ${continuation.predicted_sentence}
+                        </div>
+                    </div>
+                    
+                    <!-- Render the full v2.8 analysis report -->
+                    ${renderV2_8_Validation(result)}
+                </div>
+            `;
+            
+            continuationResult.innerHTML = html;
+            continuationResult.classList.remove('hidden');
+        }
+
+        /**
+         * v2.8: Display results for Sentence Band Prediction
+         */
+        function displayBandPredictionResult(result) {
+            // v2.9.3-en: Translated
+            let html = `
+                <div class="bg-gray-700 p-5 rounded-lg border border-indigo-500/50 text-center">
+                    <h3 class="text-lg font-semibold text-white">Sentence Band Prediction</h3>
+                    <p class="text-5xl font-bold text-white my-4">${result.band_prediction.toFixed(1)}</p>
+                    <span class="band-tag bg-indigo-600 text-white">Validation: ${result.validation_result}</span>
+                </div>
+            `;
+            bandPredictionResult.innerHTML = html;
+            bandPredictionResult.classList.remove('hidden');
+        }
+
+        // --- [MODIFICATION START] v2.9.3 SWOT Analysis Logic ---
+
+        /**
+         * v2.9.3: Handle Cohesion SWOT Analysis Submit
+         */
+        async function handleSwotSubmit(e) {
+            e.preventDefault();
+
+            const userApiKey = apiKeyInput.value.trim();
+            if (!userApiKey) {
+                // v2.9.3-en: Translated
+                displayError(swotError, "API key is empty. Please provide a valid API key in the field above.", swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+                igpvlSwotError.innerHTML = '';
+                igpvlSwotError.className = 'text-sm rounded-lg';
+                return;
+            }
+
+            const paragraph = swotInputParagraph.value.trim();
+            const sentence1 = swotInputSentence1.value.trim();
+            const sentence2 = swotInputSentence2.value.trim();
+
+            // Clear old messages
+            igpvlSwotError.innerHTML = '';
+            igpvlSwotError.className = 'text-sm rounded-lg';
+            swotError.classList.add('hidden');
+            swotResult.classList.add('hidden');
+            swotResult.innerHTML = '';
+
+            // v2.9.3: Check all three fields
+            if (!paragraph || !sentence1 || !sentence2) {
+                // v2.9.3-en: Translated
+                displayError(swotError, "Please enter the previous paragraph and both sentence options.", swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+                return;
+            }
+
+            // --- IGPVL Step 1 ---
+            // v2.9.3-en: Translated
+            displayLoading(swotError, swotLoading, swotButton, swotButtonText, "1/4 Validating Option 1...");
+            const igpvlResult1 = await validateInputGrammar(userApiKey, sentence1, 'swotInput1', 'academic_essay_sentence');
+            const isBlocked1 = displayIgpvlFeedback(igpvlSwotError, igpvlResult1);
+
+            if (isBlocked1) {
+                // v2.9.3-en: Translated
+                displayDone(swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+                return; // Stop execution
+            }
+
+            // --- IGPVL Step 2 ---
+            // v2.9.3-en: Translated
+            displayLoading(swotError, swotLoading, swotButton, swotButtonText, "2/4 Validating Option 2...");
+            const igpvlResult2 = await validateInputGrammar(userApiKey, sentence2, 'swotInput2', 'academic_essay_sentence');
+            const isBlocked2 = displayIgpvlFeedback(igpvlSwotError, igpvlResult2);
+            
+            // Clear feedback after success
+            if (!isBlocked1 && !isBlocked2) {
+                 igpvlSwotError.innerHTML = '';
+                 igpvlSwotError.className = 'text-sm rounded-lg';
+            }
+
+            if (isBlocked2) {
+                // v2.9.3-en: Translated
+                displayDone(swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+                return; // Stop execution
+            }
+
+            // --- API Call 1: Comparison ---
+            // v2.9.3-en: Translated
+            displayLoading(swotError, swotLoading, swotButton, swotButtonText, "3/4 Comparing Options...");
+            
+            const comparisonSystemPrompt = `You are an expert IELTS examiner, specializing ONLY in the 'Cohesion and Coherence' (C&C) band descriptors.
+Your task is to compare two potential opening sentences (Option 1, Option 2) based on how well they connect to the preceding paragraph.
+You MUST decide which one is better based on C&C criteria:
+1.  **Textual Cohesion:** Use of linking devices (e.g., 'However', 'this', 'it').
+2.  **Conceptual Coherence:** How logically the topic follows (e.g., contrast, addition, result, or abrupt shift).
+
+Return ONLY a valid JSON object matching the requested schema.`;
+            
+            const comparisonUserQuery = `
+{
+  "input_paragraph": "${paragraph}",
+  "option_1": "${sentence1}",
+  "option_2": "${sentence2}"
+}
+`;
+
+            const comparisonResult = await callGeminiAPI(userApiKey, comparisonSystemPrompt, comparisonUserQuery, swotComparisonSchema, 0.3, 0.95);
+
+            if (comparisonResult.isError) {
+                // v2.9.3-en: Translated
+                displayError(swotError, comparisonResult.message, swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+                return;
+            }
+            
+            // --- API Call 2: SWOT Analysis on Best Option ---
+            // v2.9.3-en: Translated
+            displayLoading(swotError, swotLoading, swotButton, swotButtonText, "4/4 Running SWOT Analysis...");
+            
+            const bestSentenceIndex = comparisonResult.best_option_index;
+            const bestSentence = (bestSentenceIndex === 0) ? sentence1 : sentence2;
+            const sentences = [sentence1, sentence2]; // For display
+
+            // Use the *original* SWOT system prompt
+            const swotSystemPrompt = `You are an expert IELTS examiner, specializing ONLY in the 'Cohesion and Coherence' (C&C) band descriptors.
+Your task is to analyze the connection between a given paragraph and the user's proposed opening sentence for the *next* paragraph.
+You MUST generate a SWOT analysis based *strictly* on the IELTS C&C criteria.
+
+**Evaluation Criteria:**
+1.  **Grammatical Fluency:** How smoothly does the opening sentence follow the paragraph grammatically?
+2.  **Textual Cohesion:** How effectively are linking devices used? (e.g., transition words like 'However', 'Furthermore'; pronoun references like 'this', 'it', 'they'). Are references clear?
+3.  **Conceptual Coherence:** How logically does the topic of the opening sentence follow from the paragraph? (e.g., Is it a natural contrast, an added point, a result, or an abrupt shift?)
+
+**SWOT Framework (Mandatory):**
+* **Strengths (S):** Identify positive C&C links. (e.g., "Good use of 'On the other hand' to signal contrast.")
+* **Weaknesses (W):** Identify clear C&C errors. (e.g., "Missing logical connector; the transition is too abrupt.", "Unclear pronoun 'it'; what does 'it' refer to?")
+* **Opportunities (O):** Suggest specific improvements for this transition. (e.g., "Consider adding 'In addition,' to clarify this is a new point.", "Replacing 'This' with 'This issue' would strengthen the reference.")
+* **Threats (T):** Warn about risks if these weaknesses persist. (e.g., "This abrupt shift, if repeated, will damage the essay's logical flow and lower the C&C score.", "Overusing 'And' as a connector is a Band 5/6 trait.")
+
+**Output:**
+You must provide an 'overall_assessment' and a 'cohesion_band_estimate' (from 5.0 to 9.0) for *this specific transition*.
+Return ONLY a valid JSON object matching the requested schema.
+`;
+            const swotUserQuery = `
+{
+  "input_paragraph": "${paragraph}",
+  "user_opening_sentence": "${bestSentence}"
+}
+`;
+            const swotAnalysisResult = await callGeminiAPI(userApiKey, swotSystemPrompt, swotUserQuery, swotSchema, 0.5, 0.95);
+
+            // Restore UI
+            // v2.9.3-en: Translated
+            displayDone(swotLoading, swotButton, swotButtonText, "Compare & Run SWOT Analysis");
+
+            // Process final results
+            if (swotAnalysisResult.isError) {
+                displayError(swotError, swotAnalysisResult.message);
+                // Still show the comparison result if it worked
+                displaySwotCombinedResult(comparisonResult, null, sentences);
+            } else {
+                displaySwotCombinedResult(comparisonResult, swotAnalysisResult, sentences);
+            }
+        }
+
+        /**
+         * v2.9.3: Display combined results for Comparison and SWOT
+         */
+        function displaySwotCombinedResult(comparisonResult, swotAnalysisResult, sentences) {
+            
+            const { best_option_index, comparison_reason, worst_option_feedback } = comparisonResult;
+            const chosenOptionIndex = best_option_index; // 0 or 1
+            const weakerOptionIndex = 1 - chosenOptionIndex; // 1 or 0
+
+            // --- Part 1: Comparison Result ---
+            // v2.9.3-en: Translated
+            let html = `
+                <div class="bg-gray-700 p-5 rounded-lg border border-teal-500/50 space-y-4">
+                    <h3 class="text-xl font-bold text-white">C&C Connection Comparison Result</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Best Option -->
+                        <div class="bg-gray-800 p-4 rounded-lg border-2 border-green-500">
+                            <h5 class="text-lg font-semibold text-green-400">🏆 Best Option (Option ${chosenOptionIndex + 1})</h5>
+                            <p class="text-gray-300 italic my-2">"${sentences[chosenOptionIndex]}"</p>
+                            <p class="text-sm text-gray-400">${comparison_reason}</p>
+                        </div>
+                        
+                        <!-- Weaker Option -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                            <h5 class="text-lg font-semibold text-yellow-400">Other Option (Option ${weakerOptionIndex + 1})</h5>
+                            <p class="text-gray-300 italic my-2">"${sentences[weakerOptionIndex]}"</p>
+                            <p class="text-sm text-gray-400">${worst_option_feedback}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // --- Part 2: SWOT Analysis Result (if successful) ---
+            if (swotAnalysisResult && swotAnalysisResult.strengths) {
+                const { strengths, weaknesses, opportunities, threats, overall_assessment, cohesion_band_estimate } = swotAnalysisResult;
+
+                const renderList = (items, color) => {
+                    if (!items || items.length === 0) {
+                        // v2.9.3-en: Translated
+                        return `<li class="text-gray-400">None</li>`;
+                    }
+                    return items.map(item => `<li class="text-${color}-300">${item}</li>`).join('');
+                };
+                
+                const getBandColor = (band) => {
+                    if (band >= 8.0) return 'bg-indigo-600';
+                    if (band >= 7.0) return 'bg-blue-600';
+                    if (band >= 6.0) return 'bg-yellow-600';
+                    return 'bg-red-600';
+                };
+
+                // v2.9.3-en: Translated
+                html += `
+                    <div class="bg-gray-700 p-5 rounded-lg border border-teal-500/50 space-y-4 mt-6">
+                        <div class="flex justify-between items-center border-b border-gray-600 pb-3">
+                            <h3 class="text-xl font-bold text-white">SWOT Analysis Report (for Option ${chosenOptionIndex + 1})</h3>
+                            <span class="band-tag ${getBandColor(cohesion_band_estimate)} text-white">Estimated C&C Band: ${cohesion_band_estimate.toFixed(1)}</span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5 class="font-semibold text-white">Overall Assessment</h5>
+                            <p class="text-gray-300 text-sm">${overall_assessment}</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Strengths -->
+                            <div class="bg-gray-800 p-4 rounded-lg">
+                                <h5 class="text-lg font-semibold text-green-400">Strengths</h5>
+                                <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
+                                    ${renderList(strengths, 'green')}
+                                </ul>
+                            </div>
+                            
+                            <!-- Weaknesses -->
+                            <div class="bg-gray-800 p-4 rounded-lg">
+                                <h5 class="text-lg font-semibold text-red-400">Weaknesses</h5>
+                                <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
+                                    ${renderList(weaknesses, 'red')}
+                                </ul>
+                            </div>
+
+                            <!-- Opportunities -->
+                            <div class="bg-gray-800 p-4 rounded-lg">
+                                <h5 class="text-lg font-semibold text-blue-400">Opportunities</h5>
+                                <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
+                                    ${renderList(opportunities, 'blue')}
+                                </ul>
+                            </div>
+
+                            <!-- Threats -->
+                            <div class="bg-gray-800 p-4 rounded-lg">
+                                <h5 class="text-lg font-semibold text-yellow-400">Threats</h5>
+                                <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
+                                    ${renderList(threats, 'yellow')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (swotAnalysisResult && swotAnalysisResult.isError) {
+                // v2.9.3-en: Translated
+                html += `<div class="bg-red-900/50 text-red-400 p-4 rounded-lg mt-6">SWOT Analysis Failed: ${swotAnalysisResult.message}</div>`;
+            }
+            
+            swotResult.innerHTML = html;
+            swotResult.classList.remove('hidden');
+        }
+        
+        // --- [MODIFICATION END] v2.9.3 SWOT Analysis Logic ---
 
 
         // --- Tab Switching Logic ---
         function switchTab(activeTab) {
-            // ... ( unchanged switchTab logic )
-            if (activeTab === 'prediction') {
-                // Activate Prediction
-                tabs.prediction.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
-                tabs.prediction.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
-                contents.prediction.classList.remove('hidden');
-                
-                // Deactivate Validation
-                tabs.validation.classList.add('text-gray-400', 'hover:bg-gray-800/50');
-                tabs.validation.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
-                contents.validation.classList.add('hidden');
-            } else {
-                // Activate Validation
-                tabs.validation.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
-                tabs.validation.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
-                contents.validation.classList.remove('hidden');
+            // v2.8 Update: Handle 3 tabs
+            const allTabs = [tabs.prediction, tabs.validation, tabs.continuation];
+            const allContents = [contents.prediction, contents.validation, contents.continuation];
 
-                // Deactivate Prediction
-                tabs.prediction.classList.add('text-gray-400', 'hover:bg-gray-800/50');
-                tabs.prediction.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
-                contents.prediction.classList.add('hidden');
+            allTabs.forEach(tab => {
+                tab.classList.add('text-gray-400', 'hover:bg-gray-800/50');
+                tab.classList.remove('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+            });
+
+            allContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            const activeTabEl = tabs[activeTab];
+            const activeContentEl = contents[activeTab];
+
+            if (activeTabEl && activeContentEl) {
+                activeTabEl.classList.remove('text-gray-400', 'hover:bg-gray-800/50');
+                activeTabEl.classList.add('text-white', 'bg-gray-800', '-mb-px', 'border-t', 'border-l', 'border-r', 'border-gray-700');
+                activeContentEl.classList.remove('hidden');
             }
         }
 
         // --- Initial Event Bindings ---
         tabs.prediction.addEventListener('click', () => switchTab('prediction'));
         tabs.validation.addEventListener('click', () => switchTab('validation'));
+        tabs.continuation.addEventListener('click', () => switchTab('continuation')); // v2.8 Add
+        
         predForm.addEventListener('submit', handlePredictionSubmit);
         customWordForm.addEventListener('submit', handleCustomWordCheck); // Bind custom word form
         valForm.addEventListener('submit', handleValidationSubmit);
+        
+        // v2.8 Add
+        continuationForm.addEventListener('submit', handleContinuationSubmit);
+        bandPredictionForm.addEventListener('submit', handleBandPredictionSubmit);
+
+        // v2.9 Add (v2.9.3 logic is handled here)
+        swotForm.addEventListener('submit', handleSwotSubmit);
 
         // Select first tab by default
         switchTab('prediction');
 
-        // v2.6 IGPVL: Version note
-        console.log("IGPVL v2.6 loaded and integrated into submission forms.");
+        // v2.9.3: Version note
+        console.log("IELTS Writing Assistant v2.9.3_en loaded. (UI Translated).");
 
     </script>
 </body>
