@@ -66,6 +66,8 @@
             -moz-appearance: textfield; /* Firefox 兼容 */
         }
     </style>
+    <!-- 🌟 新增：載入 JSZip 函式庫 (用於 ZIP 壓縮/解壓縮) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-darkBg text-gray-100 flex flex-col items-center py-12 px-6 min-h-screen">
 
@@ -78,6 +80,36 @@
 
     <!-- 主表單容器 --><div class="max-w-4xl w-full space-y-8">
         
+        <!-- 🌟 新增：匯出/匯入功能卡片 -->
+        <div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
+            <h2 class="text-2xl font-semibold text-green-400 mb-4">🔄 匯出 / 匯入資料</h2>
+            <p class="text-gray-300 mb-5 text-sm md:text-base">
+                您可以將目前表單的所有內容匯出為 Markdown 檔案，以便稍後匯入並還原。
+            </p>
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- 匯出按鈕 -->
+                <button type="button" id="export-markdown-button" class="gradient-button w-full px-6 py-3 text-lg font-bold rounded-xl shadow-lg
+                                         text-white bg-gradient-to-r from-green-500 to-blue-500
+                                         hover:from-blue-500 hover:to-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-darkBg
+                                         transition duration-300 ease-in-out">
+                    📥 匯出為 ZIP 壓縮檔
+                </button>
+                
+                <!-- 匯入按鈕 (使用 label 偽裝) -->
+                <label for="import-markdown-input" class="gradient-button w-full px-6 py-3 text-lg font-bold rounded-xl shadow-lg
+                                         text-white bg-gradient-to-r from-blue-500 to-purple-500
+                                         hover:from-purple-500 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-darkBg
+                                         transition duration-300 ease-in-out text-center cursor-pointer">
+                    📤 匯入 ZIP 壓縮檔
+                </label>
+                <!-- 隱藏的實際檔案上傳欄位 -->
+                <input type="file" id="import-markdown-input" class="hidden" accept=".zip"> <!-- 🌟 修改 accept 屬性 -->
+            </div>
+            <!-- 狀態訊息提示 -->
+            <p id="import-status" class="text-green-400 text-sm mt-4 hidden"></p>
+        </div>
+
+
         <!-- GitHub Repo 設定卡片 --><div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
             <h2 class="text-2xl font-semibold text-blue-400 mb-4">⚙️ GitHub 儲存庫與 API 設定</h2>
             <p class="text-gray-300 mb-5 text-sm md:text-base">
@@ -337,8 +369,237 @@ AI 評語:"></textarea>
     </div>
 
     <script>
+        // -----------------------------------------------------
+        // 🌟 新增：匯出/匯入 功能所需 ID 列表
+        // -----------------------------------------------------
+        // 此列表包含所有需要被儲存和還原的欄位 ID
+        const fieldsToSync = [
+            'github_user', 'github_repo', 'github_token', 'task_name', 'task_file', 
+            'article_content', 'sentence_analysis', 'writing_date', 'question_type',
+            'self_assessment_ta', 'self_assessment_cc', 'self_assessment_lr', 'self_assessment_gra',
+            'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 
+            'google_translate_source', 'google_translate_output', 'self_identified_issues',
+            'manual_chart_paste', 'custom_field_1', 'self_assessment_notes', 'ai_assessment',
+            'diff_1', 'diff_2', 'diff_3', 'diff_4', // Checkboxes
+            'reflection_action', 'root_cause_title', 'additional_notes'
+        ];
+
+        // -----------------------------------------------------
+        // 🌟 修改：匯出為 ZIP 壓縮檔 (包含圖片)
+        // -----------------------------------------------------
+        async function exportZip() { // 🌟 Renamed and made async
+            console.log('開始匯出 ZIP...');
+            const statusEl = document.getElementById('import-status');
+            
+            // 檢查 JSZip 是否已載入
+            if (typeof JSZip === 'undefined') {
+                console.error('JSZip library not loaded.');
+                statusEl.textContent = '❌ 匯出失敗：JSZip 函式庫載入失敗。';
+                statusEl.classList.remove('hidden', 'text-green-400');
+                statusEl.classList.add('text-red-400');
+                return;
+            }
+
+            statusEl.textContent = '🔄 正在打包資料...';
+            statusEl.classList.remove('hidden', 'text-red-400', 'text-green-400');
+            statusEl.classList.add('text-yellow-400');
+
+            try {
+                const zip = new JSZip();
+                
+                // 1. 產生並儲存 data.md (文字內容)
+                let markdownContent = `# IELTS Task 1 匯出資料\n\n`;
+                fieldsToSync.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        let value;
+                        if (element.type === 'checkbox') {
+                            value = element.checked; // 儲存 true/false
+                        } else {
+                            value = element.value; // 儲存文字、數字、日期、下拉選單等
+                        }
+                        markdownContent += `<!--FIELD:${id}-->\n`;
+                        markdownContent += `${value}\n\n`;
+                    }
+                });
+                zip.file("data.md", markdownContent);
+
+                // 2. 儲存所有 "pendingImages" (待上傳圖片)
+                const imgFolder = zip.folder("images");
+                let imageCount = 0;
+                for (const fieldId in pendingImages) {
+                    for (const img of pendingImages[fieldId]) {
+                        // img.file is the File object
+                        // img.placeholder is the unique name (e.g., article_content_pasted_123.png)
+                        imgFolder.file(img.placeholder, img.file); // JSZip handles File objects
+                        imageCount++;
+                    }
+                }
+                console.log(`Adding ${imageCount} images to zip.`);
+
+                // 3. 產生 ZIP 檔案
+                statusEl.textContent = `🔄 正在壓縮 ${imageCount} 張圖片...`;
+                const zipBlob = await zip.generateAsync({
+                    type: "blob",
+                    compression: "DEFLATE",
+                    compressionOptions: {
+                        level: 6 // 1-9 (6 is a good balance)
+                    }
+                });
+
+                // 4. 產生檔案名稱並觸發下載
+                const taskName = document.getElementById('task_name').value.trim() || 'untitled';
+                const date = new Date().toISOString().split('T')[0];
+                const filename = `ielts-export-${taskName}-${date}.zip`;
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log('ZIP 匯出完成。');
+                statusEl.textContent = '✅ 資料已成功匯出為 ZIP！';
+                statusEl.classList.remove('hidden', 'text-red-400', 'text-yellow-400');
+                statusEl.classList.add('text-green-400');
+
+            } catch (error) {
+                console.error('ZIP 匯出失敗:', error);
+                statusEl.textContent = `❌ 匯出失敗：${error.message}`;
+                statusEl.classList.remove('hidden', 'text-green-400');
+                statusEl.classList.add('text-red-400');
+            }
+        }
+
+        // -----------------------------------------------------
+        // 🌟 新增：輔助函式 - 清空 pendingImages
+        // -----------------------------------------------------
+        function clearPendingImages() {
+            // 清空主物件
+            for (const key in pendingImages) {
+                delete pendingImages[key];
+            }
+            
+            // 重新初始化所有 textarea 的鍵
+            fieldsToSync.forEach(id => {
+                const element = document.getElementById(id);
+                if (element && element.tagName === 'TEXTAREA') {
+                    pendingImages[id] = [];
+                }
+            });
+            updateImageStatus(); // 更新計數器為 0
+        }
+
+        // -----------------------------------------------------
+        // 🌟 修改：從 ZIP 壓縮檔匯入 (包含圖片)
+        // -----------------------------------------------------
+        async function importZip(event) { // 🌟 Renamed and made async
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const statusEl = document.getElementById('import-status');
+            
+            // 檢查 JSZip 是否已載入
+            if (typeof JSZip === 'undefined') {
+                console.error('JSZip library not loaded.');
+                statusEl.textContent = '❌ 匯入失敗：JSZip 函式庫載入失敗。';
+                statusEl.classList.remove('hidden', 'text-green-400');
+                statusEl.classList.add('text-red-400');
+                return;
+            }
+
+            statusEl.textContent = '🔄 正在讀取 ZIP 檔案...';
+            statusEl.classList.remove('hidden', 'text-red-400', 'text-green-400');
+            statusEl.classList.add('text-yellow-400');
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+
+                // 1. 匯入文字資料 (data.md)
+                const dataFile = zip.file("data.md");
+                if (!dataFile) {
+                    throw new Error('ZIP 檔案中找不到 data.md。');
+                }
+                
+                const content = await dataFile.async("string");
+                const chunks = content.split('<!--FIELD:');
+                if (chunks.length <= 1) {
+                    throw new Error('data.md 檔案格式不正確。');
+                }
+
+                let fieldsImported = 0;
+                for (let i = 1; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const delimiterPos = chunk.indexOf('-->');
+                    if (delimiterPos === -1) continue;
+                    
+                    const id = chunk.substring(0, delimiterPos).trim();
+                    const value = chunk.substring(delimiterPos + 3).trim(); 
+                    const element = document.getElementById(id);
+                    
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = (value === 'true');
+                        } else {
+                            element.value = value;
+                        }
+                        fieldsImported++;
+                    }
+                }
+                console.log(`Imported ${fieldsImported} text fields.`);
+
+                // 2. 匯入圖片資料 (images/*)
+                statusEl.textContent = `🔄 正在匯入 ${fieldsImported} 個欄位... 接著處理圖片...`;
+                
+                // 清空並準備 pendingImages
+                clearPendingImages(); 
+
+                const imageFiles = Object.values(zip.files).filter(file => file.name.startsWith('images/') && !file.dir);
+                console.log(`Found ${imageFiles.length} images in zip.`);
+
+                for (const zipEntry of imageFiles) {
+                    const placeholderName = zipEntry.name.substring("images/".length);
+                    
+                    // 從 placeholderName (e.g., 'article_content_pasted_123.png') 提取 ID
+                    // 修正：確保能正確處理 'article_content' 這種包含底線的 ID
+                    const idParts = placeholderName.split('_');
+                    if (idParts.length < 3) continue; // 格式不符 (e.g., textareaid_pasted_timestamp.png)
+                    
+                    // 重組 ID
+                    const textareaId = idParts.slice(0, idParts.length - 2).join('_');
+                    
+                    if (document.getElementById(textareaId) && pendingImages[textareaId]) {
+                        const fileBlob = await zipEntry.async("blob");
+                        const file = new File([fileBlob], placeholderName, { type: fileBlob.type || 'image/png' });
+                        
+                        // 加入
+                        pendingImages[textareaId].push({ file: file, placeholder: placeholderName });
+                    } else {
+                        console.warn(`Could not find matching textarea ID "${textareaId}" for image ${placeholderName}`);
+                    }
+                }
+
+                updateImageStatus(); // 更新圖片計數器
+                
+                statusEl.textContent = `✅ 成功匯入 ${fieldsImported} 個欄位與 ${imageFiles.length} 張圖片！`;
+                statusEl.classList.remove('hidden', 'text-red-400', 'text-yellow-400');
+                statusEl.classList.add('text-green-400');
+
+            } catch (error) {
+                console.error('ZIP 匯入失敗:', error);
+                statusEl.textContent = `❌ 匯入失敗：${error.message}`;
+                statusEl.classList.remove('hidden', 'text-green-400');
+                statusEl.classList.add('text-red-400');
+            } finally {
+                // 清空 file input 的值
+                event.target.value = null;
+            }
+        }
+
+
         // 全域變數
-        const apiKey = "AIzaSyAzBdrm2Ma3LWkdo87hC_TZlLPc7cuqNEo"; // 留空，系統會自動填入
+        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; // 留空，系統會自動填入
         const modelName = "gemini-2.5-flash-preview-09-2025"; 
         const imageModelName = "gemini-2.5-flash-image-preview"; // 🌟 (用於 AI 圖表生成)
         
@@ -871,6 +1132,11 @@ ${articleContent}
         // -----------------------------------------------------
 
         document.addEventListener('DOMContentLoaded', () => {
+            // 🌟 修改：綁定 ZIP 匯出/匯入按鈕
+            document.getElementById('export-markdown-button').addEventListener('click', exportZip);
+            document.getElementById('import-markdown-input').addEventListener('change', importZip);
+
+
             // 在 DOMContentLoaded 時為所有需要的 Textarea 啟用圖片上傳功能
             setupImageUpload('article_content');
             setupImageUpload('sentence_analysis'); 
