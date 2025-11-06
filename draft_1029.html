@@ -1339,108 +1339,207 @@ Sampling Params (T=${temp}, TopP=${topP})
             }
         }
         
-        // v3.0: Update customSchema
+        ////
+        /* * =======================================================================
+         * 步驟一：替換舊的 customSchema
+         *
+         * v3.0: 此 Schema 必須與 systemPrompt (規則 11) 中定義的 JSON 結構完全一致。
+         * 注意：我們添加了 PPL_norm, H_norm, TS, SC, FQ, Band，
+         * 移除了 p_w_n, ppl, band_summary。
+         * =======================================================================
+         */
         const customSchema = {
             type: "OBJECT",
             properties: {
-                "p_w_n": { "type": "NUMBER", "description": "Conditional probability P(w_n | context), between 0 and 1" },
-                "ppl": { "type": "NUMBER", "description": "Perplexity of the example sentence" },
-                "band": { "type": "NUMBER", "description": "Corresponding IELTS Cohesion & Coherence Band (5, 6, 7, 8, or 9)" },
-                "band_summary": { "type": "STRING", "description": "IELTS examiner-style summary description (based on PPL coherence assessment)" },
-                "example": { "type": "STRING", "description": "Example sentence, max 25 words" },
-                "consistency_score": { "type": "NUMBER", "description": "Semantic consistency score (0-100)" },
-                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace
+                "initial_phrase_correction": { "type": "STRING" },
+                "PPL_norm": { "type": "NUMBER" },
+                "H_norm": { "type": "NUMBER" },
+                "TS": { "type": "NUMBER" },
+                "SC": { "type": "NUMBER" },
+                "FQ": { "type": "NUMBER" },
+                "Band": { "type": "NUMBER" }, // AI 會回傳它計算的 Band
+                "example": { "type": "STRING" },
+                "consistency_score": { "type": "NUMBER" },
+                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace (假設此變數在別處已定義)
             },
-            required: ["p_w_n", "ppl", "band", "band_summary", "example", "consistency_score", "grammar_validation"] // v3.0 Replace
+            required: [
+                "initial_phrase_correction", 
+                "PPL_norm", 
+                "H_norm", 
+                "TS", 
+                "SC", 
+                "FQ", 
+                "Band", 
+                "example", 
+                "consistency_score", 
+                "grammar_validation"
+            ] // v3.0 Replace
         };
+		/* * =======================================================================
+         * 步驟二：新增此輔助函式 (Helper Function)
+         * * v3.0: 根據 FQ 分數在前端計算 Band 和對應的 UI 顏色。
+         * 嚴格遵循您提供的 FQ-Band Mapping Table。
+         * =======================================================================
+         */
+        function getBandInfoFromFQ(fq) {
+            let band;
+            let color;
 
-        // Handle custom word validation
-        async function handleCustomWordCheck(e) {
-            e.preventDefault();
-
-            // --- [MODIFICATION START] Get API Key First ---
-            const userApiKey = apiKeyInput.value.trim();
-            if (!userApiKey) {
-                igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                // v2.9.3-en: Translated
-                igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the field above.';
-                // Clear old results
-                customResults.innerHTML = '';
-                return;
-            }
-            // --- [MODIFICATION END] ---
-
-            const phrase = predInput.value.trim();
-            const customWord = customWordInput.value.trim();
-
-            // v2.6 IGPVL Integration: Clear old messages
-            igpvlCustomError.innerHTML = '';
-            igpvlCustomError.className = 'text-sm rounded-lg mt-4';
-            customResults.innerHTML = ''; // Clear old results
-
-            if (!phrase || !customWord) {
-                igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-                // v2.9.3-en: Translated
-                igpvlCustomError.innerHTML = 'Please enter both context and a custom word.';
-                return;
+            if (fq === null || fq === undefined) {
+                return { band: 'N/A', color: 'bg-gray-500' };
             }
 
-            // Set UI to loading (v2.6: Before IGPVL)
-            customLoading.classList.remove('hidden');
-            customButton.disabled = true;
-            // v2.9.3-en: Translated
-            customButtonText.textContent = "1/2 Validating Input...";
-
-            // --- v2.6 IGPVL Execution (Check context phrase only) ---
-            // --- [MODIFICATION START] Pass userApiKey ---
-            const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput_custom', 'academic');
-            // --- [MODIFICATION END] ---
-            const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
-
-            if (isBlocked) {
-                customLoading.classList.add('hidden');
-                customButton.disabled = false;
-                // v2.9.3-en: Translated
-                customButtonText.textContent = "Check Word";
-                return; // Stop execution
+            if (fq >= 0.85) { // Band 9: FQ 0.85–1.0
+                band = 9;
+                color = 'bg-blue-600'; // (請自行調整顏色以匹配您的 CSS)
+            } else if (fq >= 0.75) { // Band 8: FQ 0.75–0.84
+                band = 8;
+                color = 'bg-green-600';
+            } else if (fq >= 0.65) { // Band 7: FQ 0.65–0.74
+                band = 7;
+                color = 'bg-yellow-500';
+            } else if (fq >= 0.50) { // Band 6: FQ 0.50–0.64
+                band = 6;
+                color = 'bg-orange-500';
+            } else if (fq >= 0.35) { // Band 5: FQ 0.35–0.49
+                band = 5;
+                color = 'bg-red-600';
+            } else { // Band <5: FQ < 0.35
+                band = "<5";
+                color = 'bg-red-800';
             }
-            // --- IGPVL End ---
+            
+            // 回傳一個包含 band 和 color 的物件
+            return { band: band, color: color };
+        }
+		/* * =======================================================================
+ * 步驟三：替換舊的 handleCustomWordCheck 函式
+ *
+ * 關鍵修改：
+ * 1. (優化) 更新 systemPrompt 規則 4 和 5，
+ * a. 根據您提供的指標定義，明確指示 AI 如何計算 PPL, H, TS, SC。
+ * b. 移除 AI 計算 "Band" 的冗餘任務。
+ * 2. (優化) 更新 systemPrompt 規則 11 (JSON Schema)，
+ * =======================================================================
+ */
+// Handle custom word validation
+async function handleCustomWordCheck(e) {
+    e.preventDefault();
 
-            // Set UI to loading (v2.6: Update status)
-            // v2.9.3-en: Translated
-            customButtonText.textContent = "2/2 Checking...";
+    // --- [MODIFICATION START] Get API Key First ---
+    const userApiKey = apiKeyInput.value.trim();
+    if (!userApiKey) {
+        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+        igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the field above.';
+        customResults.innerHTML = '';
+        return;
+    }
+    // --- [MODIFICATION END] ---
 
-            // Prepare API request (single word mode)
-            // T1.4 Fix: Read and truncate context
-			const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
-            const temp = predTemp.value;
-            const topP = predTopP.value;
-            const contextLen = predContextLen.value;
-            const truncatedPhrase = truncateContext(phrase, contextLen);
-            const fullPhrase = `${truncatedPhrase} ${customWord}`;
+    const phrase = predInput.value.trim();
+    const customWord = customWordInput.value.trim();
 
-            // v3.0 (User Custom) Update: Strictly implement Grammar Validation Layer
-           const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to validate the naturalness of the user's input word "\${customWord}" following the context "\${truncatedPhrase}", strictly adhering to the specified "Task" style.
+    // v2.6 IGPVL Integration: Clear old messages
+    igpvlCustomError.innerHTML = '';
+    igpvlCustomError.className = 'text-sm rounded-lg mt-4';
+    customResults.innerHTML = ''; // Clear old results
 
+    if (!phrase || !customWord) {
+        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+        igpvlCustomError.innerHTML = 'Please enter both context and a custom word.';
+        return;
+    }
+
+    // Set UI to loading (v2.6: Before IGPVL)
+    customLoading.classList.remove('hidden');
+    customButton.disabled = true;
+    customButtonText.textContent = "1/2 Validating Input...";
+
+    // --- v2.6 IGPVL Execution (Check context phrase only) ---
+    // --- [MODIFICATION START] Pass userApiKey ---
+    const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput_custom', 'academic');
+    // --- [MODIFICATION END] ---
+    const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
+
+    if (isBlocked) {
+        customLoading.classList.add('hidden');
+        customButton.disabled = false;
+        customButtonText.textContent = "Check Word";
+        return; // Stop execution
+    }
+    // --- IGPVL End ---
+
+    // Set UI to loading (v2.6: Update status)
+    customButtonText.textContent = "2/2 Checking...";
+
+    // Prepare API request (single word mode)
+    const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
+    const temp = predTemp.value;
+    const topP = predTopP.value;
+    const contextLen = predContextLen.value;
+    const truncatedPhrase = truncateContext(phrase, contextLen);
+    const fullPhrase = `${truncatedPhrase} ${customWord}`;
+
+    // ========================================================
+    // === 優化 START: systemPrompt 已更新 (規則 4, 5, 11) ===
+    // ========================================================
+    const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to validate the naturalness of the user's input word "\${customWord}" following the context "\${truncatedPhrase}", strictly adhering to the specified "Task" style.
 Rules:
 1.  [**Input Validation & Correction**]: **If the user's input context phrase \${truncatedPhrase} contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all example generations. If the input is correct, return an empty string.
 
 2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'Task' context when generating 'example' sentences.
-    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
-    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
-    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
-        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
-        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
-        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
 
+    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
+
+    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
+
+    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
+
+        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
+
+        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
+
+        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
+		
 3.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 10 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 9 below. **This check is mandatory and cannot be skipped or done superficially**.
-4.  For this collocation, provide 'Conditional Probability P(w_n | context)', 'Concise Example (example)', 'Perplexity (ppl)', and 'IELTS Cohesion & Coherence Band Assessment'.
-5.  [PPL-Band Mapping]: PPL 0–20=Band 9, 21–40=Band 8, 41–60=Band 7, 61–80=Band 6, >80=Band 5.
+
+4.  [**Optimized**] For this "Context-Continuation" pair, provide the following metrics and items:
+    * Normalized Perplexity (PPL_norm)
+    * Normalized Entropy (H_norm)
+    * Token Stability (TS)
+    * Semantic Coherence (SC)
+    * **Final Fluency Quality Score (FQ)**
+    * **Concise Example (example)**
+    * (Note: "Band" is removed; it will be calculated by the client.)
+
+5.  [**Optimized**] [Calculation Rules & Definitions]:
+    **You must calculate the following metrics on a 0.0 to 1.0 scale, where 1.0 is the BEST possible quality.**
+
+    * **PPL_norm (Normalized Perplexity):**
+        * Calculate the Perplexity (PPL) of the \`customWord\` given the context.
+        * Perplexity measures "confusion"; **lower PPL is better**.
+        * Normalize this PPL score to the 0-1 scale, where **1.0 = perfect prediction (low PPL)** and **0.0 = high confusion (high PPL)**.
+    * **H_norm (Normalized Entropy):**
+        * Calculate the Entropy (H) of the probability distribution *for the next token* after the context.
+        * Entropy measures "uncertainty"; **higher H is worse** (more uncertainty).
+        * Normalize this H score to the 0-1 scale, where **1.0 = high confidence (low uncertainty)** and **0.0 = high uncertainty (flat distribution)**.
+    * **TS (Token Stability):**
+        * Assess the stability of the \`customWord\`'s prediction probability when the context is slightly varied.
+        * Normalize this to the 0-1 scale, where **1.0 = highly stable prediction** and **0.0 = volatile prediction**.
+    * **SC (Semantic Coherence):**
+        * Calculate the **Cosine Similarity** between the sentence embedding of the context (\`truncatedPhrase\`) and the \`customWord\` (or the resulting \`example\`).
+        * This measures semantic relevance. **1.0 = perfectly coherent** and **0.0 = semantically unrelated**.
+
+    * **FQ Calculation Formula (Use normalized metrics):**
+        \`FQ = 0.3 * PPL_norm + 0.2 * H_norm + 0.2 * TS + 0.3 * SC\`
+    
+    * **(FQ-Band Mapping Table is REMOVED as client will calculate it.)**
+
 6.  [Key Point] In the example sentence, the validated word \${customWord} must "closely and uniquely" follow the "last word" of the context \${truncatedPhrase}. If the last character of the context is punctuation, the word must "closely and uniquely" follow the punctuation mark, separated by a single space.
 7.  Simulate three rounds of Self-Consistency sampling for each example generation to ensure semantic stability.
 8.  Provide a "consistency_score" (0-100) for each generation, calculated based on semantic similarity, lexical variance, and syntactic stability.
-
 9.  [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+
 **This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'grammar_validation' object.
 
     a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax and Task compliance errors**)
@@ -1458,12 +1557,10 @@ Rules:
     Provide "suggestions". **Does not handle Level I syntax errors**.
         * **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice (a suggestion in Task 1/2, an error in Tech Guide).
         * **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
-
     c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
     Provide "suggestions".
         * **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
         * **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
-
     d.  [IV. Delivery]: (🔥 Task-Reinforced Standard)
     Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
     **'formality' and 'detected_tone' assessment must strictly correspond to the Task type specified in Rule 2:**
@@ -1474,33 +1571,36 @@ Rules:
 10. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
 
 11. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
+    (Note: Schema updated to match Rule 4 & 5. "Band" is removed.)
 
 \`\`\`json
 {
-  "initial_phrase_correction": "STRING", // Correction required by Rule 1
-  "P(w_n|context)": "NUMBER",
+  "initial_phrase_correction": "STRING",
+  "PPL_norm": "NUMBER",
+  "H_norm": "NUMBER",
+  "TS": "NUMBER",
+  "SC": "NUMBER",
+  "FQ": "NUMBER",
   "example": "STRING",
-  "ppl": "NUMBER",
-  "cohesion_band": "NUMBER",
   "consistency_score": "NUMBER",
-. "grammar_validation": {
+  "grammar_validation": {
     "correctness": {
-      "is_correct": "BOOLEAN", 
+      "is_correct": "BOOLEAN",
       "errors": [
         {
-          "type": "STRING", 
-          "description": "STRING", 
+          "type": "STRING",
+          "description": "STRING",
           "suggestion": "STRING",
-          "priority": "STRING" // Must be one of "Critical", "High", "Low"
+          "priority": "STRING"
         }
       ]
     },
     "clarity": {
-      "feedback": "STRING", 
+      "feedback": "STRING",
       "rewrite_suggestion": "STRING"
     },
     "engagement": {
-      "feedback": "STRING", 
+      "feedback": "STRING",
       "vocab_suggestions": "ARRAY<STRING>"
     },
     "delivery": {
@@ -1512,54 +1612,83 @@ Rules:
 }
 \`\`\`
 12. **Output ONLY the requested JSON format object.**`;
+    // ======================================================
+    // === 優化 END: systemPrompt 已更新 ===
+    // ======================================================
 
-            const userQuery = `
+
+    const userQuery = `
 Context (Using only last ${contextLen} words): "${truncatedPhrase}"
 Custom Word: "${customWord}"
 Writing Task: "${taskContext}"
 Sampling Params (T=${temp}, TopP=${topP})
 `;
-            // --- [MODIFICATION START] Pass userApiKey ---
-            const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, customSchema, temp, topP);
-            // --- [MODIFICATION END] ---
+    // --- [MODIFICATION START] Pass userApiKey ---
+    const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, customSchema, temp, topP);
+    // --- [MODIFICATION END] ---
 
-            // Restore UI
-            customLoading.classList.add('hidden');
-            customButton.disabled = false;
-            // v2.9.3-en: Translated
-            customButtonText.textContent = "Check Word";
+    // Restore UI
+    customLoading.classList.add('hidden');
+    customButton.disabled = false;
+    customButtonText.textContent = "Check Word";
 
-            if (result.isError) {
-                customResults.innerHTML = `<p class="text-red-400">Validation Failed: ${result.message}</p>`;
-            } else if (result.band !== undefined) {
-                // Get Band info (although model returns it, we use local function to standardize color)
-                const bandInfo = getCohesionBandDetails(result.ppl);
-                
-                // v3.0 Update: Display Grammar Validation Layer
-                customResults.innerHTML = `
-                    <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <h4 class="text-lg font-bold text-yellow-300">Custom Word: ${customWord}</h4>
-                            <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
-                        </div>
-                        <p class="text-sm text-gray-400">${result.band_summary}</p>
-                        <hr class="border-gray-600">
-                        <div class="grid grid-cols-3 text-sm text-gray-300">
-                            <p><strong>P(wₙ|context):</strong> <span class="text-yellow-300">${result.p_w_n.toFixed(4)}</span></p>
-                            <p><strong>PPL:</strong> <span class="text-yellow-300">${result.ppl.toFixed(2)}</span></p>
-                            <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
-                        </div>
-                        <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
-                            ${highlight(result.example, fullPhrase)}
-                        </div>
-                        <!-- v3.0 Grammar Validation Layer Injection Point -->
-                        ${renderGrammarValidation(result.grammar_validation)}
+    // ==================================================================
+    // === 關鍵修改區域 START ===
+    // (此區域邏輯不變，因為它已經在正確地使用 getBandInfoFromFQ)
+    // ==================================================================
+    if (result.isError) {
+        customResults.innerHTML = `<p class="text-red-400">Validation Failed: ${result.message}</p>`;
+
+    } else if (result.FQ !== undefined) { // v3.0: 檢查 FQ (而不是舊的 band)
+
+        // v3.0: 呼叫新的輔助函式，在前端根據 FQ 計算 Band
+        const bandInfo = getBandInfoFromFQ(result.FQ);
+
+        // v3.0 Update: 顯示所有新的指標
+        // (此處的 HTML 渲染邏輯是正確的，因為它依賴 bandInfo.band，
+        // 而不是一個不存在的 result.Band)
+        customResults.innerHTML = `
+                <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-lg font-bold text-yellow-300">Custom Word: ${customWord}</h4>
+                        <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
                     </div>
-                `;
-            } else {
-                customResults.innerHTML = `<p class="text-red-400">Received unexpected response format.</p>`;
-            }
-        }
+                    <hr class="border-gray-600">
+                    <div class="grid grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-300">
+                        <p><strong>FQ:</strong> <span class="text-yellow-300 font-bold">${result.FQ.toFixed(4)}</span></p>
+                        <p><strong>Band (Calc):</strong> <span class="text-yellow-300 font-bold">${bandInfo.band}</span></p>
+                        <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
+                        <p><strong>PPL_norm:</strong> <span class="text-yellow-300">${result.PPL_norm.toFixed(4)}</span></p>
+                        <p><strong>H_norm:</strong> <span class="text-yellow-300">${result.H_norm.toFixed(4)}</span></p>
+                        <p><strong>TS:</strong> <span class="text-yellow-300">${result.TS.toFixed(4)}</span></p>
+                        <p><strong>SC:</strong> <span class="text-yellow-300">${result.SC.toFixed(4)}</span></p>
+                    </div>
+                    <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
+                        ${highlight(result.example, fullPhrase)}
+                    </div>
+                     ${renderGrammarValidation(result.grammar_validation)}
+                <div class="mt-4 pt-3 border-t border-gray-600">
+                        <h5 class="text-sm font-semibold text-gray-400 mb-2">Scoring Reference (FQ-Band Mapping)</h5>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
+                            <p><span class="band-tag bg-blue-600 text-white w-12 inline-block text-center mr-1">Band 9</span> FQ 0.85 – 1.0</p>
+                            <p><span class="band-tag bg-green-600 text-white w-12 inline-block text-center mr-1">Band 8</span> FQ 0.75 – 0.84</p>
+                            <p><span class="band-tag bg-yellow-500 text-white w-12 inline-block text-center mr-1">Band 7</span> FQ 0.65 – 0.74</p>
+                            <p><span class="band-tag bg-orange-500 text-white w-12 inline-block text-center mr-1">Band 6</span> FQ 0.50 – 0.64</p>
+                            <p><span class="band-tag bg-red-600 text-white w-12 inline-block text-center mr-1">Band 5</span> FQ 0.35 – 0.49</p>
+                            <p><span class="band-tag bg-red-800 text-white w-12 inline-block text-center mr-1">Band &lt;5</span> FQ &lt; 0.35</p>
+                        </div>
+                    </div>
+				</div>
+            `;
+    } else {
+        // v3.0: 更新錯誤訊息
+        customResults.innerHTML = `<p class="text-red-400">Received unexpected response format (Missing required FQ metric).</p>`;
+    }
+    // ==================================================================
+    // === 關鍵修改區域 END ===
+    // ==================================================================
+}
+		////
 
 
         // v3.0: Update displayPredictionResults
