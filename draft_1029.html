@@ -1349,344 +1349,664 @@ Sampling Params (T=${temp}, TopP=${topP})
          * =======================================================================
          */
         const customSchema = {
-            type: "OBJECT",
-            properties: {
-                "initial_phrase_correction": { "type": "STRING" },
-                "PPL_norm": { "type": "NUMBER" },
-                "H_norm": { "type": "NUMBER" },
-                "TS": { "type": "NUMBER" },
-                "SC": { "type": "NUMBER" },
-                "FQ": { "type": "NUMBER" },
-                "Band": { "type": "NUMBER" }, // AI 會回傳它計算的 Band
-                "example": { "type": "STRING" },
-                "consistency_score": { "type": "NUMBER" },
-                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace (假設此變數在別處已定義)
-            },
-            required: [
-                "initial_phrase_correction", 
-                "PPL_norm", 
-                "H_norm", 
-                "TS", 
-                "SC", 
-                "FQ", 
-                "Band", 
-                "example", 
-                "consistency_score", 
-                "grammar_validation"
-            ] // v3.0 Replace
-        };
+            type: "OBJECT",
+            properties: {
+                "initial_phrase_correction": { "type": "STRING" },
+                "PPL_norm": { "type": "NUMBER" },
+                "H_norm": { "type": "NUMBER" },
+                "TS": { "type": "NUMBER" },
+                "SC": { "type": "NUMBER" },
+                "FQ": { "type": "NUMBER" },
+                "Band": { "type": "NUMBER" }, // AI 會回傳它計算的 Band
+                "example": { "type": "STRING" },
+                "consistency_score": { "type": "NUMBER" },
+                "benchmark_comparison": { 
+    "type": "ARRAY", 
+    "items": { 
+        "type": "OBJECT", // 這裡定義了它是 OBJECT
+        "properties": {   // 這裡必須定義 OBJECT 裡面的所有屬性
+            "metric": { "type": "STRING" },
+            "score": { "type": "NUMBER" },
+            "nearest_benchmark": { "type": "STRING" },
+            "comparison_description": { "type": "STRING" }
+        },
+        "required": [
+            "metric",
+            "score",
+            "nearest_benchmark",
+            "comparison_description"
+        ]
+    } 
+},
+                "grammar_validation": grammarValidationSchemaObject // v3.0 Replace (假設此變數在別處已定義)
+            },
+            required: [
+                "initial_phrase_correction", 
+                "PPL_norm", 
+                "H_norm", 
+                "TS", 
+                "SC", 
+                "FQ", 
+                "Band",
+                "example", 
+                "consistency_score",
+                "benchmark_comparison", // <--- 新增欄位   
+                "grammar_validation"
+            ] // v3.0 Replace
+        };
 		/* * =======================================================================
-         * 步驟二：新增此輔助函式 (Helper Function)
-         * * v3.0: 根據 FQ 分數在前端計算 Band 和對應的 UI 顏色。
-         * 嚴格遵循您提供的 FQ-Band Mapping Table。
-         * =======================================================================
+         * 步驟二：新增此輔助函式 (Helper Function)
+         * * v3.0: 根據 FQ 分數在前端計算 Band 和對應的 UI 顏色。
+         * 嚴格遵循您提供的 FQ-Band Mapping Table。
+         * =======================================================================
+         */
+        function getBandInfoFromFQ(fq) {
+            let band;
+            let color;
+
+            if (fq === null || fq === undefined) {
+                return { band: 'N/A', color: 'bg-gray-500' };
+            }
+
+            if (fq >= 0.85) { // Band 9: FQ 0.85–1.0
+                band = 9;
+                color = 'bg-blue-600'; // (請自行調整顏色以匹配您的 CSS)
+            } else if (fq >= 0.75) { // Band 8: FQ 0.75–0.84
+                band = 8;
+                color = 'bg-green-600';
+            } else if (fq >= 0.65) { // Band 7: FQ 0.65–0.74
+                band = 7;
+                color = 'bg-yellow-500';
+            } else if (fq >= 0.50) { // Band 6: FQ 0.50–0.64
+                band = 6;
+                color = 'bg-orange-500';
+            } else if (fq >= 0.35) { // Band 5: FQ 0.35–0.49
+                band = 5;
+                color = 'bg-red-600';
+            } else { // Band <5: FQ < 0.35
+                band = "<5";
+                color = 'bg-red-800';
+            }
+               
+            // 回傳一個包含 band 和 color 的物件
+            return { band: band, color: color };
+        }
+
+        // --- [START] v3.1 OPTIMIZATION ---
+        /**
+         * v3.1 (Optimization): Render Benchmark Comparison
+         * Renders the benchmark_comparison array into readable HTML.
          */
-        function getBandInfoFromFQ(fq) {
-            let band;
-            let color;
-
-            if (fq === null || fq === undefined) {
-                return { band: 'N/A', color: 'bg-gray-500' };
+        function renderBenchmarkComparison(benchmarks) {
+            if (!benchmarks || benchmarks.length === 0) {
+                return '<p class="text-xs text-gray-500">No benchmark data available.</p>';
             }
 
-            if (fq >= 0.85) { // Band 9: FQ 0.85–1.0
-                band = 9;
-                color = 'bg-blue-600'; // (請自行調整顏色以匹配您的 CSS)
-            } else if (fq >= 0.75) { // Band 8: FQ 0.75–0.84
-                band = 8;
-                color = 'bg-green-600';
-            } else if (fq >= 0.65) { // Band 7: FQ 0.65–0.74
-                band = 7;
-                color = 'bg-yellow-500';
-            } else if (fq >= 0.50) { // Band 6: FQ 0.50–0.64
-                band = 6;
-                color = 'bg-orange-500';
-            } else if (fq >= 0.35) { // Band 5: FQ 0.35–0.49
-                band = 5;
-                color = 'bg-red-600';
-            } else { // Band <5: FQ < 0.35
-                band = "<5";
-                color = 'bg-red-800';
-            }
+            // Map metric names for display (matching the v2.9.3-en file)
+            const metricNames = {
+                "PPL_norm": "Normalized Perplexity (PPL_norm)",
+                "H_norm": "Normalized Entropy (H_norm)",
+                "TS": "Token Stability (TS)",
+                "SC": "Semantic Coherence (SC)"
+            };
+
+            let html = '<div class="space-y-3">';
             
-            // 回傳一個包含 band 和 color 的物件
-            return { band: band, color: color };
+            benchmarks.forEach(item => {
+                const metricName = metricNames[item.metric] || item.metric;
+                const score = (item.score * 100).toFixed(1); // Convert to percentage
+                
+                html += `
+                    <div class="bg-gray-800 p-3 rounded-md border border-gray-700">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-medium text-gray-300">${metricName}</span>
+                            <span class="text-lg font-bold text-yellow-300">${item.score.toFixed(4)}</span>
+                        </div>
+                        <!-- Simple bar visual -->
+                        <div class="w-full bg-gray-600 rounded-full h-2.5 my-1">
+                            <div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${score}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">
+                            <!-- Note: The description below comes from the API and will be in Chinese -->
+                            <strong>Benchmark (${item.nearest_benchmark}):</strong> ${item.comparison_description}
+                        </p>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
         }
+        // --- [END] v3.1 OPTIMIZATION ---
+
 		/* * =======================================================================
- * 步驟三：替換舊的 handleCustomWordCheck 函式
- *
- * 關鍵修改：
- * 1. (優化) 更新 systemPrompt 規則 4 和 5，
- * a. 根據您提供的指標定義，明確指示 AI 如何計算 PPL, H, TS, SC。
- * b. 移除 AI 計算 "Band" 的冗餘任務。
- * 2. (優化) 更新 systemPrompt 規則 11 (JSON Schema)，
- * =======================================================================
- */
+ * 步驟三：替換舊的 handleCustomWordCheck 函式
+ *
+ * 關鍵修改：
+ * 1. (優化) 更新 systemPrompt 規則 4 和 5，
+ * a. 根據您提供的指標定義，明確指示 AI 如何計算 PPL, H, TS, SC。
+ * b. 移除 AI 計算 "Band" 的冗餘任務。
+ * 2. (優化) 更新 systemPrompt 規則 11 (JSON Schema)，
+ * =======================================================================
+ */
 // Handle custom word validation
 async function handleCustomWordCheck(e) {
-    e.preventDefault();
+    e.preventDefault();
 
-    // --- [MODIFICATION START] Get API Key First ---
-    const userApiKey = apiKeyInput.value.trim();
-    if (!userApiKey) {
-        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-        igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the field above.';
-        customResults.innerHTML = '';
-        return;
-    }
-    // --- [MODIFICATION END] ---
+    // --- [MODIFICATION START] Get API Key First ---
+    const userApiKey = apiKeyInput.value.trim();
+    if (!userApiKey) {
+        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+        igpvlCustomError.innerHTML = 'API key is empty. Please provide a valid API key in the field above.';
+        customResults.innerHTML = '';
+        return;
+    }
+    // --- [MODIFICATION END] ---
 
-    const phrase = predInput.value.trim();
-    const customWord = customWordInput.value.trim();
+    const phrase = predInput.value.trim();
+    const customWord = customWordInput.value.trim();
 
-    // v2.6 IGPVL Integration: Clear old messages
-    igpvlCustomError.innerHTML = '';
-    igpvlCustomError.className = 'text-sm rounded-lg mt-4';
-    customResults.innerHTML = ''; // Clear old results
+    // v2.6 IGPVL Integration: Clear old messages
+    igpvlCustomError.innerHTML = '';
+    igpvlCustomError.className = 'text-sm rounded-lg mt-4';
+    customResults.innerHTML = ''; // Clear old results
 
-    if (!phrase || !customWord) {
-        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
-        igpvlCustomError.innerHTML = 'Please enter both context and a custom word.';
-        return;
-    }
+    if (!phrase || !customWord) {
+        igpvlCustomError.className = 'text-sm p-3 rounded-lg bg-red-900/50 text-red-400';
+        igpvlCustomError.innerHTML = 'Please enter both context and a custom word.';
+        return;
+    }
 
-    // Set UI to loading (v2.6: Before IGPVL)
-    customLoading.classList.remove('hidden');
-    customButton.disabled = true;
-    customButtonText.textContent = "1/2 Validating Input...";
+    // Set UI to loading (v2.6: Before IGPVL)
+    customLoading.classList.remove('hidden');
+    customButton.disabled = true;
+    customButtonText.textContent = "1/2 Validating Input...";
 
-    // --- v2.6 IGPVL Execution (Check context phrase only) ---
-    // --- [MODIFICATION START] Pass userApiKey ---
-    const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput_custom', 'academic');
-    // --- [MODIFICATION END] ---
-    const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
+    // --- v2.6 IGPVL Execution (Check context phrase only) ---
+    // --- [MODIFICATION START] Pass userApiKey ---
+    const igpvlResult = await validateInputGrammar(userApiKey, phrase, 'predInput_custom', 'academic');
+    // --- [MODIFICATION END] ---
+    const isBlocked = displayIgpvlFeedback(igpvlCustomError, igpvlResult);
 
-    if (isBlocked) {
-        customLoading.classList.add('hidden');
-        customButton.disabled = false;
-        customButtonText.textContent = "Check Word";
-        return; // Stop execution
-    }
-    // --- IGPVL End ---
+    if (isBlocked) {
+        customLoading.classList.add('hidden');
+        customButton.disabled = false;
+        customButtonText.textContent = "Check Word";
+        return; // Stop execution
+    }
+    // --- IGPVL End ---
 
-    // Set UI to loading (v2.6: Update status)
-    customButtonText.textContent = "2/2 Checking...";
+    // Set UI to loading (v2.6: Update status)
+    customButtonText.textContent = "2/2 Checking...";
 
-    // Prepare API request (single word mode)
-    const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
-    const temp = predTemp.value;
-    const topP = predTopP.value;
-    const contextLen = predContextLen.value;
-    const truncatedPhrase = truncateContext(phrase, contextLen);
-    const fullPhrase = `${truncatedPhrase} ${customWord}`;
+    // Prepare API request (single word mode)
+    const taskContext = predTask.value === 'general' ? 'General Writing' : `IELTS ${predTask.value}`;
+    const temp = predTemp.value;
+    const topP = predTopP.value;
+    const contextLen = predContextLen.value;
+    const truncatedPhrase = truncateContext(phrase, contextLen);
+    const fullPhrase = `${truncatedPhrase} ${customWord}`;
 
-    // ========================================================
-    // === 優化 START: systemPrompt 已更新 (規則 4, 5, 11) ===
-    // ========================================================
-    const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to validate the naturalness of the user's input word "\${customWord}" following the context "\${truncatedPhrase}", strictly adhering to the specified "Task" style.
+    // ========================================================
+    // === 優化 START: systemPrompt 已更新 (規則 4, 5, 6, 12) ===
+    // ========================================================
+    const systemPrompt = `You are a versatile writing style assistant (IELTS & Technical Writing). Your task is to validate the naturalness of the user's input word "\${customWord}" following the context "\${truncatedPhrase}", strictly adhering to the specified "Task" style.
 Rules:
-1.  [**Input Validation & Correction**]: **If the user's input context phrase \${truncatedPhrase} contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all example generations. If the input is correct, return an empty string.
+1.  [**Input Validation & Correction**]: **If the user's input context phrase \${truncatedPhrase} contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all example generations. If the input is correct, return an empty string.
 
-2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'Task' context when generating 'example' sentences.
+2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'Task' context when generating 'example' sentences.
 
-    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
+    a.  **If Task = Task 1 (Chart Description):** 'example' must be **Formal**, **Objective**, and **Academic**. The tone must be **Neutral**, focusing on describing data, trends, or comparisons (e.g., *soared, plummeted, whereas, significantly*). **Absolutely prohibit** any subjective or emotional expressions like "I think", "In my opinion".
 
-    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
+    b.  **If Task = Task 2 (Argumentative Essay):** 'example' must be **Formal** or **Semi-formal**, with a **Persuasive** or **Analytical** tone. Sentences should focus on logical arguments, cause-and-effect, or presenting formal viewpoints (e.g., *consequently, It is widely argued that, however*). **Must avoid** colloquial expressions or contractions (like "don't").
 
-    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
+    c.  **If Task = 'Tech Guide' (Technical Manual):** 'example' must be **Clear**, **Direct**, and **Instructional**. The tone must be **objective and focused on instructions**.
 
-        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
+        * **(i) Core Requirement:** Sentences **must** prioritize the **Imperative mood** (e.g., "**Click** the button") or **Active Voice in the second person** (e.g., "**You** must **enter** the password").
 
-        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
+        * **(ii) Formatting Conventions:** Must strictly use technical writing formats: **Use Bold for UI elements** (e.g., **Save** button, **File** menu); **Use Monospace/Code font for code, commands, or paths** (e.g., 'npm install', 'C:\\ProgramData').
 
-        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
+        * **(iii) Absolute Prohibition:** Must **strictly avoid** using the **Passive Voice** (e.g., "The button is clicked by...") or **vague, suggestive language** (e.g., "You might want to...", "It is possible to...").
 		
-3.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 10 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 9 below. **This check is mandatory and cannot be skipped or done superficially**.
+3.  [**Absolute Rule**]: 'All' 'example' sentences you generate must satisfy the **English Sentence Definition** in point 11 and 'must' undergo the 'thorough and strict' check by the GVL (Grammar Validation Layer) in point 10 below. **This check is mandatory and cannot be skipped or done superficially**.
 
-4.  [**Optimized**] For this "Context-Continuation" pair, provide the following metrics and items:
-    * Normalized Perplexity (PPL_norm)
-    * Normalized Entropy (H_norm)
-    * Token Stability (TS)
-    * Semantic Coherence (SC)
-    * **Final Fluency Quality Score (FQ)**
-    * **Concise Example (example)**
-    * (Note: "Band" is removed; it will be calculated by the client.)
+4.  [**Optimized**] For this "Context-Continuation" pair, provide the following metrics and items:
+    * Normalized Perplexity (PPL_norm)
+    * Normalized Entropy (H_norm)
+    * Token Stability (TS)
+    * Semantic Coherence (SC)
+    * **Final Fluency Quality Score (FQ)**
+    * **Concise Example (example)**
+    * **Benchmark Comparison (benchmark_comparison)**     * (Note: "Band" is removed; it will be calculated by the client.)
 
-5.  [**Optimized**] [Calculation Rules & Definitions]:
-    **You must calculate the following metrics on a 0.0 to 1.0 scale, where 1.0 is the BEST possible quality.**
+5.  [**Optimized**] [Calculation Rules & Definitions]:
+    **You must calculate the following metrics on a 0.0 to 1.0 scale, where 1.0 is the BEST possible quality.**
 
-    * **PPL_norm (Normalized Perplexity):**
-        * Calculate the Perplexity (PPL) of the \`customWord\` given the context.
-        * Perplexity measures "confusion"; **lower PPL is better**.
-        * Normalize this PPL score to the 0-1 scale, where **1.0 = perfect prediction (low PPL)** and **0.0 = high confusion (high PPL)**.
-    * **H_norm (Normalized Entropy):**
-        * Calculate the Entropy (H) of the probability distribution *for the next token* after the context.
-        * Entropy measures "uncertainty"; **higher H is worse** (more uncertainty).
-        * Normalize this H score to the 0-1 scale, where **1.0 = high confidence (low uncertainty)** and **0.0 = high uncertainty (flat distribution)**.
-    * **TS (Token Stability):**
-        * Assess the stability of the \`customWord\`'s prediction probability when the context is slightly varied.
-        * Normalize this to the 0-1 scale, where **1.0 = highly stable prediction** and **0.0 = volatile prediction**.
-    * **SC (Semantic Coherence):**
-        * Calculate the **Cosine Similarity** between the sentence embedding of the context (\`truncatedPhrase\`) and the \`customWord\` (or the resulting \`example\`).
-        * This measures semantic relevance. **1.0 = perfectly coherent** and **0.0 = semantically unrelated**.
+    * **PPL_norm (Normalized Perplexity):**
+        * Calculate the Perplexity (PPL) of the \`customWord\` given the context.
+        * Perplexity measures "confusion"; **lower PPL is better**.
+        * Normalize this PPL score to the 0-1 scale, where **1.0 = perfect prediction (low PPL)** and **0.0 = high confusion (high PPL)**.
+    * **H_norm (Normalized Entropy):**
+        * Calculate the Entropy (H) of the probability distribution *for the next token* after the context.
+        * Entropy measures "uncertainty"; **higher H is worse** (more uncertainty).
+        * Normalize this H score to the 0-1 scale, where **1.0 = high confidence (low uncertainty)** and **0.0 = high uncertainty (flat distribution)**.
+    * **TS (Token Stability):**
+        * Assess the stability of the \`customWord\`'s prediction probability when the context is slightly varied.
+        * Normalize this to the 0-1 scale, where **1.0 = highly stable prediction** and **0.0 = volatile prediction**.
+    * **SC (Semantic Coherence):**
+        * Calculate the **Cosine Similarity** between the sentence embedding of the context (\`truncatedPhrase\`) and the \`customWord\` (or the resulting \`example\`).
+        * This measures semantic relevance. **1.0 = perfectly coherent** and **0.0 = semantically unrelated**.
 
-    * **FQ Calculation Formula (Use normalized metrics):**
-        \`FQ = 0.3 * PPL_norm + 0.2 * H_norm + 0.2 * TS + 0.3 * SC\`
-    
-    * **(FQ-Band Mapping Table is REMOVED as client will calculate it.)**
+    * **FQ Calculation Formula (Use normalized metrics):**
+        \`FQ = 0.3 * PPL_norm + 0.2 * H_norm + 0.2 * TS + 0.3 * SC\`
+    
+    * **(FQ-Band Mapping Table is REMOVED as client will calculate it.)**
 
-6.  [Key Point] In the example sentence, the validated word \${customWord} must "closely and uniquely" follow the "last word" of the context \${truncatedPhrase}. If the last character of the context is punctuation, the word must "closely and uniquely" follow the punctuation mark, separated by a single space.
-7.  Simulate three rounds of Self-Consistency sampling for each example generation to ensure semantic stability.
-8.  Provide a "consistency_score" (0-100) for each generation, calculated based on semantic similarity, lexical variance, and syntactic stability.
-9.  [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
+6.  [**Optimized**] [Metric Benchmarks (JSON Samples)]:
+    **You must first follow these JSON samples as a benchmark guide to calibrate your 0.0-1.0 scoring.** These examples define what different values on the scale represent.
+	
+\`\`\`json
+[
+  // --- PPL_norm (Normalized Perplexity) Benchmarks ---
+  // 1.0 = Perfect (Low PPL), 0.0 = High Confusion (High PPL)
+  {
+    "metric": "PPL_norm",
+    "feature": "極度流暢 (完美預測)",
+    "indicator_value": 0.95,
+    "description": "指標為 1.0 表示完美預測 (PPL 趨近於 0)，0.0 表示高度混亂 (PPL 極高)。此值 (0.95) 代表在上下文中，該詞是極度自然、幾乎唯一的接續。",
+    "example": { "context": "The opposite of hot is", "word": "cold" }
+  },
+  {
+    "metric": "PPL_norm",
+    "feature": "流暢 (常見)",
+    "indicator_value": 0.75,
+    "description": "一個非常合乎邏輯且常見的用詞，模型對此預測的困惑度很低。",
+    "example": { "context": "She opened the door and walked", "word": "inside" }
+  },
+  {
+    "metric": "PPL_norm",
+    "feature": "尚可 (合理)",
+    "indicator_value": 0.50,
+    "description": "一個合理、文法正確的接續，但並非最常見或最流暢的選擇。",
+    "example": { "context": "He studied hard for the", "word": "promotion" }
+  },
+  {
+    "metric": "PPL_norm",
+    "feature": "生硬 (罕見)",
+    "indicator_value": 0.25,
+    "description": "文法上可能成立，但在語意或風格上非常罕見，導致模型困惑度偏高。",
+    "example": { "context": "Please pass the", "word": "sky" }
+  },
+  {
+    "metric": "PPL_norm",
+    "feature": "不通順 (高度混亂)",
+    "indicator_value": 0.05,
+    "description": "該詞在上下文中顯得格格不入或近乎文法錯誤，模型對此預測的困惑度極高。",
+    "example": { "context": "I would like to", "word": "happy" }
+  },
+  
+  // --- H_norm (Normalized Entropy) Benchmarks ---
+  // 1.0 = High Confidence (Low Uncertainty), 0.0 = High Uncertainty
+  {
+    "metric": "H_norm",
+    "feature": "高信心 (低不確定性)",
+    "indicator_value": 0.90,
+    "description": "指標為 1.0 表示高信心 (低熵)，0.0 表示高不確定性 (高熵)。此值 (0.90) 代表模型極度確定此詞為最佳接續，其他選項的機率極低。",
+    "example": { "context": "The capital of France is", "word": "Paris" }
+  },
+  {
+    "metric": "H_norm",
+    "feature": "有信心",
+    "indicator_value": 0.70,
+    "description": "模型相當確定，在機率分佈中，此詞的機率顯著高於次要選項。",
+    "example": { "context": "She wore a beautiful red", "word": "dress" }
+  },
+  {
+    "metric": "H_norm",
+    "feature": "中等信心 (多重選項)",
+    "indicator_value": 0.50,
+    "description": "模型認為有數個詞彙皆有可能接續，機率分佈較為分散，不確定性中等。",
+    "example": { "context": "I am feeling", "word": "hungry" }
+  },
+  {
+    "metric": "H_norm",
+    "feature": "不確定 (高)",
+    "indicator_value": 0.20,
+    "description": "上下文非常模糊或開放，導致模型無法鎖定單一的接續詞，機率分佈廣泛。",
+    "example": { "context": "The result of the experiment was", "word": "inconclusive" }
+  },
+  {
+    "metric": "H_norm",
+    "feature": "極度不確定 (均勻分佈)",
+    "indicator_value": 0.05,
+    "description": "上下文幾乎未提供任何線索，模型對下一個詞的預測接近隨機猜測 (高熵)。",
+    "example": { "context": "He suddenly said,", "word": "Stop" }
+  },
+
+  // --- TS (Token Stability) Benchmarks ---
+  // 1.0 = Highly Stable, 0.0 = Volatile
+  {
+    "metric": "TS",
+    "feature": "高度穩定",
+    "indicator_value": 0.95,
+    "description": "指標為 1.0 表示高度穩定，0.0 表示極不穩定。此值 (0.95) 代表即使上下文稍作同義詞替換或微調，此詞的預測機率依然保持不變。",
+    "example": { "context_1": "The dog is very loyal", "context_2": "The canine is very loyal", "word": "and" }
+  },
+  {
+    "metric": "TS",
+    "feature": "穩定",
+    "indicator_value": 0.75,
+    "description": "對上下文的微小變動有抵抗力，預測結果保持一致。",
+    "example": { "context_1": "The chart shows a significant increase", "context_2": "The graph displays a major rise", "word": "in" }
+  },
+  {
+    "metric": "TS",
+    "feature": "中等穩定",
+    "indicator_value": 0.50,
+    "description": "當上下文變動較大時，預測結果可能會開始偏移。",
+    "example": { "context_1": "Click the 'Submit' button", "context_2": "Press the 'Submit' key", "word": "to" }
+  },
+  {
+    "metric": "TS",
+    "feature": "不穩定",
+    "indicator_value": 0.25,
+    "description": "即使是微小的同義詞替換，也可能導致模型改變預測結果。",
+    "example": { "context_1": "He felt sad", "context_2": "He felt blue", "word": "because" }
+  },
+  {
+    "metric": "TS",
+    "feature": "極度不穩定",
+    "indicator_value": 0.05,
+    "description": "預測結果對上下文的擾動極度敏感，預測不可靠。",
+    "example": { "context_1": "It's a complex task", "context_2": "It's a hard task", "word": "nonetheless" }
+  },
+
+  // --- SC (Semantic Coherence) Benchmarks ---
+  // 1.0 = Perfectly Coherent, 0.0 = Unrelated
+  {
+    "metric": "SC",
+    "feature": "完全相關 (語意一致)",
+    "indicator_value": 0.98,
+    "description": "指標為 1.0 表示語意完美連貫 (餘弦相似度高)，0.0 表示完全無關。此值 (0.98) 代表該詞與上下文的語意向量幾乎一致或完美接續。",
+    "example": { "context": "He is a doctor who works at the", "word": "hospital" }
+  },
+  {
+    "metric": "SC",
+    "feature": "高度相關 (主題緊密)",
+    "indicator_value": 0.80,
+    "description": "與上下文的語意主題緊密相關，是合乎邏輯的語意延伸。",
+    "example": { "context": "The company's profits soared last", "word": "quarter" }
+  },
+  {
+    "metric": "SC",
+    "feature": "主題相關",
+    "indicator_value": 0.60,
+    "description": "屬於同一主題範疇，但在語意上的連結不如前者緊密。",
+    "example": { "context": "We are discussing climate", "word": "policy" }
+  },
+  {
+    "metric": "SC",
+    "feature": "弱相關 (語意跳躍)",
+    "indicator_value": 0.30,
+    "description": "語意上有些許關聯，但連結薄弱，感覺像主題的跳躍或偏離。",
+    "example": { "context": "She loves to bake", "word": "computers" }
+  },
+  {
+    "metric": "SC",
+    "feature": "語意無關",
+    "indicator_value": 0.10,
+    "description": "該詞與上下文的語意完全不相關 (餘弦相似度趨近於 0)。",
+    "example": { "context": "The cat sat on the", "word": "philosophy" }
+  },
+
+  // --- FQ (Final Fluency Quality) Benchmarks (Step 3) ---
+  // Calculated: 0.3*PPL_norm + 0.2*H_norm + 0.2*TS + 0.3*SC
+  {
+    "metric": "FQ",
+    "feature": "極佳 (Band 9)",
+    "indicator_value": 0.90,
+    "description": "綜合所有指標 (PPL, H, TS, SC) 均表現極佳。此詞是完美的選擇。",
+    "example": { "context": "The data shows a clear", "word": "trend" }
+  },
+  {
+    "metric": "FQ",
+    "feature": "優秀 (Band 8)",
+    "indicator_value": 0.80,
+    "description": "各項指標均表現良好，流暢度、信心、穩定性、相關性俱佳。",
+    "example": { "context": "As illustrated by the graph, the sales figures", "word": "grew" }
+  },
+  {
+    "metric": "FQ",
+    "feature": "良好 (Band 7)",
+    "indicator_value": 0.70,
+    "description": "綜合表現良好，可能有一項指標稍弱，但不影響整體品質。",
+    "example": { "context": "The processor is very", "word": "quick" }
+  },
+  {
+    "metric": "FQ",
+    "feature": "合格 (Band 6)",
+    "indicator_value": 0.55,
+    "description": "綜合表現中等。該詞可用，但有更佳選擇。",
+    "example": { "context": "We must finish the project before the", "word": "ending" }
+  },
+  {
+    "metric": "FQ",
+    "feature": "不佳 (Band 5)",
+    "indicator_value": 0.40,
+    "description": "多項指標分數偏低，顯示該詞在上下文中不自然或不相關。",
+    "example": { "context": "Click the button to make the", "word": "computer" }
+  }
+]
+\`\`\`
+
+7.  **[新規則]** [Benchmark Comparison Generation]:
+    For each of the four core metrics (**PPL_norm, H_norm, TS, SC**), you must compare its calculated score to the JSON benchmarks provided in Rule 6. The output must be an array of four JSON objects in the \`benchmark_comparison\` field. Each object must contain:
+    * **"metric"**: The name of the metric (e.g., "PPL_norm").
+    * **"score"**: The calculated score for this run (e.g., 0.78).
+    * **"nearest_benchmark"**: The 'feature' string from the closest benchmark JSON sample (e.g., "流暢 (常見)" or "高度穩定").
+    * **"comparison_description"**: A concise, localized description (Chinese) explaining what the score means in the context of the benchmarks (e.g., "該得分 0.78 略高於基準 0.75，屬於高度流暢的範疇。").
+	
+8. [Key Point] In the example sentence, the validated word \${customWord} must "closely and uniquely" follow the "last word" of the context \${truncatedPhrase}. If the last character of the context is punctuation, the word must "closely and uniquely" follow the punctuation mark, separated by a single space.
+9.  Simulate three rounds of Self-Consistency sampling for each example generation to ensure semantic stability.
+10.  Provide a "consistency_score" (0-100) for each generation, calculated based on semantic similarity, lexical variance, and syntactic stability.
+11. [Grammar Validation Layer (Latest Spec)]: ✨ Ultimate Validation Standard
 
 **This is the most important step.** Perform an **absolutely strict** grammar validation on the generated 'example' and fill in the 'grammar_validation' object.
 
-    a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax and Task compliance errors**)
-    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as major syntax errors (like comma splices/fragments)**. If no errors, must return an empty array [].
-        * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
-        * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
-        * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
+    a.  [I. Correctness (Strict Correctness)]: (🔥 Strictly Reinforced - **Includes syntax and Task compliance errors**)
+    The 'correctness.errors' array 'must' contain all detected errors. **This includes the most minor errors, as well as major syntax errors (like comma splices/fragments)**. If no errors, must return an empty array [].
+        * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
+        * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
+        * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
 		* **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
-        * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
-            * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
-            * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or overly informal vocabulary. Error 'type' should be "Formality Violation".
-            * **Tech Guide Violation (High):** Detected **passive voice** (e.g., "The file is saved by..."), **vague/non-instructional language** (e.g., "It is recommended to..."), or **missing UI/Code formatting** (e.g., failing to mark 'Save button' as '**Save** button'). Error 'type' should be "Tech Guide Violation".
+        * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
+            * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
+            * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or overly informal vocabulary. Error 'type' should be "Formality Violation".
+            * **Tech Guide Violation (High):** Detected **passive voice** (e.g., "The file is saved by..."), **vague/non-instructional language** (e.g., "It is recommended to..."), or **missing UI/Code formatting** (e.g., failing to mark 'Save button' as '**Save** button'). Error 'type' should be "Tech Guide Violation".
 
-    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
-    Provide "suggestions". **Does not handle Level I syntax errors**.
-        * **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice (a suggestion in Task 1/2, an error in Tech Guide).
-        * **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
-    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
-    Provide "suggestions".
-        * **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
-        * **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
-    d.  [IV. Delivery]: (🔥 Task-Reinforced Standard)
-    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
-    **'formality' and 'detected_tone' assessment must strictly correspond to the Task type specified in Rule 2:**
-        * **Task 1:** 'formality' must be rated "Formal (Academic)", 'detected_tone' must be "Objective" or "Neutral".
-        * **Task 2:** 'formality' must be rated "Formal" or "Semi-formal", 'detected_tone' must be "Persuasive" or "Analytical".
-        * **Tech Guide:** 'formality' must be rated "Neutral" or "Informal" (meaning "Direct", not "Casual"), 'detected_tone' must be "Instructional" or "Direct".
+    b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
+    Provide "suggestions". **Does not handle Level I syntax errors**.
+        * **Optimization:** Provide brevity suggestions (wordiness), detect overuse of passive voice (a suggestion in Task 1/2, an error in Tech Guide).
+        * **Sentence Rewrite (rewrite_suggestion):** **Must** provide a full sentence rewrite that **corrects all errors from I. Correctness** and makes the meaning clearer and more concise.
+    c.  [III. Engagement]: (🌟 Suggestive Reinforcement)
+    Provide "suggestions".
+        * **Vocabulary:** Via 'vocab_suggestions', **must** suggest replacements for **overused or bland** basic words.
+        * **Structure:** Via 'feedback', alert to issues with sentence variety or content repetition.
+    d.  [IV. Delivery]: (🔥 Task-Reinforced Standard)
+    Detect 'detected_tone', 'formality', and check 'inclusive_language_warning'.
+    **'formality' and 'detected_tone' assessment must strictly correspond to the Task type specified in Rule 2:**
+        * **Task 1:** 'formality' must be rated "Formal (Academic)", 'detected_tone' must be "Objective" or "Neutral".
+        * **Task 2:** 'formality' must be rated "Formal" or "Semi-formal", 'detected_tone' must be "Persuasive" or "Analytical".
+        * **Tech Guide:** 'formality' must be rated "Neutral" or "Informal" (meaning "Direct", not "Casual"), 'detected_tone' must be "Instructional" or "Direct".
 
-10. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
+11. [English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.**
 
-11. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
-    (Note: Schema updated to match Rule 4 & 5. "Band" is removed.)
+12. [Output Format (JSON Schema)]: **Your output 'must' strictly adhere to the following JSON structure object.**
+    (Note: Schema updated to match Rule 4 & 5. "Band" is removed.)
 
 \`\`\`json
 {
-  "initial_phrase_correction": "STRING",
-  "PPL_norm": "NUMBER",
-  "H_norm": "NUMBER",
-  "TS": "NUMBER",
-  "SC": "NUMBER",
-  "FQ": "NUMBER",
-  "example": "STRING",
-  "consistency_score": "NUMBER",
-  "grammar_validation": {
-    "correctness": {
-      "is_correct": "BOOLEAN",
-      "errors": [
+  "initial_phrase_correction": "STRING",
+  "PPL_norm": "NUMBER",
+  "H_norm": "NUMBER",
+  "TS": "NUMBER",
+  "SC": "NUMBER",
+  "FQ": "NUMBER",
+  "example": "STRING",
+  "consistency_score": "NUMBER",
+  "benchmark_comparison": [ // <--- 【修正點 C】新增陣列結構
         {
-          "type": "STRING",
-          "description": "STRING",
-          "suggestion": "STRING",
-          "priority": "STRING"
+            "metric": "STRING",
+            "score": "NUMBER",
+            "nearest_benchmark": "STRING",
+            "comparison_description": "STRING"
         }
-      ]
-    },
-    "clarity": {
-      "feedback": "STRING",
-      "rewrite_suggestion": "STRING"
-    },
-    "engagement": {
-      "feedback": "STRING",
-      "vocab_suggestions": "ARRAY<STRING>"
-    },
-    "delivery": {
-      "detected_tone": "STRING",
-      "formality": "STRING",
-      "inclusive_language_warning": "STRING"
-    }
-  }
+        // ... (其他三個指標的物件) ...
+    ],
+   "grammar_validation": {
+    "correctness": {
+      "is_correct": "BOOLEAN",
+      "errors": [
+        {
+          "type": "STRING",
+          "description": "STRING",
+          "suggestion": "STRING",
+          "priority": "STRING"
+        }
+      ]
+    },
+    "clarity": {
+      "feedback": "STRING",
+      "rewrite_suggestion": "STRING"
+    },
+    "engagement": {
+      "feedback": "STRING",
+      "vocab_suggestions": "ARRAY<STRING>"
+    },
+    "delivery": {
+      "detected_tone": "STRING",
+      "formality": "STRING",
+      "inclusive_language_warning": "STRING"
+    }
+  }
 }
 \`\`\`
-12. **Output ONLY the requested JSON format object.**`;
-    // ======================================================
-    // === 優化 END: systemPrompt 已更新 ===
-    // ======================================================
+13. **Output ONLY the requested JSON format object.**`;
+    // ======================================================
+    // === 優化 END: systemPrompt 已更新 ===
+    // ======================================================
 
 
-    const userQuery = `
+    const userQuery = `
 Context (Using only last ${contextLen} words): "${truncatedPhrase}"
 Custom Word: "${customWord}"
 Writing Task: "${taskContext}"
 Sampling Params (T=${temp}, TopP=${topP})
 `;
-    // --- [MODIFICATION START] Pass userApiKey ---
-    const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, customSchema, temp, topP);
-    // --- [MODIFICATION END] ---
+    // --- [MODIFICATION START] Pass userApiKey ---
+    const result = await callGeminiAPI(userApiKey, systemPrompt, userQuery, customSchema, temp, topP);
+    // --- [MODIFICATION END] ---
 
-    // Restore UI
-    customLoading.classList.add('hidden');
-    customButton.disabled = false;
-    customButtonText.textContent = "Check Word";
+    // Restore UI
+    customLoading.classList.add('hidden');
+    customButton.disabled = false;
+    customButtonText.textContent = "Check Word";
 
-    // ==================================================================
-    // === 關鍵修改區域 START ===
-    // (此區域邏輯不變，因為它已經在正確地使用 getBandInfoFromFQ)
-    // ==================================================================
-    if (result.isError) {
-        customResults.innerHTML = `<p class="text-red-400">Validation Failed: ${result.message}</p>`;
+    // ==================================================================
+    // === v3.1 OPTIMIZATION START: Reworked custom word result UI ===
+    // ==================================================================
+    if (result.isError) {
+        customResults.innerHTML = `<p class="text-red-400">Validation Failed: ${result.message}</p>`;
 
-    } else if (result.FQ !== undefined) { // v3.0: 檢查 FQ (而不是舊的 band)
+    } else if (result.FQ !== undefined) { // v3.0: 檢查 FQ (而不是舊的 band)
 
-        // v3.0: 呼叫新的輔助函式，在前端根據 FQ 計算 Band
-        const bandInfo = getBandInfoFromFQ(result.FQ);
-
-        // v3.0 Update: 顯示所有新的指標
-        // (此處的 HTML 渲染邏輯是正確的，因為它依賴 bandInfo.band，
-        // 而不是一個不存在的 result.Band)
+        // v3.0: 呼叫新的輔助函式，在前端根據 FQ 計算 Band
+        const bandInfo = getBandInfoFromFQ(result.FQ);
+        // =======================================================
+        // 【新增程式碼】: 輸出 benchmark_comparison 到 Console
+        // =======================================================
+        console.log("--- Benchmark Comparison Results ---");
+        // 使用 console.dir 或 JSON.stringify 以確保輸出格式可讀
+        if (result.benchmark_comparison) {
+            console.dir(result.benchmark_comparison);
+        } else {
+            console.log("Error: benchmark_comparison field is missing or empty.");
+        }
+        console.log("------------------------------------");
+        // =======================================================
+        
+        // v3.1 (Optimization): Reworked custom word result UI
         customResults.innerHTML = `
-                <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <h4 class="text-lg font-bold text-yellow-300">Custom Word: ${customWord}</h4>
-                        <span class="band-tag ${bandInfo.color} text-white">Band ${bandInfo.band}</span>
+            <div class="bg-gray-700 p-4 rounded-lg border border-yellow-500/50 space-y-4">
+                
+                <!-- 1. Header -->
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between pb-3 border-b border-gray-600 gap-2">
+                    <div>
+                        <h4 class="text-lg font-bold text-yellow-300">Custom Word: "${customWord}"</h4>
+                        <p class="text-sm text-gray-400 break-all">Context: "...${truncatedPhrase}"</p>
                     </div>
-                    <hr class="border-gray-600">
-                    <div class="grid grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-300">
-                        <p><strong>FQ:</strong> <span class="text-yellow-300 font-bold">${result.FQ.toFixed(4)}</span></p>
-                        <p><strong>Band (Calc):</strong> <span class="text-yellow-300 font-bold">${bandInfo.band}</span></p>
-                        <p><strong>Consistency:</strong> <span class="text-yellow-300">${result.consistency_score}</span></p>
-                        <p><strong>PPL_norm:</strong> <span class="text-yellow-300">${result.PPL_norm.toFixed(4)}</span></p>
-                        <p><strong>H_norm:</strong> <span class="text-yellow-300">${result.H_norm.toFixed(4)}</span></p>
-                        <p><strong>TS:</strong> <span class="text-yellow-300">${result.TS.toFixed(4)}</span></p>
-                        <p><strong>SC:</strong> <span class="text-yellow-300">${result.SC.toFixed(4)}</span></p>
+                    <span class="band-tag ${bandInfo.color} text-white text-lg px-4 py-2 flex-shrink-0">Band ${bandInfo.band}</span>
+                </div>
+
+                <!-- 2. Main Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- Column 1: Final Score -->
+                    <div class="bg-gray-800 p-4 rounded-lg flex flex-col items-center justify-center text-center border border-gray-700">
+                        <h5 class="text-sm font-semibold text-gray-400 mb-1">Final Fluency Quality (FQ)</h5>
+                        <p class="text-5xl font-bold text-yellow-300">${result.FQ.toFixed(4)}</p>
+                        
+                        <details class="w-full mt-3">
+                            <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-300">Show FQ-Band Mapping</summary>
+                            <div class="mt-2 pt-2 border-t border-gray-700 space-y-1 text-xs text-gray-400 text-left">
+                                <p><span class="band-tag bg-blue-600 text-white w-12 inline-block text-center mr-1">Band 9</span> FQ 0.85–1.0</p>
+                                <p><span class="band-tag bg-green-600 text-white w-12 inline-block text-center mr-1">Band 8</span> FQ 0.75–0.84</p>
+                                <p><span class="band-tag bg-yellow-500 text-white w-12 inline-block text-center mr-1">Band 7</span> FQ 0.65–0.74</p>
+                                <p><span class="band-tag bg-orange-500 text-white w-12 inline-block text-center mr-1">Band 6</span> FQ 0.50–0.64</p>
+                                <p><span class="band-tag bg-red-600 text-white w-12 inline-block text-center mr-1">Band 5</span> FQ 0.35–0.49</p>
+                                <p><span class="band-tag bg-red-800 text-white w-12 inline-block text-center mr-1">Band &lt;5</span> FQ &lt; 0.35</p>
+                            </div>
+                        </details>
                     </div>
-                    <div class="bg-gray-600 p-3 rounded-md text-gray-200 mt-2">
+
+                    <!-- Column 2: Component Metrics -->
+                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h5 class="text-sm font-semibold text-gray-400 mb-3">Component Metrics</h5>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex justify-between text-gray-300"><span>PPL_norm:</span> <span class="font-medium text-yellow-300">${result.PPL_norm.toFixed(4)}</span></li>
+                            <li class="flex justify-between text-gray-300"><span>H_norm:</span> <span class="font-medium text-yellow-300">${result.H_norm.toFixed(4)}</span></li>
+                            <li class="flex justify-between text-gray-300"><span>TS (Stability):</span> <span class="font-medium text-yellow-300">${result.TS.toFixed(4)}</span></li>
+                            <li class="flex justify-between text-gray-300"><span>SC (Coherence):</span> <span class="font-medium text-yellow-300">${result.SC.toFixed(4)}</span></li>
+                            <li class="flex justify-between text-gray-300 pt-2 border-t border-gray-700/50"><span>Consistency:</span> <span class="font-medium text-yellow-300">${result.consistency_score}</span></li>
+                        </ul>
+                    </div>
+
+                    <!-- Column 3: Benchmark Comparison -->
+                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h5 class="text-sm font-semibold text-gray-400 mb-3">Benchmark Comparison</h5>
+                        <!-- This is where the new function's output will go -->
+                        ${renderBenchmarkComparison(result.benchmark_comparison)}
+                    </div>
+                </div>
+
+                <!-- 3. Example & Grammar -->
+                <div class="pt-4 border-t border-gray-600">
+                    <h5 class="text-sm font-semibold text-gray-400 mb-2">Example Sentence & Grammar Report</h5>
+                    <div class="bg-gray-600 p-3 rounded-md text-gray-200">
                         ${highlight(result.example, fullPhrase)}
                     </div>
-                     ${renderGrammarValidation(result.grammar_validation)}
-                <div class="mt-4 pt-3 border-t border-gray-600">
-                        <h5 class="text-sm font-semibold text-gray-400 mb-2">Scoring Reference (FQ-Band Mapping)</h5>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
-                            <p><span class="band-tag bg-blue-600 text-white w-12 inline-block text-center mr-1">Band 9</span> FQ 0.85 – 1.0</p>
-                            <p><span class="band-tag bg-green-600 text-white w-12 inline-block text-center mr-1">Band 8</span> FQ 0.75 – 0.84</p>
-                            <p><span class="band-tag bg-yellow-500 text-white w-12 inline-block text-center mr-1">Band 7</span> FQ 0.65 – 0.74</p>
-                            <p><span class="band-tag bg-orange-500 text-white w-12 inline-block text-center mr-1">Band 6</span> FQ 0.50 – 0.64</p>
-                            <p><span class="band-tag bg-red-600 text-white w-12 inline-block text-center mr-1">Band 5</span> FQ 0.35 – 0.49</p>
-                            <p><span class="band-tag bg-red-800 text-white w-12 inline-block text-center mr-1">Band &lt;5</span> FQ &lt; 0.35</p>
-                        </div>
-                    </div>
-				</div>
-            `;
-    } else {
-        // v3.0: 更新錯誤訊息
-        customResults.innerHTML = `<p class="text-red-400">Received unexpected response format (Missing required FQ metric).</p>`;
+                    <!-- The renderGrammarValidation function is already defined and works -->
+                    ${renderGrammarValidation(result.grammar_validation)}
+                </div>
+            </div>
+        `;
+    } else {
+        // v3.0: 更新錯誤訊息
+        customResults.innerHTML = `<p class="text-red-400">Received unexpected response format (Missing required FQ metric).</p>`;
     }
-    // ==================================================================
-    // === 關鍵修改區域 END ===
-    // ==================================================================
+    // ==================================================================
+    // === v3.1 OPTIMIZATION END ===
+    // ==================================================================
 }
 		////
 
@@ -2827,7 +3147,7 @@ Return ONLY a valid JSON object matching the requested schema.
         switchTab('prediction');
 
         // v2.9.3: Version note
-        console.log("IELTS Writing Assistant v2.9.3_en loaded. (UI Translated).");
+        console.log("IELTS Writing Assistant v2.9.3_en (UI Optimized v3.1) loaded.");
 
     </script>
 </body>
