@@ -120,15 +120,25 @@
                     <label for="github_user" class="block text-sm font-medium text-gray-400 mb-2">GitHub 使用者名稱</label>
                     <input type="text" id="github_user" name="github_user" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="例如：your-username" value="charliejimi">
                 </div>
-                <!-- Repo Name --><div class="col-span-1">
+                <!-- Repo Name (MODIFIED) --><div class="col-span-1">
                     <label for="github_repo" class="block text-sm font-medium text-gray-400 mb-2">GitHub 儲存庫名稱</label>
-                    <input type="text" id="github_repo" name="github_repo" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="例如：ielts-writing-tracker" value="Git_Practice_Sandbox">
+                    <!-- 🌟 MODIFIED: Changed from input to select -->
+                    <select id="github_repo" name="github_repo" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200">
+                        <option value="" disabled selected class="bg-darkBg text-gray-500">請先填寫 PAT 並點擊抓取...</option>
+						<option value="Git_Practice_Sandbox" selected class="bg-darkBg">Git_Practice_Sandbox (Default)</option>
+                    </select>
                 </div>
-                <!-- PAT Token --><div class="col-span-1">
+                <!-- PAT Token (MODIFIED) --><div class="col-span-1">
                     <label for="github_token" class="block text-sm font-medium text-gray-400 mb-2">Personal Access Token (PAT)</label>
                     <input type="password" id="github_token" name="github_token" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="""">
+                    <!-- 🌟 NEW: Fetch button -->
+                    <button type="button" id="fetch-repos-button" class="w-full mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 transition duration-200 text-white">
+                        🔄 抓取儲存庫 (Repos)
+                    </button>
                 </div>
             </div>
+            <!-- 🌟 NEW: Status message for repo fetching -->
+            <p id="repo-fetch-status" class="text-sm mt-4 hidden"></p>
             <p id="repo-error" class="text-red-400 text-sm mt-4 hidden">🚨 請務必填寫所有 GitHub 欄位，包括 PAT。</p>
         </div>
 
@@ -549,6 +559,22 @@ AI 評語:"></textarea>
                         } else {
                             element.value = value;
                         }
+
+                        // 🌟 NEW: Special handling for github_repo to add the imported option
+                        if (id === 'github_repo' && value) {
+                            // Check if this option already exists (e.g., from a previous fetch)
+                            let option = element.querySelector(`option[value="${value}"]`);
+                            if (!option) {
+                                // If not, create and append it so it can be selected
+                                option = document.createElement('option');
+                                option.value = value;
+                                option.textContent = `${value} (from import)`;
+                                element.appendChild(option);
+                            }
+                            // Set the value, which now matches an option
+                            element.value = value;
+                        }
+
                         fieldsImported++;
                     }
                 }
@@ -608,6 +634,147 @@ AI 評語:"></textarea>
         const modelName = "gemini-2.5-flash-preview-09-2025"; 
         const imageModelName = "gemini-2.5-flash-image-preview"; // 🌟 (用於 AI 圖表生成)
         
+        // -----------------------------------------------------
+        // 🌟 NEW: GitHub Repo Fetching Function
+        // -----------------------------------------------------
+        async function fetchUserRepos() {
+            console.log("[GitHub Fetch] Starting repo fetch...");
+            const user = document.getElementById('github_user').value.trim();
+            const token = document.getElementById('github_token').value.trim();
+            const button = document.getElementById('fetch-repos-button');
+            const statusEl = document.getElementById('repo-fetch-status');
+            const repoSelect = document.getElementById('github_repo');
+
+            // 1. Validate inputs
+            if (!user || !token) {
+                statusEl.textContent = '🚨 錯誤：請先填寫 GitHub 使用者名稱和 PAT。';
+                statusEl.classList.remove('hidden', 'text-green-400');
+                statusEl.classList.add('text-red-400');
+                return;
+            }
+
+            // 2. Set loading state
+            button.disabled = true;
+            button.textContent = '🔄 抓取中...';
+            statusEl.textContent = '🔄 正在從 GitHub API 抓取您的儲存庫...';
+            statusEl.classList.remove('hidden', 'text-red-400', 'text-green-400');
+            statusEl.classList.add('text-yellow-400');
+
+            // 3. Preserve imported value
+            // (Store the value *before* clearing options, in case it came from an import)
+            const previouslySelectedRepo = repoSelect.value;
+            console.log(`[GitHub Fetch] Preserving selected repo (if any): ${previouslySelectedRepo}`);
+
+            // 4. Clear existing options
+            // (Clear all *except* the first disabled one, or just clear all and re-add)
+            repoSelect.innerHTML = '<option value="" disabled selected class="bg-darkBg text-gray-500">抓取中...</option>';
+            
+            // 5. Make API Call
+            // We fetch up to 100 repos owned by the user
+            const apiUrl = `https://api.github.com/users/${user}/repos?type=owner&per_page=100`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.com/v3+json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Success
+                    if (Array.isArray(result) && result.length > 0) {
+                        // Clear the "loading" option
+                        repoSelect.innerHTML = '';
+                        
+                        // Add a new default
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = "";
+                        defaultOption.textContent = "請選擇一個儲存庫...";
+                        defaultOption.disabled = true;
+                        repoSelect.appendChild(defaultOption);
+
+                        // Populate with fetched repos
+                        result.forEach(repo => {
+                            const option = document.createElement('option');
+                            option.value = repo.name;
+                            option.textContent = repo.name;
+                            option.className = 'bg-darkBg';
+                            repoSelect.appendChild(option);
+                        });
+                        
+                        // 6. Restore selection
+                        // Try to set the value back. If it exists, it will be selected.
+                        if (previouslySelectedRepo) {
+                            repoSelect.value = previouslySelectedRepo;
+                        }
+                        
+                        // Check if the restored value was successful
+                        if (repoSelect.value === previouslySelectedRepo && previouslySelectedRepo !== "") {
+                            statusEl.textContent = `✅ 成功抓取 ${result.length} 個儲存庫！已還原您的選擇。`;
+                        } else {
+                               // This happens if the imported/default value wasn't in the fetched list
+                            // 🌟 NEW LOGIC: Add the previous value back if it wasn't found
+                            if (previouslySelectedRepo) {
+                                let option = document.createElement('option');
+                                option.value = previouslySelectedRepo;
+                                option.textContent = `${previouslySelectedRepo} (Default/Imported)`;
+                                option.className = 'bg-darkBg';
+                                option.selected = true; // Select it
+                                repoSelect.appendChild(option);
+                                // repoSelect.value = previouslySelectedRepo; // Select it
+                                statusEl.textContent = `✅ 成功抓取 ${result.length} 個儲存庫！已還原 (Default/Imported) 選擇。`;
+                            } else {
+                                // It was empty before, so just ask to select
+                            statusEl.textContent = `✅ 成功抓取 ${result.length} 個儲存庫！請選擇一個。`;
+                                statusEl.textContent = `✅ 成功抓取 ${result.length} 個儲存庫！請選擇一個。`;
+                            repoSelect.value = ""; // Reset to "Please select"
+                                repoSelect.value = ""; // Reset to "Please select"
+                            }
+                        }
+                        
+                        statusEl.classList.remove('text-red-400', 'text-yellow-400');
+                        statusEl.classList.add('text-green-400');
+
+                    } else {
+                        // Empty but successful response
+                        statusEl.textContent = 'ℹ️ 未找到您擁有的任何儲存庫。';
+                        statusEl.classList.remove('text-red-400', 'text-yellow-400');
+                        statusEl.classList.add('text-gray-300');
+                        repoSelect.innerHTML = '<option value="" disabled selected class="bg-darkBg text-gray-500">未找到儲存庫</option>';
+                    }
+                } else {
+                    // API Error (401, 404, etc.)
+                    let errorMsg = `抓取失敗 (Status: ${response.status})。`;
+                    if (response.status === 401) {
+                        errorMsg += ' 請檢查您的 PAT 是否正確且具有 "repo" 權限。';
+                    } else if (response.status === 404) {
+                        errorMsg += ' 請檢查您的 GitHub 使用者名稱是否正確。';
+                    } else {
+                        errorMsg += ` ${result.message || ''}`;
+                    }
+                    console.error("[GitHub Fetch] Error:", errorMsg, result);
+                    statusEl.textContent = `❌ ${errorMsg}`;
+                    statusEl.classList.remove('text-green-400', 'text-yellow-400');
+                    statusEl.classList.add('text-red-400');
+                    repoSelect.innerHTML = '<option value="" disabled selected class="bg-darkBg text-gray-500">抓取失敗</option>';
+                }
+
+            } catch (error) {
+                console.error("[GitHub Fetch] Network Error:", error);
+                statusEl.textContent = `❌ 網路錯誤：${error.message}`;
+                statusEl.classList.remove('text-green-400', 'text-yellow-400');
+                statusEl.classList.add('text-red-400');
+                repoSelect.innerHTML = '<option value="" disabled selected class="bg-darkBg text-gray-500">網路錯誤</option>';
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔄 重新抓取儲存庫 (Repos)';
+            }
+        }
+
+
         // -----------------------------------------------------
         // 圖片處理專用變數：新的結構，用於儲存待上傳的圖片並追蹤其來源
         // { 'textareaId': [{file, placeholder}, ...] }
@@ -1141,6 +1308,9 @@ ${articleContent}
             document.getElementById('export-markdown-button').addEventListener('click', exportZip);
             document.getElementById('import-markdown-input').addEventListener('change', importZip);
 
+            // 🌟 NEW: Bind the repo fetch button
+            document.getElementById('fetch-repos-button').addEventListener('click', fetchUserRepos);
+
 
             // 在 DOMContentLoaded 時為所有需要的 Textarea 啟用圖片上傳功能
             setupImageUpload('article_content');
@@ -1186,7 +1356,7 @@ ${articleContent}
 
             // 獲取 GitHub 資訊
             const user = document.getElementById('github_user').value.trim();
-            const repo = document.getElementById('github_repo').value.trim();
+            const repo = document.getElementById('github_repo').value.trim(); // 🌟 現在會從 select 獲取
             const token = document.getElementById('github_token').value.trim();
             const repoError = document.getElementById('repo-error');
             const statusMessage = document.getElementById('status-message');
@@ -1195,8 +1365,9 @@ ${articleContent}
             statusMessage.classList.add('hidden');
             statusMessage.textContent = '';
             
-            // 檢查 GitHub 資訊
+            // 檢查 GitHub 資訊 (🌟 repo 現在是 select，所以也要檢查)
             if (!user || !repo || !token) {
+                repoError.textContent = '🚨 請務必填寫 GitHub 欄位、PAT，並抓取及選擇一個儲存庫。';
                 repoError.classList.remove('hidden');
                 statusMessage.textContent = '🚨 錯誤：請填寫 GitHub 使用者名稱、儲存庫名稱和 PAT。';
                 statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-errorRed');
@@ -1238,6 +1409,7 @@ ${articleContent}
 
             if (totalImagesToUpload > 0) {
                 try {
+                    // 🌟 傳入 repo (從 select 獲取的值)
                     uploadedImageMap = await uploadAllImages(user, repo, token, submitButton);
                     
                     submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; // 🌟 11 -> 12
@@ -1387,7 +1559,7 @@ Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
             const body = `
 ### ⚠️ 文章內容
 
-請參考您手動上傳的 **\`${data.task_file || '未填寫檔案名稱'}\`** 檔案，或點擊下方可收合區塊查看原始寫作截圖與文字。
+點擊下方可收合區塊查看原始寫作截圖與文字。
 
 ---
 <details>
@@ -1485,6 +1657,7 @@ ${additionalNotesFormatted}
             
             // 7. 發送 API 請求自動建立 Issue
             submitButton.textContent = '🚀 正在建立 GitHub Issue...';
+            // 🌟 使用 data.github_repo (從 select 獲取的值)
             const apiUrl = `https://api.github.com/repos/${user}/${repo}/issues`;
             
             try {
