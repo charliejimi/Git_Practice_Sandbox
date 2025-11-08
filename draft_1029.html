@@ -976,7 +976,7 @@ You are absolutely forbidden from outputting any additional text, notes, or expl
 
 You must perform all four check categories and strictly flag all errors:
 1. Core Grammar (IGPVL-CORE-XX): Subject-verb agreement, Tense, Articles, Pronouns, Number agreement.
-2. Advanced Grammar (IGPVL-ADV-XX): Dangling modifiers, Incomplete comparisons, Double negatives, Inconsistent tense shifts, Semantic Collocation Errors or improper Subject/Verb pairings.
+2. Advanced Grammar (IGPVL-ADV-XX): Dangling modifiers, Incomplete comparisons, Double negatives, Inconsistent tense shifts, Semantic Collocation Errors, improper Subject/Verb pairings, or improper coordination of non-parallel elements (e.g., 'a linear and five-step process').
 3. Spelling & Consistency (IGPVL-SPC-XX): Spelling errors, Contextual spelling (e.g., their/there), Capitalization, Number formats, Hyphenation.
 4. Punctuation (IGPVL-PUN-XX): Only when the last character of the input is a punctuation mark, check end punctuation, comma/semicolon/colon misuse.
    Mandatory Exception Rule: If the input is judged to be a fragment or phrase (not a complete statement or question), do NOT flag an 'end_punctuation' error.
@@ -1037,9 +1037,9 @@ The JSON object must include top-level fields:
   },
   "IGPVL-ADV-05": {
     "category": "advanced",
-    "description": "Semantic collocation error",
-    "example_incorrect": "Make a photo.",
-    "example_correct": "Take a photo."
+    "description": "Semantic collocation or improper coordination error",
+    "example_incorrect": "Make a photo. / A linear and five-step process.",
+    "example_correct": "Take a photo. / A linear, five-step process."
   },
   "IGPVL-SPC-02": {
     "category": "spelling",
@@ -1216,6 +1216,8 @@ If the first attempt outputs an invalid JSON, rewrite once to valid JSON without
 [Internal Reference: English Sentence Definition]: **A complete English sentence must contain a subject and a predicate, express a complete thought (independent clause), begin with a capital letter, and end with a period, question mark, or exclamation mark.** This reference will be used for the strict check in Rule 8.
 
 Rules:
+0. [**POS Constraint & Interpretation**]: The predicted 'predicted_word' must strictly belong to the user-specified Part of Speech (POS) class (e.g., if POS='Adjective', the word must be an adjective). **CRITICAL VERB CONSTRAINT: If the POS is Verb (V), the predicted word MUST be an inflected form or the base form of the verb (e.g., 'begins', 'requires', 'was', 'is'). It must NOT be a Gerund (V-ing), a Participle (V-ing/V-ed) used adjectivally/adverbially, or an Infinitive ('to' + V).** The model must ensure the grammatical function of the predicted word is correct in the generated 'example' sentence.
+
 1.  [**Input Validation & Correction**]: **If the user's input phrase contains basic spelling or severe grammatical errors** (e.g., 'cycly' or 'the lives are'), **you must provide the corrected phrase in the 'initial_phrase_correction' field of the output JSON** (e.g., 'the life cycle ends,'), and use this corrected phrase as the context for all predictions. If the input is correct, return an empty string.
 
 2.  [🔥 **Task Style Constraint (Core Optimization)**]: Must strictly adhere to the user-specified 'POS' and 'Task' context when generating 'example' sentences.
@@ -1240,12 +1242,18 @@ Rules:
         * **Core Grammar:** Subject-verb agreement, Basic tense errors, Pronoun case, Article errors (**redundant, missing, or misused**), Noun number.
         * **Complex Grammar/Syntax:** Dangling modifiers, Inconsistent tense shifts, Double negatives, Parallel structure errors, **Run-on sentences, Comma Splices, Sentence Fragments**.
         * **Spelling:** Basic spelling, Contextual spelling, Capitalization/Number format, Hyphenation/Dashes.
-        * **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions).
-        * **(🔥) Task Compliance:** Must strictly check for violations of **Rule 2** Task style.
+        * **Punctuation:** Basic punctuation, Advanced punctuation (semicolons, colon structure, quotation mark conventions). **CRITICAL CHECK: Must strictly detect commas that incorrectly separate a subject from its verb, a verb from its object, or a preposition from its object** (e.g., 'selection, of the raw cocoons').
+        * **(🔥) Task Compliance (General):** Must strictly check for basic violations of **Rule 2** Task style.
             * **Task 1 Violation (Critical):** Detected any subjective expression (e.g., "I think", "In my opinion", "feels"). Error 'type' should be "Task 1 Violation".
             * **Task 2 Violation (High):** Detected colloquial contractions (e.g., "don't", "it's") or
 overly informal vocabulary. Error 'type' should be "Formality Violation".
             * **Tech Guide Violation (High):** Detected **passive voice** (e.g., "The file is saved by..."), **vague/non-instructional language** (e.g., "It is recommended to..."), or **missing UI/Code formatting** (e.g., failing to mark 'Save button' as '**Save** button'). Error 'type' should be "Tech Guide Violation".
+			
+			**(🔥) Task Compliance (Band 8+ Style Hardening):**
+            * **Style Error (High - Collocation):** For Task 1 process descriptions, if the phrase \"starts from\" or \"begins at\" is used instead of the more academic and fixed collocation \"begins with\" or \"commences with\", mark as a 'Style/Collocation Error'.
+            * **Style Error (High - Parallel/Conciseness):** Detected an incorrect parallel structure in an adjective list, specifically using the conjunction 'and' between two non-coordinate adjectives (e.g., 'a linear and five-step process' should be 'a linear, five-step process'). Mark this as a 'Style/Parallel Error'.
+            * **Style Error (Low - Conciseness):** For Task 1 process descriptions referring to general raw materials (e.g., 'silkworm cocoons', 'wheat'), mark the use of the definite article 'the' (e.g., 'the silkworm cocoons') as a 'Style/Conciseness Error' for being unnaturally descriptive where the generic term should be used.
+        **(Note: Individual error suggestions are now replaced by the holistic 'rewrite_suggestion' in Rule 8b.)**
 
     b.  [II. Clarity]: (💡 Suggestive Reinforcement - Focus on style, brevity, and semantics)
     Provide "suggestions". **Does not handle Level I syntax errors**.
@@ -1284,7 +1292,7 @@ overly informal vocabulary. Error 'type' should be "Formality Violation".
             {
               "type": "STRING", 
               "description": "STRING", 
-              "suggestion": "STRING",
+              
               "priority": "STRING" // Must be one of "Critical", "High", "Low"
             }
           ]
