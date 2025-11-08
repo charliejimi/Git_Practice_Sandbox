@@ -34,7 +34,7 @@
         body {
             font-family: 'Inter', 'Noto Sans TC', 'sans-serif';
             -webkit-font-smoothing: antialiased;
-            -moz-osx-osx-smoothing: grayscale;
+            -moz-osx-font-smoothing: grayscale;
         }
         /* 自訂 placeholder 樣式，使其在暗黑模式下更明顯 */
         textarea::placeholder, input::placeholder {
@@ -144,12 +144,12 @@
             <div class="bg-cardBg p-6 md:p-8 rounded-xl shadow-lg border border-borderDark">
                 <label for="task_file" class="block text-xl font-bold text-gray-200 mb-3">📄 文章檔案 (Docx)</label>
                 <p class="text-sm text-gray-400 mb-4">
-                    請填寫您的檔案名稱 (例如：My_Task_1.docx)。
+                    請填寫您的檔案名稱 (例如：06_Process_Cyclic_Silkworms.docx)。
                     <br>
                     <strong class="text-accentYellow">重要提示：</strong> 
                     Issue 建立後，您需要 <strong class="underline">手動將您的 .doc/.docx 檔案</strong> 拖曳到 Issue 留言區才能完成上傳。
                 </p>
-                <input type="text" id="task_file" name="task_file" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="My_Task_1.docx">
+                <input type="text" id="task_file" name="task_file" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200" placeholder="[次數]_[題型]_[題目主題].docx">
             </div>
 
             <!-- 2.5 文章內容 (支援貼圖並傳輸至 GitHub) -->
@@ -220,6 +220,11 @@
                         <input type="number" id="self_assessment_gra" name="self_assessment_gra" min="0" max="9" step="0.5" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 text-gray-200" placeholder="例如：7.5">
                     </div>
                 </div>
+
+                <!-- 🌟 新增：自評總覽截圖 -->
+                <label for="self_assessment_screenshot" class="block text-sm font-medium text-gray-400 mb-2 mt-6">📸 自評總覽截圖 (支援貼圖/拖曳)</label>
+                <p class="text-xs text-gray-500 mb-2">請在此貼上您完整的自評截圖 (例如：包含四項分數的總覽圖)。</p>
+                <textarea id="self_assessment_screenshot" name="self_assessment_screenshot" rows="4" class="w-full px-4 py-3 bg-darkBg border border-borderDark rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 placeholder:text-gray-500" placeholder="貼上您的自評總覽截圖..."></textarea>
 
                 <!-- 新增：LR 自評解析 -->
                 <label for="self_assessment_lr_analysis" class="block text-sm font-medium text-gray-400 mb-2 mt-6">詞彙資源 (LR) 自評解析 (支援貼圖/拖曳)</label>
@@ -377,7 +382,7 @@ AI 評語:"></textarea>
             'github_user', 'github_repo', 'github_token', 'task_name', 'task_file', 
             'article_content', 'sentence_analysis', 'writing_date', 'question_type',
             'self_assessment_ta', 'self_assessment_cc', 'self_assessment_lr', 'self_assessment_gra',
-            'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 
+            'self_assessment_screenshot', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', // 🌟 新增 self_assessment_screenshot
             'google_translate_source', 'google_translate_output', 'self_identified_issues',
             'manual_chart_paste', 'custom_field_1', 'self_assessment_notes', 'ai_assessment',
             'diff_1', 'diff_2', 'diff_3', 'diff_4', // Checkboxes
@@ -1145,6 +1150,8 @@ ${articleContent}
             setupImageUpload('reflection_action');
             setupImageUpload('additional_notes');
 
+            // 🌟 新增：為 self_assessment_screenshot 啟用
+            setupImageUpload('self_assessment_screenshot');
             // LR/GRA 解析欄位
             setupImageUpload('self_assessment_lr_analysis');
             setupImageUpload('self_assessment_gra_analysis');
@@ -1233,7 +1240,7 @@ ${articleContent}
                 try {
                     uploadedImageMap = await uploadAllImages(user, repo, token, submitButton);
                     
-                    submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
+                    submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; // 🌟 11 -> 12
                 } catch (e) {
                     statusMessage.textContent = `❌ 圖片上傳過程中發生嚴重錯誤: ${e.message}`;
                     statusMessage.classList.remove('hidden', 'bg-successGreen', 'bg-accentYellow', 'text-black');
@@ -1243,7 +1250,7 @@ ${articleContent}
                     return;
                 }
             } else {
-                 submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; // 🌟 12 -> 11
+                 submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; // 🌟 11 -> 12
             }
 
 
@@ -1259,9 +1266,9 @@ ${articleContent}
             }
 
             const processedFields = {};
-            // 🌟 <-- 更新要處理的欄位清單: 移除 'ai_breakdown_text'
+            // 🌟 <-- 更新要處理的欄位清單: 移除 'ai_breakdown_text'，新增 'self_assessment_screenshot'
             // 注意：root_cause_title 不需要格式化或圖片替換，所以不在此列表中
-            for (const key of ['article_content', 'sentence_analysis', 'self_assessment_notes', 'ai_assessment', 'reflection_action', 'additional_notes', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 'self_identified_issues', 'custom_field_1', 'manual_chart_paste']) { 
+            for (const key of ['article_content', 'sentence_analysis', 'self_assessment_notes', 'ai_assessment', 'reflection_action', 'additional_notes', 'self_assessment_screenshot', 'self_assessment_lr_analysis', 'self_assessment_gra_analysis', 'self_identified_issues', 'custom_field_1', 'manual_chart_paste']) { 
                 // 將圖片連結替換到文字中
                 processedFields[key] = replacePlaceholders(data[key] || '', uploadedImageMap);
             }
@@ -1279,90 +1286,98 @@ Grammatical Range & Accuracy (GRA): ${data.self_assessment_gra || 'N/A'}
 `.trim();
 
 
-            // 5. 使用 Gemini 轉換評估文本 (現在有 11 個步驟)
+            // 5. 使用 Gemini 轉換評估文本 (現在有 12 個步驟)
             
-            // A. 轉換自我評估 (僅分數) (1/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/11)'; 
+            // A. 轉換自我評估 (僅分數) (1/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (1/12)'; 
             const selfAssessmentFormatted = await formatTextWithGemini(
                 selfAssessmentInput, 
                 "IELTS Task 1 自我評估，包含 TA, CC, LR, GRA 分數。請轉為兩欄 Markdown 表格。",
                 true // Prefer Table
             );
 
-            // B. 轉換 LR Analysis (2/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (2/11)'; 
+            // B. 🌟 新增：轉換自評總覽截圖 (2/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (2/12)'; 
+            const screenshotFormatted = await formatTextWithGemini(
+                processedFields.self_assessment_screenshot, 
+                "IELTS Task 1 自我評估的總覽截圖，應為 Markdown 圖片連結。請保持原樣。",
+                false // Do NOT prefer table
+            );
+
+            // C. 轉換 LR Analysis (3/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (3/12)'; 
             const lrAnalysisFormatted = await formatTextWithGemini(
                 processedFields.self_assessment_lr_analysis, 
                 "IELTS Task 1 詞彙資源 (LR) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
                 true // Prefer Table
             );
 
-            // C. 轉換 GRA Analysis (3/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (3/11)'; 
+            // D. 轉換 GRA Analysis (4/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (4/12)'; 
             const graAnalysisFormatted = await formatTextWithGemini(
                 processedFields.self_assessment_gra_analysis, 
                 "IELTS Task 1 文法範圍與準確性 (GRA) 的自我評估細節和分析，可能含有圖片連結。請將內容轉換為整潔的 Markdown 列表或段落，以便閱讀。",
                 true // Prefer Table
             );
             
-            // D. 轉換 Self Identified Issues (新增) (4/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (4/11)'; 
+            // E. 轉換 Self Identified Issues (新增) (5/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (5/12)'; 
             const selfIdentifiedIssuesFormatted = await formatTextWithGemini(
                 processedFields.self_identified_issues, 
                 "Task 1 寫作的自評辨識出的 TA/CC 準確性問題與盲點。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
                 false // Do NOT prefer table for free-form analysis of issues
             );
 
-            // E. 轉換 TA/CC 圖表反向驗證 (5/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (5/11)'; 
+            // F. 轉換 TA/CC 圖表反向驗證 (6/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/12)'; 
             const customField1Formatted = await formatTextWithGemini(
                 processedFields.custom_field_1, 
                 "Task 1 寫作的 TA/CC 用字準確性 (圖表反向驗證)。請將內容轉換為整潔的 Markdown 列表或段落，保留所有換行和項目符號。",
                 false // 不優先使用表格
             );
 
-            // F. 轉換手動貼上的圖表 (6/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (6/11)';
+            // G. 轉換手動貼上的圖表 (7/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/12)';
             const manualChartFormatted = await formatTextWithGemini(
                 processedFields.manual_chart_paste, 
                 "使用者手動貼上的圖表 (Markdown 圖片連結)。保持原樣。",
                 false // 不使用表格
             );
 
-            // G. 轉換 AI 評分 (7/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (7/11)'; // 8 -> 7
+            // H. 轉換 AI 評分 (8/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (8/12)'; 
             const aiAssessmentFormatted = await formatTextWithGemini(
                 processedFields.ai_assessment, 
                 "IELTS Task 1 AI 評分，包含 TR, CC, LR, GRA 分數與 AI 評語建議，可能含有圖片連結。請優先轉為兩欄 Markdown 表格。",
                 true // Prefer Table
             );
             
-            // H. 轉換 逐句解析內容 (8/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (8/11)'; // 9 -> 8
+            // I. 轉換 逐句解析內容 (9/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (9/12)'; 
             const sentenceAnalysisFormatted = await formatTextWithGemini(
                 processedFields.sentence_analysis, 
                 "Task 1 寫作的逐句解析內容，包含句子、文法修正、詞彙建議或截圖。請嘗試轉換為兩欄 Markdown 表格 (例如：原始句子 | 修正建議)，若內容不適合表格，則轉換為整潔的列表或段落。",
                 true // Prefer Table
             );
             
-            // I. 轉換 反思與行動 (9/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (9/11)'; // 10 -> 9
+            // J. 轉換 反思與行動 (10/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (10/12)'; 
             const reflectionActionFormatted = await formatTextWithGemini(
                 processedFields.reflection_action, 
                 "寫作後的反思與具體修正行動，包含項目符號、任務連結或修正截圖。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的列表或段落。",
                 true // Prefer Table
             );
 
-            // J. 轉換 其他備註 (10/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (10/11)'; // 11 -> 10
+            // K. 轉換 其他備註 (11/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (11/12)'; 
             const additionalNotesFormatted = await formatTextWithGemini(
                 processedFields.additional_notes, 
                 "額外備註或寫作心得，可能包含圖片連結。請嘗試轉換為兩欄 Markdown 表格 (項目 | 內容)，若內容不適合表格，則轉換為整潔的段落。",
                 true // Prefer Table
             );
 
-            // K. 處理 checkbox (11/11)
-            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (11/11)'; // 12 -> 11
+            // L. 處理 checkbox (12/12)
+            submitButton.textContent = '🤖 正在使用 AI 格式化內容... (12/12)'; 
             const checkedDifferences = Array.from(document.querySelectorAll('input[name="difference_analysis"]:checked'))
                                             .map(cb => `- [x] ${cb.value}`)
                                             .join('\n');
@@ -1406,6 +1421,9 @@ ${data.question_type || '未選擇'}
 
 #### 📝 評分項目
 ${selfAssessmentFormatted}
+
+#### 📸 自評總覽截圖
+${screenshotFormatted}
 
 #### 📝 詞彙資源 (LR) 自評解析
 ${lrAnalysisFormatted}
@@ -1461,7 +1479,7 @@ ${reflectionActionFormatted}
 <!--      ⬆️ 新增：根本原因 (Body) ⬆️     -->
 <!-- ================================== -->
 
-### 6️⃣ 其他備註 (Optional Notes)
+### 6️⃣ 實際根本原因
 ${additionalNotesFormatted}
 `;
             
