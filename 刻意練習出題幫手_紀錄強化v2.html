@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing 出題幫手 (AI 驅動版)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        html {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 簡單的 loading spinner 動畫 */
+        .spinner {
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        /* 讓 textarea 更像 IDE */
+        textarea::placeholder {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        /* 調整邏輯區塊的樣式，使其更結構化 */
+        #generation-logic {
+            white-space: pre-wrap; /* 保持換行和空格 */
+            line-height: 1.6; /* 增加行高以便閱讀 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto">
+        
+        <!-- 頁首 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md::text-4xl font-bold text-blue-700">IELTS Writing 出題幫手</h1>
+            <p class="text-lg text-gray-600 mt-2">貼上您的寫作分析，AI 將自動生成個人化練習題。</p>
+        </header>
+
+        <!-- 主內容區域 -->
+        <main class="space-y-6">
+
+            <!-- 1. 輸入卡片 (FR-001, FR-008, MODIFICATION: History Import) -->
+            <section class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">1. 貼上您的分析文字與歷史記錄</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="analysis-text" class="block text-sm font-medium text-gray-700 mb-1">1.1. 本次寫作分析內容 (必填)</label>
+                        <textarea id="analysis-text" rows="6" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-sm" placeholder="請在此貼上您從 GitHub 或其他地方複製的寫作分析回饋...&#10;例如:&#10;TA: 7.0 - 論點擴展深入且結構完整。&#10;LR: 5.5 - 詞彙重複性高，缺乏變化。"></textarea>
+                    </div>
+                    
+                    <!-- MODIFICATION: 將 textarea 改為檔案上傳 -->
+                    <div>
+                        <label for="history-file-input" class="block text-sm font-medium text-gray-700 mb-1">1.2. 導入過去的訓練記錄 (可選, .md 格式)</label>
+                        <input type="file" id="history-file-input" multiple accept=".md, .markdown, text/markdown" class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100
+                            cursor-pointer
+                        ">
+                        <!-- 用於顯示已選檔案的列表 -->
+                        <div id="file-list-container" class="mt-2 text-sm text-gray-600 space-y-1">
+                            <ul id="history-file-list" class="list-disc list-inside">
+                                <li id="file-list-placeholder" class="text-gray-400">尚未選擇任何 .md 檔案。</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- END OF MODIFICATION -->
+
+                    <!-- Task 1 / Task 2 選擇 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">1.3. 選擇任務類型</label>
+                        <div class="flex gap-4 p-2 bg-gray-50 rounded-md border">
+                            <label class="flex items-center">
+                                <input type="radio" id="task-2" name="task-type" value="Task 2" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
+                                <span class="ml-2 text-sm text-gray-900">Task 2 (Essay)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" id="task-1" name="task-type" value="Task 1" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-900">Task 1 (Report/Letter)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- FR-008：隱私授權 -->
+                    <div class="flex items-center">
+                        <input id="privacy-check" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="privacy-check" class="ml-2 block text-sm text-gray-900">我同意傳送分析文字以進行 AI 處理 (FR-008)</label>
+                    </div>
+
+                    <button id="generate-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300 disabled:bg-gray-400">
+                        開始分析並生成題目
+                    </button>
+                </div>
+            </section>
+
+            <!-- 錯誤提示區域 (Edge Cases) -->
+            <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
+                <strong class="font-bold">錯誤：</strong>
+                <span class="block sm:inline" id="error-text"></span>
+            </div>
+
+            <!-- 讀取中提示 (SC-001) -->
+            <div id="loading-spinner" class="hidden flex flex-col items-center justify-center p-8 text-center">
+                <div class="spinner w-12 h-12 border-4 border-blue-500 rounded-full"></div>
+                <p class="mt-4 text-gray-600 font-semibold">AI 正在分析您的回饋並撰寫新題目...</p>
+                <p class="text-sm text-gray-500">(串接 Gemini API... 可能需要幾秒鐘)</p>
+            </div>
+
+            <!-- 2. 結果顯示卡片 (FR-002, FR-003, FR-005, FR-006) -->
+            <section id="results-card" class="hidden bg-white p-6 rounded-lg shadow-md space-y-6">
+                
+                <!-- 分析結果 -->
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">2. AI 寫作分析摘要 (FR-002)</h2>
+                    <p class="text-sm text-gray-500 mb-4">系統已解析您的文字，摘要如下：</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <span class="text-sm font-medium text-blue-800">TA (任務回應)</span>
+                            <div id="score-ta" class="text-3xl font-bold text-blue-600">...</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <span class="text-sm font-medium text-green-800">CC (連貫與銜接)</span>
+                            <div id="score-cc" class="text-3xl font-bold text-green-600">...</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <span class="text-sm font-medium text-yellow-800">LR (詞彙資源)</span>
+                            <div id="score-lr" class="text-3xl font-bold text-yellow-600">...</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <span class="text-sm font-medium text-purple-800">GRA (文法範圍)</span>
+                            <div id="score-gra" class="text-3xl font-bold text-purple-600">...</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-gray-50 p-4 rounded-md">
+                        <h4 class="font-semibold">AI 評論摘要 (FR-003)：</h4>
+                        <p id="analysis-summary" class="text-gray-700 mt-1">AI 正在分析...</p>
+                    </div>
+                </div>
+
+                <!-- 個人化新題目 -->
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">3. AI 個人化新題目 (FR-005)</h2>
+                    <div class="bg-gray-100 p-6 rounded-lg border border-gray-200">
+                        <p id="task-type-label" class="text-sm font-medium text-gray-500 mb-2">IELTS Writing Task 2</p>
+                        <p id="new-question" class="text-lg font-medium leading-relaxed">AI 正在生成題目...</p>
+                    </div>
+
+                    <!-- Task 1 圖表描述區塊 -->
+                    <div id="chart-description-container" class="hidden mt-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-md font-semibold text-gray-800">圖表生圖提示詞 (Markdown 格式)</h4>
+                            <button id="copy-chart-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md transition-colors">
+                                複製
+                            </button>
+                        </div>
+                        <div class="bg-gray-800 text-white font-mono text-sm p-4 rounded-lg overflow-x-auto">
+                            <pre id="chart-description-content" class="whitespace-pre-wrap">...圖表描述將顯示於此...</pre>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">您可以將此描述貼到支援的 AI (如 Gemini 2.5) 中以生成圖表。</p>
+                    </div>
+                    <!-- END OF Task 1 MODIFICATION -->
+
+                </div>
+
+                <!-- 生成邏輯 (含導出按鈕) -->
+                <div class="relative">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold">4. 生成邏輯與個人化策略 (FR-006)</h3>
+                        <!-- MODIFICATION: 導出按鈕 -->
+                        <button id="export-logic-btn" class="text-sm bg-indigo-200 hover:bg-indigo-300 text-indigo-800 px-3 py-1 rounded-md transition-colors disabled:bg-gray-300 disabled:text-gray-600" disabled>
+                            導出為 Markdown
+                        </button>
+                        <!-- END OF MODIFICATION -->
+                    </div>
+                    <div id="generation-logic" class="bg-blue-50 border-l-4 border-blue-500 text-blue-900 p-4 rounded-md text-sm">
+                        AI 正在分析生成策略...
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. 歷史紀錄 (FR-007 / User Story 4) -->
+            <section class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">5. 歷史生成紀錄 (FR-007)</h2>
+                <div id="history-container" class="space-y-3">
+                    <ul id="history-list" class="divide-y divide-gray-200">
+                        <!-- JS 會動態加入歷史紀錄 -->
+                        <li id="history-placeholder" class="text-gray-500 py-2">目前沒有紀錄。</li>
+                    </ul>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // 獲取 DOM 元素
+        const generateBtn = document.getElementById('generate-btn');
+        const analysisTextInput = document.getElementById('analysis-text'); 
+        
+        // MODIFICATION: 移除 pastHistoryInput，改為檔案上傳
+        // const pastHistoryInput = document.getElementById('past-history-text'); // 移除
+        const historyFileInput = document.getElementById('history-file-input');
+        const historyFileList = document.getElementById('history-file-list');
+        const fileListPlaceholder = document.getElementById('file-list-placeholder');
+        // END OF MODIFICATION
+        
+        const privacyCheck = document.getElementById('privacy-check');
+        const task1Radio = document.getElementById('task-1');
+        const task2Radio = document.getElementById('task-2');
+        
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const resultsCard = document.getElementById('results-card');
+        
+        const scoreTa = document.getElementById('score-ta');
+        const scoreCc = document.getElementById('score-cc');
+        const scoreLr = document.getElementById('score-lr');
+        const scoreGra = document.getElementById('score-gra');
+        const analysisSummary = document.getElementById('analysis-summary');
+        
+        const taskTypeLabel = document.getElementById('task-type-label');
+        const newQuestion = document.getElementById('new-question');
+        const generationLogic = document.getElementById('generation-logic');
+        
+        // 圖表描述相關元素
+        const chartDescriptionContainer = document.getElementById('chart-description-container');
+        const chartDescriptionContent = document.getElementById('chart-description-content');
+        const copyChartBtn = document.getElementById('copy-chart-btn');
+        
+        const historyList = document.getElementById('history-list');
+
+        // MODIFICATION: 導出按鈕及儲存原始邏輯文字
+        const exportLogicBtn = document.getElementById('export-logic-btn');
+        let rawLogicText = ''; // 儲存最近一次生成的原始邏輯文字
+        // END OF MODIFICATION
+
+        // MODIFICATION: 儲存合併的檔案內容
+        let combinedHistoryText = "";
+        // END OF MODIFICATION
+
+        // Gemini API 設定
+        const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // 監聽按鈕點擊
+        generateBtn.addEventListener('click', handleGeneration);
+        copyChartBtn.addEventListener('click', copyChartDescription);
+        exportLogicBtn.addEventListener('click', exportLogicAsMarkdown);
+        
+        // MODIFICATION: 新增檔案選擇的監聽器
+        historyFileInput.addEventListener('change', handleFileSelect);
+        // END OF MODIFICATION
+
+        /**
+         * MODIFICATION: 處理檔案選擇與讀取
+         */
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            
+            // 清空先前的列表和內容
+            historyFileList.innerHTML = ''; 
+            combinedHistoryText = "";
+
+            if (files.length === 0) {
+                historyFileList.innerHTML = '<li id="file-list-placeholder" class="text-gray-400">尚未選擇任何 .md 檔案。</li>';
+                return;
+            }
+
+            const fileReadPromises = [];
+
+            // 1. 更新 UI 列表並建立讀取承諾 (Promise)
+            for (const file of files) {
+                // 更新 UI 列表
+                const listItem = document.createElement('li');
+                listItem.className = 'text-gray-800';
+                listItem.textContent = file.name;
+                historyFileList.appendChild(listItem);
+
+                // 建立讀取檔案的 Promise
+                const readPromise = new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(new Error('無法讀取檔案: ' + file.name));
+                    reader.readAsText(file);
+                });
+                fileReadPromises.push(readPromise);
+            }
+
+            // 2. 等待所有檔案讀取完成
+            try {
+                const fileContents = await Promise.all(fileReadPromises);
+                
+                // 將所有檔案內容合併，並用分隔線標記，方便 AI 辨識
+                combinedHistoryText = fileContents.join('\n\n--- (新檔案分隔線) ---\n\n');
+                
+                console.log('已讀取並合併檔案內容。');
+
+            } catch (err) {
+                showError(err.message);
+                // 發生錯誤時清空變數
+                combinedHistoryText = "";
+            }
+        }
+        // END OF MODIFICATION
+
+        /**
+         * 主處理函數
+         */
+        async function handleGeneration() {
+            // 1. 重置 UI
+            resetUI();
+
+            // 2. 獲取輸入
+            const analysisText = analysisTextInput.value.trim();
+            // MODIFICATION: 直接使用已讀取的檔案內容
+            const pastHistoryText = combinedHistoryText;
+            // END OF MODIFICATION
+            const selectedTask = task1Radio.checked ? "Task 1" : "Task 2";
+
+            // 3. 驗證 (Edge Cases & FR-008)
+            if (!privacyCheck.checked) {
+                showError('您必須同意傳送分析文字 (FR-008)。');
+                return;
+            }
+            if (!analysisText) {
+                showError('分析文字內容不得為空。');
+                return;
+            }
+
+            // 4. 顯示 Loading (SC-001)
+            loadingSpinner.classList.remove('hidden');
+            resultsCard.classList.remove('hidden'); 
+
+            try {
+                // 5. [真實 AI 呼叫 1] - 分析文字
+                const analysisResult = await callGeminiForAnalysis(analysisText);
+                
+                // 6. 更新 UI (分析部分)
+                updateUIWithAnalysis(analysisResult);
+
+                // 7. [真實 AI 呼叫 2] - 生成題目
+                // MODIFICATION: 傳遞合併後的歷史紀錄文字
+                const generationResult = await callGeminiForGeneration(analysisResult, selectedTask, analysisText, pastHistoryText); 
+
+                // 8. 更新 UI (生成題目部分)
+                updateUIWithGeneration(generationResult, selectedTask);
+
+                // 9. 更新歷史紀錄 (FR-007)
+                updateHistory(analysisText, generationResult.question);
+
+            } catch (err) {
+                showError(`處理時發生錯誤: ${err.message}`);
+                resultsCard.classList.add('hidden');
+            } finally {
+                // 隱藏 Loading
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        /**
+         * 呼叫 Gemini API 進行分析 (FR-002, FR-003)
+         * 使用 JSON 模式
+         */
+        async function callGeminiForAnalysis(text) {
+            const systemPrompt = `你是一個專業的 IELTS 雅思寫作評分員。請解析以下使用者提供的寫作分析回饋文字。
+            你的任務是：
+            1. 提取四個評分項 (TA, CC, LR, GRA) 的分數。如果分數是區間（例如 6.0-6.5），取較低的分數。如果找不到，填 "N/A"。
+            2. 根據回饋文字，撰寫一段 30-50 字的簡短摘要，點出主要的強項與弱項。
+            
+            你必須嚴格以 JSON 格式回應，不得包含任何 JSON 以外的文字。`;
+            
+            const userQuery = `請解析這段回饋：\n"""\n${text}\n"""`;
+
+            const payload = {
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ parts: [{ text: userQuery }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "ta": { "type": "STRING", "description": "TA 分數, e.g., '6.0' or 'N/A'" },
+                            "cc": { "type": "STRING", "description": "CC 分數, e.g., '6.5' or 'N/A'" },
+                            "lr": { "type": "STRING", "description": "LR 分數, e.g., '5.5' or 'N/A'" },
+                            "gra": { "type": "STRING", "description": "GRA 分數, e.g., '7.0' or 'N/A'" },
+                            "summary": { "type": "STRING", "description": "30-50 字的摘要" }
+                        },
+                        required: ["ta", "cc", "lr", "gra", "summary"]
+                    }
+                }
+            };
+
+            const response = await fetchWithBackoff(apiUrl, payload);
+            const jsonText = response.candidates[0].content.parts[0].text;
+            return JSON.parse(jsonText);
+        }
+
+        /**
+         * 呼叫 Gemini API 生成新題目 (FR-004, FR-005, FR-006)
+         * 使用 JSON 模式
+         * --- MODIFIED as per user request (v6: Added History Analysis) ---
+         */
+        async function callGeminiForGeneration(analysis, taskType, rawAnalysisText, pastHistoryText) { 
+            
+            // 將分數轉換為易於比較的數字
+            const scores = {
+                'TA': parseFloat(analysis.ta) || 0,
+                'CC': parseFloat(analysis.cc) || 0,
+                'LR': parseFloat(analysis.lr) || 0,
+                'GRA': parseFloat(analysis.gra) || 0,
+            };
+
+            // 提取原始問題描述，用於弱項精準引用
+            const getProblemDescription = (aspect) => {
+                // Regex: 找到 "ASPECT: [score] - [description]"
+                const regex = new RegExp(`${aspect}: [\\d\\.\\-]+ - (.*)`, 'i');
+                const match = rawAnalysisText.match(regex);
+                if (match) {
+                    return match[1].trim();
+                } else {
+                    const regexNoScore = new RegExp(`${aspect}: (.*)`, 'i');
+                    const matchNoScore = rawAnalysisText.match(regexNoScore);
+                    return matchNoScore ? matchNoScore[1].trim() : '未提供具體描述。';
+                }
+            };
+
+            // --- NEW TEMPLATE (v6: Incorporating History) ---
+             const strategyTemplate = (taskType) => `
+                出題策略 (FR-006) - 針對 Task ${taskType}:
+				
+				你是一名世界級的雅思寫作出題專家，你的目標是根據用戶的**英文寫作分析結果 (本次)**和**過去的訓練記錄 (過去)**，設計一個極度針對性的雅思寫作 Task ${taskType} 題目
+                
+                1.  **目標：** 必須設計一個同時挑戰所有弱點 (分數 ≤ 6.5) 並允許發揮所有強項 (分數 ≥ 7.0) 的題目。
+                
+                2.  **最大痛點鎖定 (CRITICAL - MUST DO)：**
+                    * H-001: 你必須**同時**分析 (A) **「本次」**的弱項 (W) (即分數 ≤ 6.5 的項目) 和 (B) **「過去」**的訓練記錄 (pastHistoryText)。
+                    * H-002: **(CRITICAL) 認定最大痛點 (Primary Pain Point)**：將 (A) 和 (B) 中**共同出現**、**反覆出現**、或**本次分數最低**的項目，認定為**最大痛點**。
+                    * H-003: **(CRITICAL) 痛點歸納**：你必須在 final 'logic' 輸出的「最大痛點分析」欄位中，**明確地、詳細地歸納你如何從「本次」和「過去」的分析中鎖定這個最大痛點**。(例如：過去已是弱項的 CC，本次分數依然最低，因此鎖定為最大痛點。)
+            * H-004: 你的出題必須以 H-002 鎖定的**最大痛點**為核心進行挑戰。
+                    * H-005: 請忽略過去記錄中可能存在的「無過去記錄」等樣板文字，專注於後續的實質分析內容。
+                    
+                3.  **SWOT 分析要求 (MUST DO)：**
+                    * H-006: 針對強項 (S - Strength, 分數 ≥ 7.0)：你必須找出這些強項可以帶來的 **O (機會/Opportunities)**。
+                    * H-007: 針對弱項 (W - Weakness, 分數 ≤ 6.5)：你必須找出這些弱點可能導致的 **T (威脅/Threats)**。
+                    * H-008: **(CRITICAL)** 你必須在「核心出題邏輯」中，**明確**說明此題目如何將至少一個 **O (來自 H-006)** 和針對**最大痛點 (來自 H-002)** 的 **T (來自 H-007)** 融入題目設計中。
+                
+                4.  **強項 (S) 運用與機會 (O) 展開 (MUST DO)：**
+                    -   你必須將所有分數 ≥ 7.0 的項目 (TA, CC, LR, GRA) **全部以條列式列出**。
+                    -   對於**每一個**強項：
+                        A. 必須列出「分析描述」。
+                        B. **必須**為此強項提供一段「帶來的機會 (O)」。(執行 H-006)
+                        C. 接著，**必須**仔細檢查「學生的原始分析/回饋文字」中該項目的描述 (即 ${getProblemDescription('ASPECT')})，並引用具體英文例句/句型，或推斷句型架構。
+
+                5.  **弱項 (W) 挑戰與威脅 (T) 預防 (MUST DO)：**
+                    -   你必須將所有分數 ≤ 6.5 的項目 (TA, CC, LR, GRA) **全部以條列式列出**。
+                    -   對於**每一個**弱項：
+                        A. 都**必須**從「學生的原始分析/回饋文字」中，**精確且完整地引用**該弱項的**具體問題描述**，並標註為「問題點」。(此為 H-001 的 (A) 部分)
+                        B. **必須**為此弱項提供一段「潛在的威脅 (T)」。(執行 H-007)
+                        C. 必須提供針對此問題的具體練習目標「本次目標」。
+                
+            **針對 Task 1 的特別要求 (MUST DO)：**
+                1.  在「核心出題邏輯」中說明你選擇了圖表類型，並說明該類型如何挑戰弱點 W/T。
+                2.  **必須**額外生成一個 \`chartDescription\` 欄位。此欄位**必須**包含一個**完整且詳細的圖表文字描述**，格式為 **Markdown**。
+                
+                請將完整的「歷史分析、出題邏輯、SWOT 分析」彙整成一段連貫的中文文字，作為 JSON 輸出中的 \`logic\` 字段內容。
+                
+                **輸出格式要求如下 (請嚴格遵守這個條列式結構)：**
+                ---
+                最大痛點分析：[**嚴格執行 H-003**：**必須在此詳細歸納**你是如何結合「本次弱項 W」和「過去記錄」來鎖定**最大痛點**的。如果沒有過去記錄，則基於本次分析鎖定痛點。]
+                
+                核心出題邏輯：[**嚴格執行 H-008**：說明選擇此主題和結構的原因，**特別要解釋如何將 O (機會) 和針對 H-002 鎖定之最大痛點的 T (威脅) 融入題目設計中**。如果是 Task 1，必須指明圖表類型。]
+
+                💪 強項 (Strength, S) 與機會 (Opportunity, O)：
+                [此處列出所有強項 (來自本次分析)]
+                ${
+                    Object.keys(scores).filter(key => scores[key] >= 7.0).map(aspect => 
+                        `* **${aspect} (Band ${scores[aspect]})**：
+                        * *分析描述：* ${getProblemDescription(aspect) || 'N/A'}
+                        * *帶來的機會 (O)：* [針對此強項，可以應對哪些複雜的寫作情境或題型？]
+                        * *原文例句/句型：* [請檢查「${getProblemDescription(aspect)}」中是否包含英文範例或句型，若有則**引用**於此；若無，則根據描述**推斷**可能的句型架構。]
+                        `
+                    ).join('\n') || '* [所有分數皆低於 7.0。]'
+                }
+                
+                🚧 弱項 (Weakness, W) 與威脅 (Threat, T)：
+                [此處列出所有弱項 (來自本次分析)]
+                ${
+                    Object.keys(scores).filter(key => scores[key] <= 6.5 && scores[key] > 0).map(aspect => 
+                        `* **${aspect} (Band ${scores[aspect]})**：
+                        * *問題點 (來自上次分析)：* ${getProblemDescription(aspect)}
+                        * *潛在的威脅 (T)：* [針對此弱點，在哪些題型或複雜情境下會更容易失分？]
+                        * *本次目標：* [針對此問題的具體練習目標。]
+                        `
+                    ).join('\n') || '* [所有分數皆高於 6.5。]'
+ }
+                
+                **本次題目設計總結：** [用一段話總結本次題目如何利用 O，並同時避開/挑戰 T (特別是 H-002 鎖定的最大痛點)。]
+                ---
+            `;
+            // --- END OF NEW TEMPLATE (v6) ---
+
+            let strategyDetails = strategyTemplate(taskType);
+            
+            const systemPrompt = `你是一個雅思出題 AI。
+            
+            你的任務是嚴格遵循 ${taskType} 的「出題策略 (FR-006)」，並生成一道個人化的題目。
+
+            ${strategyDetails}
+            
+            你必須嚴格以 JSON 格式回應。`;
+            
+            const userQuery = `
+            學生的分數分析結果 (JSON 格式, 此為「本次」分析):
+            ${JSON.stringify(analysis, null, 2)}
+            
+            學生的原始分析/回饋文字 (用於提取「本次」的精確問題點和強項範例):
+            """
+            ${rawAnalysisText}
+            """
+            
+            過去的訓練記錄 (此為「過去」分析，用於和「本次」分析結合，以執行 H-001 和 H-002):
+            """
+            ${pastHistoryText || '無過去記錄。'}
+            """
+            
+            請為這位學生生成一道新的 ${taskType} 題目。如果 Task 1，請在題目前加上圖表類型提示，例如：[Line Graph] The chart below...`;
+
+            const payload = {
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ parts: [{ text: userQuery }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "question": { "type": "STRING", "description": `生成的 ${taskType} 題目內文` },
+                            "logic": { "type": "STRING", "description": "簡短說明為何生成此題目（符合 FR-006）" },
+                            "chartDescription": { "type": "STRING", "description": "Markdown 格式的詳細圖表描述，僅在 Task 1 時提供。" }
+                        },
+                        required: ["question", "logic"]
+                    }
+                }
+            };
+			
+            console.log("=== DEBUG: 最終傳送給 AI 的 User Query ===");
+            console.log(userQuery);
+            console.log("=========================================");
+
+            const response = await fetchWithBackoff(apiUrl, payload);
+            const jsonText = response.candidates[0].content.parts[0].text;
+            return JSON.parse(jsonText);
+        }
+
+        /**
+         * 帶有指數退讓重試的 Fetch
+         */
+        async function fetchWithBackoff(url, payload, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(`API 請求失敗: ${response.status} ${JSON.stringify(errorBody)}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.candidates || !result.candidates[0].content || !result.candidates[0].content.parts[0].text) {
+                     throw new Error('從 API 收到的回應格式無效或為空。');
+                }
+
+                return result;
+
+            } catch (err) {
+                if (retries > 0) {
+                    await new Promise(r => setTimeout(r, delay));
+                    return fetchWithBackoff(url, payload, retries - 1, delay * 2);
+                } else {
+                    console.error('API 呼叫重試失敗:', err);
+                    throw err; // 最終拋出錯誤
+                }
+            }
+        }
+
+        /**
+         * 重置 UI 狀態
+         */
+        function resetUI() {
+            errorMessage.classList.add('hidden');
+            loadingSpinner.classList.add('hidden');
+            resultsCard.classList.add('hidden');
+            
+            // 重置結果卡片內容
+            scoreTa.textContent = "...";
+            scoreCc.textContent = "...";
+            scoreLr.textContent = "...";
+            scoreGra.textContent = "...";
+            analysisSummary.textContent = "AI 正在分析...";
+            newQuestion.textContent = "AI 正在生成題目...";
+            generationLogic.textContent = "AI 正在分析生成策略...";
+            
+            // 重置圖表描述
+            chartDescriptionContainer.classList.add('hidden');
+            chartDescriptionContent.textContent = "...圖表描述將顯示於此...";
+            copyChartBtn.textContent = '複製';
+
+            // MODIFICATION: 重置導出按鈕狀態
+            exportLogicBtn.disabled = true;
+            exportLogicBtn.textContent = '導出為 Markdown';
+            rawLogicText = ''; // 清除原始邏輯文字
+            // END OF MODIFICATION
+
+            // MODIFICATION: 重置檔案上傳欄位 (REMOVED - 這些是輸入，不應在此重置)
+            //historyFileInput.value = null; // 清空檔案選擇
+            //historyFileList.innerHTML = '<li id="file-list-placeholder" class="text-gray-400">尚未選擇任何 .md 檔案。</li>';
+            //combinedHistoryText = ""; // 清空儲存的文字
+            // END OF MODIFICATION
+        }
+
+        /**
+         * 顯示錯誤訊息
+         */
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+            loadingSpinner.classList.add('hidden');
+        }
+
+        /**
+         * 將 (AI 分析) 結果更新到 UI
+         */
+        function updateUIWithAnalysis(analysis) {
+            scoreTa.textContent = analysis.ta || 'N/A';
+            scoreCc.textContent = analysis.cc || 'N/A';
+            scoreLr.textContent = analysis.lr || 'N/A';
+            scoreGra.textContent = analysis.gra || 'N/A';
+            analysisSummary.textContent = analysis.summary || 'AI 未能提供摘要。';
+        }
+
+        /**
+         * 將 (AI 生成) 結果更新到 UI
+         */
+        function updateUIWithGeneration(generation, taskType) {
+            taskTypeLabel.textContent = `IELTS Writing ${taskType}`;
+            newQuestion.textContent = generation.question || 'AI 未能生成題目。';
+
+            // MODIFICATION: 儲存原始邏輯文字並啟用導出按鈕
+            rawLogicText = generation.logic;
+            exportLogicBtn.disabled = false;
+            // END OF MODIFICATION
+
+            let formattedLogic = generation.logic;
+            
+            // 1. 處理分隔線 (HTML)
+            formattedLogic = formattedLogic.replace(/---/g, '<hr class="my-3 border-blue-300">');
+
+            // 2. 處理標題 (HTML)
+            // 過去記錄分析：(新增)
+            formattedLogic = formattedLogic.replace(/^(最大痛點分析：)/gm, '<strong class="text-indigo-700 font-extrabold">$1</strong>');
+            // 核心出題邏輯
+            formattedLogic = formattedLogic.replace(/^(核心出題邏輯：)/gm, '<strong class="text-gray-900">$1</strong>');
+            // 💪 強項 (Strength, S) 與機會 (Opportunity, O)：
+            formattedLogic = formattedLogic.replace(/^(💪 強項 \(Strength, S\) 與機會 \(Opportunity, O\)：)/gm, '<strong class="text-blue-700">$1</strong>');
+            // 🚧 弱項 (Weakness, W) 與威脅 (Threat, T)：
+            formattedLogic = formattedLogic.replace(/^(🚧 弱項 \(Weakness, W\) 與威脅 \(Threat, T\)：)/gm, '<strong class="text-red-700">$1</strong>');
+            // 本次題目設計總結：
+            formattedLogic = formattedLogic.replace(/^(\*\*本次題目設計總結：\*\*)/gm, '<strong class="text-blue-700">本次題目設計總結：</strong>');
+            
+            // 3. 處理條列式項目
+            // * **ASPECT (Band X)**： -> • **ASPECT (Band X)**：
+            formattedLogic = formattedLogic.replace(/\* \*\*(.*?)\*\*：/g, '• <strong class="text-gray-900">$1</strong>：');
+            
+            // * *分析描述：* / *問題點 (來自上次分析)：* / *帶來的機會 (O)：* / *潛在的威脅 (T)：* / *本次目標：*
+            formattedLogic = formattedLogic.replace(/\* \*(.*?)\*：/g, '  ↳ <span class="font-semibold italic">$1</span>：');
+
+            // 4. 處理數字列表 (HTML)
+            formattedLogic = formattedLogic.replace(/^(1\. .*)$/gm, '<span class="ml-4">$1</span>');
+            formattedLogic = formattedLogic.replace(/^(2\. .*)$/gm, '<span class="ml-4">$1</span>');
+            formattedLogic = formattedLogic.replace(/^(3\. .*)$/gm, '<span class="ml-4">$1</span>');
+
+            generationLogic.innerHTML = formattedLogic;
+            
+            // 處理 Task 1 圖表描述
+            if (taskType === 'Task 1' && generation.chartDescription) {
+                chartDescriptionContent.textContent = generation.chartDescription;
+                chartDescriptionContainer.classList.remove('hidden');
+            } else {
+                chartDescriptionContainer.classList.add('hidden');
+            }
+        }
+
+        /**
+         * MODIFICATION: 導出邏輯為 Markdown 檔案
+         */
+        function exportLogicAsMarkdown() {
+            if (!rawLogicText) {
+                alert('沒有可導出的生成邏輯。');
+                return;
+            }
+
+            // 模擬 Markdown 檔案內容，使用簡單的標題和原始文本
+            const markdownContent = `
+# IELTS 寫作個人化訓練記錄 (導出日期: ${new Date().toLocaleDateString()})
+
+---
+
+${rawLogicText}
+`;
+
+            const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `IELTS_Training_Logic_${Date.now()}.md`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            exportLogicBtn.textContent = '導出成功!';
+            setTimeout(() => { exportLogicBtn.textContent = '導出為 Markdown'; }, 3000);
+        }
+        // END OF MODIFICATION
+
+        /**
+         * 更新歷史紀錄 (FR-007)
+         */
+        function updateHistory(analysisText, questionText) {
+            const placeholder = document.getElementById('history-placeholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            const listItem = document.createElement('li');
+            listItem.className = 'py-3 border-b border-gray-100 last:border-b-0';
+            
+            const shortAnalysis = analysisText.length > 50 ? analysisText.substring(0, 50) + '...' : analysisText;
+            const shortQuestion = questionText.length > 60 ? questionText.substring(0, 60) + '...' : questionText;
+
+            listItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">${shortQuestion}</p>
+                        <p class="text-xs text-gray-500">來源分析: ${shortAnalysis}</p>
+                    </div>
+                    <span class="text-xs text-gray-400">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+            
+            // 將最新的紀錄加到最前面
+            historyList.prepend(listItem);
+        }
+
+        /**
+         * 複製圖表描述到剪貼簿
+         */
+        function copyChartDescription() {
+            const textToCopy = chartDescriptionContent.textContent;
+            
+            // 優先使用 navigator.clipboard (更現代)
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    copyChartBtn.textContent = '已複製!';
+                    setTimeout(() => { copyChartBtn.textContent = '複製'; }, 2000);
+                }).catch(err => {
+                    console.error('無法使用 Clipboard API: ', err);
+                    fallbackCopyText(textToCopy); // 降級處理
+                });
+            } else {
+                // 降級使用 document.execCommand (適用於不安全的 http 或 iFrame)
+                fallbackCopyText(textToCopy);
+            }
+        }
+
+        /**
+         * 降級複製方法
+         */
+        function fallbackCopyText(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            
+            // 避免在畫面上顯示
+            textArea.style.position = 'fixed';
+            textArea.style.top = 0;
+            textArea.style.left = 0;
+            textArea.style.opacity = 0;
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    copyChartBtn.textContent = '已複製!';
+                } else {
+                    copyChartBtn.textContent = '複製失敗';
+                }
+            } catch (err) {
+                console.error('無法複製文字: ', err);
+                copyChartBtn.textContent = '複製失敗';
+            }
+
+            document.body.removeChild(textArea);
+            setTimeout(() => { copyChartBtn.textContent = '複製'; }, 2000);
+        }
+
+    </script>
+
+</body>
+</html>
