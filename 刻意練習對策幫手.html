@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing 刻意練習幫手 (AI 驅動版)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        html {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 簡單的 loading spinner 動畫 */
+        .spinner {
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        /* 讓 textarea 更像 IDE */
+        textarea::placeholder {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        /* 調整邏輯區塊的樣式，使其更結構化 */
+        #generation-logic {
+            white-space: pre-wrap; /* 保持換行和空格 */
+            line-height: 1.6; /* 增加行高以便閱讀 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-700 mb-2">IELTS Writing 刻意練習幫手</h1>
+            <p class="text-gray-600 text-lg">透過 AI 分析您的多篇寫作文件，提供個人化的練習建議與強化。</p>
+        </header>
+
+        <main class="bg-white p-6 md:p-10 rounded-xl shadow-2xl space-y-8">
+            
+            <!-- 步驟 1: 輸入與檔案上傳 -->
+            <section class="border-b pb-6 border-blue-100">
+                <h2 class="text-2xl font-bold text-blue-600 mb-4">步驟 1: 輸入寫作內容或上傳檔案 (支援多個 .md 檔)</h2>
+
+                <!-- 檔案上傳區域 -->
+                <div class="flex flex-col md:flex-row items-stretch md:space-x-4">
+                    <div class="flex-grow">
+                        <textarea id="prompt-input" rows="6" placeholder="您也可以直接在此處輸入您的分析指令或寫作內容..." 
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out resize-none text-sm"></textarea>
+                    </div>
+
+                    <div class="flex-shrink-0 mt-4 md:mt-0 space-y-3">
+                        <!-- NOTICE: Added 'multiple' attribute here -->
+                        <input type="file" id="file-input" accept=".md" class="hidden" multiple>
+                        <label for="file-input" class="block w-full text-center px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 transition duration-150 ease-in-out cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L6.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                            上傳 Markdown 檔案
+                        </label>
+                        
+                        <button id="generate-btn" class="w-full px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                            開始分析與建議
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 檔案清單顯示區域 -->
+                <div id="file-list-display" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm">
+                    未選擇檔案
+                </div>
+
+            </section>
+
+            <!-- 步驟 2: AI 分析結果與建議 -->
+            <section>
+                <h2 class="text-2xl font-bold text-blue-600 mb-4">步驟 2: AI 分析與練習強化建議</h2>
+                <div id="generation-result" class="min-h-[150px] p-4 bg-gray-50 border border-gray-300 rounded-lg shadow-inner text-gray-700">
+                    分析結果將顯示在此處...
+                </div>
+                
+                <!-- 複製與導出按鈕 -->
+                <div class="text-right mt-4">
+                    <button id="copy-chart-btn" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                        複製結果
+                    </button>
+                    <!-- *** NEW EXPORT BUTTON *** -->
+                    <button id="export-md-btn" class="ml-2 px-4 py-2 bg-purple-500 text-white font-semibold rounded-lg shadow-md hover:bg-purple-600 transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                        導出 Markdown (.md)
+                    </button>
+                    <!-- ************************** -->
+                </div>
+            </section>
+
+            <!-- 步驟 3: 運行邏輯 (僅供參考) -->
+            <section class="pt-6 border-t border-blue-100">
+                <h2 class="text-xl font-bold text-blue-600 mb-3">AI 運行邏輯（System Instruction）</h2>
+                <pre id="generation-logic" class="bg-gray-800 text-green-300 p-4 rounded-lg text-xs overflow-x-auto shadow-inner">
+您是一位專精於雅思 (IELTS) 寫作教學和分析的 AI 導師。
+您的任務是根據使用者上傳的一篇或多篇 Markdown 寫作文件，對其進行全面分析並提供客製化的「刻意練習」建議。
+分析必須涵蓋以下四個關鍵方面：
+
+1.  **任務達成/回應 (Task Achievement/Response)**：
+    * 內容是否切題？
+    * 論點是否充分展開？
+    * 是否有遺漏任何關鍵要求？
+2.  **連貫性與銜接 (Coherence and Cohesion)**：
+    * 文章結構是否清晰？(引言、主體、結論)
+    * 段落內和段落間的邏輯連接是否自然？
+    * 銜接詞 (cohesive devices) 的使用是否多樣且正確？
+3.  **詞彙資源 (Lexical Resource)**：
+    * 詞彙是否豐富、精確且自然？
+    * 是否有頻繁的重複或錯誤的同義詞替換？
+    * 是否有高級詞彙或片語的適當運用？
+4.  **語法廣度與準確度 (Grammatical Range and Accuracy)**：
+    * 是否有使用多樣的句型（如複合句、複雜句）？
+    * 語法錯誤（時態、主謂一致、冠詞等）是否影響理解？
+
+根據分析結果，請在文件結尾提供**三項**針對性的「刻意練習」建議，每項建議都必須具備明確的目標、方法和衡量標準，例如：
+
+* **目標**：提高複雜句使用準確度。
+* **方法**：在接下來的五篇寫作中，至少使用五個 `It is... that...` 或倒裝句型，並確保主句動詞時態一致。
+* **衡量標準**：回顧時，所有複雜句型的語法錯誤率低於 10%。
+
+請以繁體中文的 Markdown 格式輸出您的分析報告。
+                </pre>
+            </section>
+
+        </main>
+
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            © 2025 AI Writing Helper. All rights reserved.
+        </footer>
+    </div>
+
+    <!-- Firebase / Gemini API 核心邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Initialize Firebase
+        let app, db, auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            // Set up authentication listener
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    // Fallback for environment without custom token
+                    userId = `anon-${crypto.randomUUID()}`;
+                }
+                isAuthReady = true;
+                console.log("Authentication ready. User ID:", userId);
+                // Enable button once auth is ready
+                const promptInput = document.getElementById('prompt-input');
+                if (promptInput.value.trim().length > 0 || uploadedFileContent.length > 0) {
+                     document.getElementById('generate-btn').disabled = false;
+                }
+            });
+
+            // Sign in with custom token or anonymously
+            (async () => {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth failed:", error);
+                    // Still mark auth as ready even if sign-in failed, using anonymous ID
+                    isAuthReady = true;
+                }
+            })();
+        } else {
+            // Handle case where firebase config is missing (e.g., local testing)
+            console.error("Firebase configuration is missing.");
+            isAuthReady = true;
+            userId = 'no-firebase-user';
+        }
+
+        // --- DOM Elements & State ---
+        const promptInput = document.getElementById('prompt-input');
+        const fileInput = document.getElementById('file-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const generationResult = document.getElementById('generation-result');
+        const copyChartBtn = document.getElementById('copy-chart-btn');
+        const exportMdBtn = document.getElementById('export-md-btn'); // *** NEW ***
+        const fileListDisplay = document.getElementById('file-list-display');
+
+        // State to hold uploaded content
+        let uploadedFileContent = "";
+        let rawMarkdownResult = ""; // *** NEW: Store raw AI response ***
+
+        // --- Utility Functions ---
+
+        /**
+         * 異步讀取單一檔案的內容
+         * @param {File} file 
+         * @returns {Promise<string>}
+         */
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                // 檢查檔案大小，避免讀取過大檔案
+                if (file.size > 1024 * 1024 * 5) { // 5MB limit
+                    return reject(new Error(`檔案過大 (超過 5MB): ${file.name}`));
+                }
+
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error(`無法讀取檔案 ${file.name}`));
+                reader.readAsText(file);
+            });
+        }
+
+        /**
+         * 決定最終送出給 AI 的內容
+         */
+        function getFinalPromptContent() {
+            const manualPrompt = promptInput.value.trim();
+            
+            // 1. 如果有上傳檔案，使用合併後的檔案內容
+            if (uploadedFileContent.length > 0) {
+                const analysisInstruction = "請分析以下多個 Markdown 檔案合併後的內容。這些檔案是同一位使用者在不同時間點的寫作練習。請根據系統指示 (System Instruction) 針對內容的主題、結構、一致性、以及寫作風格進行全面評估並提供建議:\n\n---\n\n";
+                return analysisInstruction + uploadedFileContent;
+            }
+            
+            // 2. 否則，使用手動輸入的內容
+            return manualPrompt;
+        }
+
+        // --- Event Handlers ---
+
+        /**
+         * 處理多檔案選擇
+         */
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            uploadedFileContent = ""; // 重置內容
+            let uploadedFileNames = [];  // 重置名稱
+
+            // 清空所有顯示
+            fileListDisplay.innerHTML = '未選擇檔案';
+            promptInput.disabled = false;
+            generateBtn.disabled = true;
+
+            if (files.length === 0) {
+                return;
+            }
+
+            const loadingMessage = `<div class="text-indigo-500 flex items-center">
+                                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500 spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        正在讀取 ${files.length} 個檔案...
+                                    </div>`;
+            fileListDisplay.innerHTML = loadingMessage;
+
+            const fileReadPromises = [];
+            for (const file of files) {
+                if (file.name.endsWith('.md')) {
+                    uploadedFileNames.push(file.name);
+                    fileReadPromises.push(readFileAsync(file));
+                } else {
+                    fileListDisplay.innerHTML += `<p class="text-yellow-600 text-xs">警告：忽略非 Markdown 檔案: ${file.name}</p>`;
+                }
+            }
+
+            if (fileReadPromises.length === 0) {
+                 fileListDisplay.innerHTML = `<p class="text-red-500">未選擇任何有效的 .md 檔案。</p>`;
+                 return;
+            }
+
+            try {
+                const results = await Promise.all(fileReadPromises);
+                
+                // Concatenate all valid markdown content with a separator
+                uploadedFileContent = results.join('\n\n---\n\n'); 
+                
+                // Display file names
+                fileListDisplay.innerHTML = `
+                    <div class="text-sm font-semibold mb-2">已成功載入檔案 (${uploadedFileNames.length} 個):</div>
+                    <ul class="list-disc list-inside space-y-1 max-h-24 overflow-y-auto">
+                        ${uploadedFileNames.map(name => `<li class="text-xs text-gray-600 truncate">${name}</li>`).join('')}
+                    </ul>
+                    <p class="text-green-600 text-sm mt-2">檔案內容已載入並合併 (總字數約 ${uploadedFileContent.length} 字) 準備分析。</p>
+                `;
+
+                // Set a default prompt instruction and disable manual input
+                promptInput.value = `[已載入 ${uploadedFileNames.length} 個寫作檔案內容，請根據系統指示對這些內容進行深度分析。]`;
+                promptInput.disabled = true; 
+                generateBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Error reading files:', error);
+                uploadedFileContent = "";
+                fileListDisplay.innerHTML = `<p class="text-red-500">檔案讀取失敗: ${error.message}</p>`;
+                promptInput.value = ""; // 確保失敗時清空提示輸入框的內容
+                promptInput.disabled = false; // 重新啟用手動輸入
+                generateBtn.disabled = true;
+            }
+        }
+
+        /**
+         * 處理生成內容的 API 呼叫
+         */
+        async function generateContent() {
+            if (!isAuthReady) {
+                displayError('Firebase 認證尚未完成，請稍候。');
+                return;
+            }
+            
+            const userQuery = getFinalPromptContent();
+
+            if (!userQuery || userQuery.trim().length === 0) {
+                displayError('請輸入內容或上傳檔案後再點擊按鈕。');
+                return;
+            }
+
+            // UI Feedback: Loading state
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    AI 正在分析...`;
+            generationResult.innerHTML = `<p class="text-center text-gray-500">正在等待 AI 分析結果...</p>`;
+            copyChartBtn.disabled = true;
+            exportMdBtn.disabled = true; // *** NEW ***
+            rawMarkdownResult = ""; // *** NEW: Reset ***
+
+            const systemPrompt = document.getElementById('generation-logic').textContent.trim();
+            const apiKey = "AIzaSyCDd6xErsGUo9SLp6V7espooLedL1OM3Lo"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            
+            // Implement exponential backoff for retries
+            for (let attempt = 0; attempt < 5; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429 && attempt < 4) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(res => setTimeout(res, delay));
+                        continue; // Retry
+                    }
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API Request failed with status ${response.status}: ${JSON.stringify(errorData)}`);
+                    }
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "無法獲取有效的 AI 分析結果。";
+                    
+                    rawMarkdownResult = text; // *** NEW: Store raw text ***
+
+                    // Display result
+                    generationResult.innerHTML = parseMarkdown(text);
+                    copyChartBtn.disabled = false;
+                    exportMdBtn.disabled = false; // *** NEW ***
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '重新分析';
+
+                    // Save result to Firestore (simplified for private data)
+                    if (db && userId && isAuthReady) {
+                        const logsRef = collection(db, 'artifacts', appId, 'users', userId, 'analysis_logs');
+                        await addDoc(logsRef, {
+                            query: userQuery.substring(0, 1000) + (userQuery.length > 1000 ? '...' : ''), // Limit size
+                            response: text.substring(0, 1000) + (text.length > 1000 ? '...' : ''), // Limit size
+                            timestamp: new Date(),
+                            fileCount: uploadedFileContent.length > 0 ? uploadedFileContent.split('\n\n---\n\n').length : 0,
+                        });
+                        console.log("Analysis log saved successfully.");
+                    }
+                    
+                    return; // Exit successful loop
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    displayError(`AI 服務呼叫失敗: ${error.message}`);
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '重新分析';
+                    copyChartBtn.disabled = true; // *** NEW: Ensure disabled on error ***
+                    exportMdBtn.disabled = true; // *** NEW: Ensure disabled on error ***
+                    return; // Exit loop on critical error
+                }
+            }
+        }
+        
+        // --- Helper functions for UI and Markdown Display ---
+
+        function displayError(message) {
+            generationResult.innerHTML = `<p class="text-red-500 font-semibold">${message}</p>`;
+        }
+        
+        /**
+         * 簡易 Markdown 轉換 (僅支援換行和粗體，以便在 div 中顯示)
+         * @param {string} mdText 
+         * @returns {string} HTML content
+         */
+        function parseMarkdown(mdText) {
+            if (!mdText) return '';
+            // 替換雙星號為粗體
+            let htmlText = mdText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // 替換單星號為斜體
+            htmlText = htmlText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+             // 替換 # 標題
+            htmlText = htmlText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>');
+            htmlText = htmlText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3 text-blue-700">$1</h2>');
+            // Tihuan huanhangfu wei <br>
+            htmlText = htmlText.replace(/\n/g, '<br>');
+            return htmlText;
+        }
+
+        /**
+         * 複製結果文本 (使用原始 Markdown)
+         */
+        function copyText() {
+            const textToCopy = rawMarkdownResult; // *** MODIFIED: Use raw markdown ***
+            if (!textToCopy || textToCopy.trim() === '') {
+                copyChartBtn.textContent = '無內容可複製';
+                setTimeout(() => { copyChartBtn.textContent = '複製結果'; }, 2000);
+                return;
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                // 使用現代 Clipboard API (適用於安全 HTTPS 環境)
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    copyChartBtn.textContent = '已複製!';
+                    setTimeout(() => { copyChartBtn.textContent = '複製結果'; }, 2000);
+                }).catch(err => {
+                    console.error('無法使用 Clipboard API: ', err);
+                    fallbackCopyText(textToCopy); // 降級處理
+                });
+            } else {
+                // 降級使用 document.execCommand (適用於不安全的 http 或 iFrame)
+                fallbackCopyText(textToCopy);
+            }
+        }
+
+        /**
+         * 降級複製方法
+         */
+        function fallbackCopyText(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            
+            // 避免在畫面上顯示
+            textArea.style.position = 'fixed';
+            textArea.style.top = 0;
+            textArea.style.left = 0;
+            textArea.style.opacity = 0;
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    copyChartBtn.textContent = '已複製!';
+                } else {
+                    copyChartBtn.textContent = '複製失敗';
+                }
+            } catch (err) {
+                console.error('無法複製文字: ', err);
+                copyChartBtn.textContent = '複製失敗';
+            }
+
+            document.body.removeChild(textArea);
+            setTimeout(() => { copyChartBtn.textContent = '複製結果'; }, 2000);
+        }
+
+        /**
+         * *** NEW: 導出 Markdown 檔案 ***
+         */
+        function exportMarkdown() {
+            if (!rawMarkdownResult || rawMarkdownResult.trim() === '') {
+                exportMdBtn.textContent = '無內容可導出';
+                setTimeout(() => { exportMdBtn.textContent = '導出 Markdown (.md)'; }, 2000);
+                return;
+            }
+
+            try {
+                const blob = new Blob([rawMarkdownResult], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                
+                a.href = url;
+                a.download = 'AI分析與練習建議.md'; // Set the filename
+                document.body.appendChild(a); // Required for Firefox
+                a.click();
+                
+                // Cleanup
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                exportMdBtn.textContent = '導出成功!';
+                setTimeout(() => { exportMdBtn.textContent = '導出 Markdown (.md)'; }, 2000);
+
+            } catch (error) {
+                console.error('Export Markdown failed:', error);
+                exportMdBtn.textContent = '導出失敗';
+                setTimeout(() => { exportMdBtn.textContent = '導出 Markdown (.md)'; }, 2000);
+            }
+        }
+
+
+        // --- Event Listeners ---
+        window.onload = () => {
+             // Initial check for button state after auth might have finished
+            const promptInput = document.getElementById('prompt-input');
+            const generateBtn = document.getElementById('generate-btn');
+            if (promptInput.value.trim().length > 0 && isAuthReady) {
+                 generateBtn.disabled = false;
+            }
+        }
+
+        fileInput.addEventListener('change', handleFileSelect);
+        generateBtn.addEventListener('click', generateContent);
+        copyChartBtn.addEventListener('click', copyText);
+        exportMdBtn.addEventListener('click', exportMarkdown); // *** NEW ***
+        
+        // Enable button if text is present and auth is ready
+        promptInput.addEventListener('input', () => {
+            const generateBtn = document.getElementById('generate-btn');
+            // If files are loaded, keep the prompt input disabled and button enabled
+            if (uploadedFileContent.length > 0 && promptInput.disabled) {
+                return;
+            }
+            if (promptInput.value.trim().length > 0 && isAuthReady) {
+                generateBtn.disabled = false;
+            } else {
+                generateBtn.disabled = true;
+            }
+        });
+        
+    </script>
+</body>
+</html>
