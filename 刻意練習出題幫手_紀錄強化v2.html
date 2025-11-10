@@ -182,7 +182,7 @@
                         </button>
                         <!-- END OF MODIFICATION -->
                     </div>
-                    <div id="generation-logic" class="bg-blue-50 border-l-4 border-blue-500 text-blue-900 p-4 rounded-md text-sm">
+                    <div id="generation-logic" class="bg-blue-50 border-l-4 border-blue-500 text-blue-900 p-4 rounded-md text-sm max-h-[400px] overflow-y-auto">
                         AI 正在分析生成策略...
                     </div>
                 </div>
@@ -626,10 +626,7 @@
             rawLogicText = ''; // 清除原始邏輯文字
             // END OF MODIFICATION
 
-            // MODIFICATION: 重置檔案上傳欄位 (REMOVED - 這些是輸入，不應在此重置)
-            //historyFileInput.value = null; // 清空檔案選擇
-            //historyFileList.innerHTML = '<li id="file-list-placeholder" class="text-gray-400">尚未選擇任何 .md 檔案。</li>';
-            //combinedHistoryText = ""; // 清空儲存的文字
+
             // END OF MODIFICATION
         }
 
