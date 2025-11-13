@@ -1,845 +1,786 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" class="dark"> <!-- 新增 'dark' class 來啟用深色模式 -->
+<html lang="zh-TW" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub PR 快速產生器</title>
+    <title>GitHub Pull Request 快速產生器 (v1.1)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        /* 使用 Inter 字體 */
         body {
             font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1A202C, #2D3748); /* 深藍灰色漸變背景 */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            transition: background-color 0.3s;
         }
-        .form-label {
-            /* 深色模式：調整文字顏色 */
-            @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+
+        /* 深色模式專用樣式 */
+        .dark .bg-card {
+            background-color: #2D3748; /* 卡片背景 */
+            border: 1px solid #4A5568;
         }
-        .form-input {
-            /* 深色模式：調整背景、文字、邊框和 placeholder 顏色 */
-            @apply block w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+        .dark .text-primary { color: #CBD5E0; }
+        .dark input, .dark textarea {
+            background-color: #4A5568;
+            border-color: #6B7280;
+            color: #E2E8F0;
         }
-        .form-textarea {
-            /* 深色模式：同上 */
-            @apply block w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+        .dark input:focus, .dark textarea:focus {
+            border-color: #63B3ED;
+            box-shadow: 0 0 0 1px #63B3ED;
         }
-        .file-block {
-            /* 深色模式：調整邊框顏色 */
-            @apply border border-gray-300 dark:border-gray-700 p-4 rounded-md mb-4;
+        .dark .input-label { color: #A0AEC0; }
+        
+        /* 主要按鈕漸變 */
+        .btn-primary {
+            background: linear-gradient(90deg, #667EEA, #6B46C1); /* 藍紫漸變 */
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-        .file-block.drag-over {
-            /* 深色模式：調整拖放時的背景色 */
-            @apply border-dashed border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/50;
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #5A67D8, #553C9A);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+        .btn-primary:disabled {
+            background: #4A5568;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Gemini AI 按鈕 */
+        .btn-ai {
+            background-color: #38A169; /* 綠色 */
+            transition: background-color 0.2s;
+        }
+        .btn-ai:hover {
+            background-color: #2F855A;
+        }
+
+        /* Log 輸出區塊 */
+        #logContainer {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #1A202C;
+            border: 1px solid #4A5568;
+            font-family: monospace;
+            padding: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* 拖放區域樣式 */
+        .drop-zone {
+            border: 2px dashed #6B7280;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .drop-zone.drag-over {
+            border-color: #63B3ED;
+            background-color: #3A4452;
+        }
+
+        @media (min-width: 768px) {
+            body {
+                padding: 4rem 1rem;
+            }
         }
     </style>
 </head>
-<!-- 深色模式：調整 body 背景色 -->
-<body class="bg-gray-50 dark:bg-gray-900">
+<body class="text-primary">
+    <div id="app" class="max-w-3xl mx-auto space-y-8">
+        <h1 class="text-3xl font-bold text-center mb-6 text-white">
+            <svg class="inline-block w-8 h-8 mr-2 -mt-1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            GitHub PR 自動化工具 (v1.1)
+        </h1>
+        
+        <!-- 認證與倉庫 -->
+        <div class="bg-card p-6 rounded-xl shadow-lg space-y-4">
+            <h2 class="text-xl font-semibold border-b border-gray-600 pb-2">認證與目標倉庫</h2>
+            <p class="text-sm text-yellow-400 p-2 rounded-lg bg-yellow-900/50">
+                ⚠️ **安全警告：** 請勿分享您的個人存取權杖 (PAT)。本工具只在瀏覽器本地使用您的權杖進行 API 呼叫。
+            </p>
+            <div class="space-y-4 md:flex md:space-y-0 md:space-x-4">
+                <div class="flex-1">
+                    <label for="token" class="input-label block mb-1">GitHub PAT 權杖 (必需)</label>
+                    <input type="password" id="token" placeholder="ghp_..." class="w-full p-2 rounded-lg border focus:outline-none">
+                </div>
+                <div class="flex-1">
+                    <label for="repoFullName" class="input-label block mb-1">倉庫名稱 (Owner/Repo)</label>
+                    <input type="text" id="repoFullName" value="google/gemini-api-recipes" placeholder="e.g. owner/repository-name" class="w-full p-2 rounded-lg border focus:outline-none">
+                </div>
+            </div>
+        </div>
 
-    <div class="container mx-auto p-4 sm:p-8 max-w-3xl">
-        <!-- 深色模式：調整容器背景色 -->
-        <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-lg shadow-lg">
-            <!-- 深色模式：調整標題文字顏色 -->
-            <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-gray-100 mb-6">
-                GitHub PR 快速產生器
-            </h1>
+        <!-- 分支資訊 -->
+        <div class="bg-card p-6 rounded-xl shadow-lg space-y-4">
+            <h2 class="text-xl font-semibold border-b border-gray-600 pb-2">分支設定</h2>
+            <div class="space-y-4 md:flex md:space-y-0 md:space-x-4">
+                <div class="flex-1">
+                    <label for="baseBranch" class="input-label block mb-1">目標分支 (Base Branch)</label>
+                    <input type="text" id="baseBranch" value="main" placeholder="e.g. main" class="w-full p-2 rounded-lg border focus:outline-none">
+                </div>
+                <div class="flex-1">
+                    <label for="newBranch" class="input-label block mb-1">來源分支 (Source Branch)</label>
+                    <input type="text" id="newBranch" placeholder="e.g. feat/add-new-feature" class="w-full p-2 rounded-lg border focus:outline-none">
+                </div>
+            </div>
+            <div class="flex items-center pt-2">
+                <input type="checkbox" id="deleteBranch" checked class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mr-2">
+                <label for="deleteBranch" class="input-label">成功合併後刪除來源分支 (可選)</label>
+            </div>
+        </div>
+        
+        <!-- 檔案變更 (動態區塊) -->
+        <div class="bg-card p-6 rounded-xl shadow-lg space-y-4">
+            <div class="flex justify-between items-center border-b border-gray-600 pb-2">
+                <h2 class="text-xl font-semibold">檔案變更 (Commit)</h2>
+                <button onclick="addFileBlock()" class="text-sm font-medium px-3 py-1 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition">+ 新增另一個檔案</button>
+            </div>
+            <div id="filesContainer" class="space-y-6">
+                <!-- 預設檔案區塊將由 JS 載入 -->
+            </div>
+        </div>
 
-            <!-- 安全性警告 (深色模式調整) -->
-            <div class="bg-yellow-100 dark:bg-yellow-900/50 border-l-4 border-yellow-500 dark:border-yellow-600 text-yellow-700 dark:text-yellow-200 p-4 mb-6 rounded-md" role="alert">
-                <p class="font-bold">安全性警告！</p>
-                <p>請絕對不要將您的個人存取權杖 (PAT) 分享給任何人。此權杖將僅用於在您的瀏覽器和 GitHub API 之間進行通訊，不會被儲存或傳送到任何其他地方。建議使用完畢後立即關閉此頁面。</p>
+        <!-- Pull Request 資訊 -->
+        <div class="bg-card p-6 rounded-xl shadow-lg space-y-4">
+            <h2 class="text-xl font-semibold border-b border-gray-600 pb-2">Pull Request 資訊</h2>
+            
+            <div class="flex justify-between items-end">
+                <div class="flex-1 pr-4">
+                    <label for="prTitle" class="input-label block mb-1">PR 標題</label>
+                    <input type="text" id="prTitle" placeholder="e.g. Fix: 修正登入邏輯" class="w-full p-2 rounded-lg border focus:outline-none">
+                </div>
+                <button id="btnGenerateTitle" onclick="generatePRTitle()" class="btn-ai text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap">
+                    ✨ 幫我產生 PR 標題
+                </button>
             </div>
 
-            <!-- 表單開始 -->
-            <form id="pr-form" class="space-y-6">
-                
-                <!-- 1. 認證 -->
-                <div>
-                    <!-- 深色模式：調整標題文字顏色 -->
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2 mb-4">1. 認證與倉庫</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label for="token" class="form-label">GitHub 個人存取權杖 (PAT)</label>
-                            <input type="password" id="token" class="form-input" placeholder="ghp_..." required>
-                            <!-- 深色模式：調整提示文字顏色 -->
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">需要 'repo' 權限。</p>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label for="owner" class="form-label">倉庫擁有者 (Owner)</label>
-                                <input type="text" id="owner" class="form-input" placeholder="例如：octocat" required>
-                            </div>
-                            <div>
-                                <label for="repo" class="form-label">倉庫名稱 (Repo)</label>
-                                <input type="text" id="repo" class="form-input" placeholder="例如：Spoon-Knife" required>
-                            </div>
-                        </div>
-                    </div>
+            <div class="flex justify-between items-end">
+                <div class="flex-1 pr-4">
+                    <label for="prBody" class="input-label block mb-1">PR 描述 (支援 Markdown)</label>
+                    <textarea id="prBody" rows="5" placeholder="詳細描述變更內容..." class="w-full p-2 rounded-lg border focus:outline-none"></textarea>
                 </div>
-
-                <!-- 2. 分支資訊 -->
-                <div>
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2 mb-4">2. 分支資訊</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="base-branch" class="form-label">基礎分支 (Base Branch)</label>
-                            <input type="text" id="base-branch" class="form-input" value="main" required>
-                        </div>
-                        <div>
-                            <label for="new-branch" class="form-label">新分支名稱 (New Branch)</label>
-                            <input type="text" id="new-branch" class="form-input" placeholder="例如：feature/my-cool-update" required>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. 檔案變更 -->
-                <div>
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2 mb-4">3. 檔案變更</h2>
-                    <div id="files-container">
-                        <!-- 檔案區塊模板 -->
-                        <div class="file-block" data-file-id="1">
-                            <div class="flex justify-between items-center mb-2">
-                                <!-- 深色模式：調整文字顏色 -->
-                                <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300">檔案 1</h3>
-                                <!-- 深色模式：調整移除按鈕文字顏色 -->
-                                <button type="button" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm" onclick="removeFile(1)" disabled>移除</button>
-                            </div>
-                            <div class="space-y-4">
-                                <div>
-                                    <label for="file-path-1" class="form-label">檔案路徑 (File Path)</label>
-                                    <input type="text" id="file-path-1" class="form-input" placeholder="例如：src/components/Button.jsx" required>
-                                </div>
-                                <div>
-                                    <label for="file-content-1" class="form-label">檔案內容 (File Content)</label>
-                                    <textarea id="file-content-1" rows="10" class="form-textarea font-mono" placeholder="貼上您的程式碼或文字..." required></textarea>
-                                    <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-1">或者，將檔案拖放到這個區塊中的任意位置</p>
-                                </div>
-                                <div>
-                                    <label for="commit-message-1" class="form-label">提交訊息 (Commit Message)</label>
-                                    <input type="text" id="commit-message-1" class="form-input" placeholder="例如：feat: Add new button component" required>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- 深色模式：調整 "新增檔案" 按鈕樣式 -->
-                    <button type="button" id="add-file-btn" class="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        + 新增另一個檔案
-                    </button>
-                </div>
-
-                <!-- 4. PR 資訊 -->
-                <div>
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2 mb-4">4. Pull Request 資訊 (整合 Gemini AI ✨)</h2>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">使用下方按鈕，讓 AI 根據您的提交訊息自動產生標題與描述。</p>
-                    <div class="space-y-4">
-                        <!-- 新增 Issue 號碼輸入欄位 -->
-                        <div>
-                            <label for="issue-number" class="form-label">連動 Issue 號碼 (選填)</label>
-                            <input type="text" id="issue-number" class="form-input" placeholder="例如：123 或 #123">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">填寫此號碼會在 PR 合併時自動**關閉**連動的 Issue。</p>
-                        </div>
-                        <div>
-                            <label for="pr-title" class="form-label">PR 標題</label>
-                            <input type="text" id="pr-title" class="form-input" placeholder="您的 PR 標題" required>
-                            <!-- 深色模式：調整 Gemini 按鈕樣式 -->
-                            <button type="button" id="generate-title-btn" class="mt-2 w-full flex justify-center items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <svg id="gemini-spinner-title" class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700 dark:text-gray-300 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span id="gemini-text-title">✨ 幫我產生 PR 標題</span>
-                            </button>
-                        </div>
-                        <div>
-                            <label for="pr-body" class="form-label">PR 描述</label>
-                            <textarea id="pr-body" rows="5" class="form-textarea" placeholder="詳細描述您的變更..."></textarea>
-                            <!-- 深色模式：調整 Gemini 按鈕樣式 -->
-                            <button type="button" id="generate-body-btn" class="mt-2 w-full flex justify-center items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <svg id="gemini-spinner-body" class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700 dark:text-gray-300 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span id="gemini-text-body">✨ 幫我產生 PR 描述</span>
-                            </button>
-                        </div>
-                        
-                        <!-- 新增：成功合併後刪除分支選項 -->
-                        <div class="flex items-start pt-2">
-                            <!-- 深色模式：調整 checkbox 邊框 -->
-                            <input id="delete-branch-after-merge" type="checkbox" class="mt-1 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500">
-                            <!-- 深色模式：調整 checkbox 文字 -->
-                            <label for="delete-branch-after-merge" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                                <span class="font-medium">✅ 成功合併後刪除來源分支 (Delete Source Branch)</span>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">（如果勾選，將會在合併後嘗試刪除新建立的來源分支）</p>
-                            </label>
-                        </div>
-                        
-                    </div>
-                </div>
-
-                <!-- 提交按鈕 -->
-                <div class="pt-4">
-                    <button type="submit" id="submit-btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <span id="submit-text">建立並自動合併 Pull Request</span>
-                        <svg id="submit-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </button>
-                </div>
-            </form>
+                <button id="btnGenerateDesc" onclick="generatePRDescription()" class="btn-ai text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap">
+                    ✨ 幫我產生 PR 描述
+                </button>
+            </div>
             
-            <!-- 結果訊息 (深色模式樣式在 JS 中處理) -->
-            <div id="result-message" class="mt-6 hidden"></div>
+            <div>
+                <label for="issueNumber" class="input-label block mb-1">連動 Issue 號碼 (可選)</label>
+                <input type="text" id="issueNumber" placeholder="e.g. 123 (將自動加入 Closes #123)" class="w-full p-2 rounded-lg border focus:outline-none">
+            </div>
+
+            <div class="pt-4">
+                <button id="mainActionButton" onclick="createPullRequest()" class="btn-primary text-white w-full py-3 rounded-lg text-lg font-semibold flex items-center justify-center">
+                    <svg class="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21v-4a2 2 0 1 1 4 0v4"/><path d="M17 21v-8a2 2 0 1 1 4 0v8"/><path d="M7 3h2v2H7zM15 3h2v2h-2zM4 14V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M10 17v-4a2 2 0 1 1 4 0v4"/></svg>
+                    建立、自動合併並清理 Pull Request (7 步驟)
+                </button>
+            </div>
+        </div>
+
+        <!-- 日誌與結果輸出 -->
+        <div class="bg-card p-6 rounded-xl shadow-lg space-y-4">
+            <h2 class="text-xl font-semibold border-b border-gray-600 pb-2">日誌與執行結果</h2>
+            <div id="logContainer" class="rounded-lg">
+                <!-- Log messages here -->
+            </div>
+            <div id="resultBox" class="p-4 rounded-lg hidden">
+                <!-- Final result/link here -->
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 合併狀態檢查常數 ---
-        const MAX_MERGE_RETRIES = 10;
-        const MERGE_RETRY_DELAY_MS = 2000; // 2 秒
-
-        let fileCount = 1;
-        const addFileBtn = document.getElementById('add-file-btn');
-        const filesContainer = document.getElementById('files-container');
-
-        // 新增檔案區塊
-        addFileBtn.addEventListener('click', () => {
-            fileCount++;
-            const fileBlock = document.createElement('div');
-            fileBlock.className = 'file-block'; // JS 動態新增的 class 會自動套用 style 標籤中的 dark 樣式
-            fileBlock.setAttribute('data-file-id', fileCount);
-            fileBlock.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300">檔案 ${fileCount}</h3>
-                    <button type="button" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm" onclick="removeFile(${fileCount})">移除</button>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label for="file-path-${fileCount}" class="form-label">檔案路徑 (File Path)</label>
-                        <input type="text" id="file-path-${fileCount}" class="form-input" placeholder="例如：src/main.js" required>
-                    </div>
-                    <div>
-                        <label for="file-content-${fileCount}" class="form-label">檔案內容 (File Content)</label>
-                        <textarea id="file-content-${fileCount}" rows="10" class="form-textarea font-mono" placeholder="貼上您的程式碼或文字..." required></textarea>
-                        <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-1">或者，將檔案拖放到這個區塊中的任意位置</p>
-                    </div>
-                    <div>
-                        <label for="commit-message-${fileCount}" class="form-label">提交訊息 (Commit Message)</label>
-                        <input type="text" id="commit-message-${fileCount}" class="form-input" placeholder="例如：fix: Update main.js" required>
-                    </div>
-                </div>
-            `;
-            filesContainer.appendChild(fileBlock);
-            updateRemoveButtons();
-            initFileBlock(fileBlock); // 初始化新區塊的拖放事件
-        });
-
-        // 移除檔案區塊
-        function removeFile(id) {
-            const fileBlock = document.querySelector(`[data-file-id="${id}"]`);
-            if (fileBlock) {
-                fileBlock.remove();
-            }
-            updateRemoveButtons();
-        }
-
-        // 更新移除按鈕的狀態（如果只有一個檔案，則禁用移除）
-        function updateRemoveButtons() {
-            const blocks = filesContainer.querySelectorAll('.file-block');
-            blocks.forEach((block, index) => {
-                const button = block.querySelector('button');
-                button.disabled = blocks.length === 1;
-            });
-        }
-
-        // --- 拖放功能 ---
+        const API_BASE = 'https://api.github.com';
+        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=`; // API Key is read from environment
+        
+        let fileBlockCounter = 0;
+        let isProcessing = false;
 
         /**
-         * 為檔案區塊初始化拖放事件
-         * @param {HTMLElement} blockElement - .file-block 元素
+         * 寫入日誌訊息到日誌容器
+         * @param {string} message - 要記錄的訊息
+         * @param {string} level - 訊息級別 ('info', 'success', 'error', 'warn')
          */
-        function initFileBlock(blockElement) {
-            blockElement.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                blockElement.classList.add('drag-over');
-            });
+        function logMessage(message, level = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const colorMap = {
+                info: 'text-gray-400',
+                success: 'text-green-400',
+                error: 'text-red-400',
+                warn: 'text-yellow-400',
+            };
+            const prefixMap = {
+                info: '[INFO]',
+                success: '[SUCCESS]',
+                error: '[ERROR]',
+                warn: '[WARN]',
+            };
 
-            blockElement.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                blockElement.classList.remove('drag-over');
-            });
-
-            blockElement.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                blockElement.classList.remove('drag-over');
-
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    const file = files[0];
-                    const id = blockElement.getAttribute('data-file-id');
-                    
-                    const pathInput = document.getElementById(`file-path-${id}`);
-                    const contentTextarea = document.getElementById(`file-content-${id}`);
-
-                    // 自動填入檔案路徑
-                    pathInput.value = file.name;
-
-                    // 讀取檔案內容並填入
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        contentTextarea.value = event.target.result;
-                        logMessage(`> 檔案 ${file.name} 內容已載入。`, 'info');
-                    };
-                    reader.onerror = (event) => {
-                        console.error("檔案讀取錯誤: ", reader.error);
-                        showResult('error', `<p class="font-bold">檔案讀取失敗</p><p>${reader.error}</p>`);
-                    };
-                    
-                    // 假設檔案是文字檔
-                    reader.readAsText(file);
-                }
-            });
+            const logEntry = document.createElement('div');
+            logEntry.className = colorMap[level];
+            logEntry.innerHTML = `<span class="font-bold mr-2">${prefixMap[level]}</span> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight; // 保持滾動到底部
         }
-
-        // 初始化第一個檔案區塊的拖放功能
-        document.querySelectorAll('.file-block').forEach(initFileBlock);
-
-
-        // --- GitHub API 邏輯 ---
-
-        const form = document.getElementById('pr-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const submitText = document.getElementById('submit-text');
-        const submitSpinner = document.getElementById('submit-spinner');
-        const resultMessage = document.getElementById('result-message');
-
-        // AI 產生器按鈕
-        const generateTitleBtn = document.getElementById('generate-title-btn');
-        const generateBodyBtn = document.getElementById('generate-body-btn');
-        const prTitleInput = document.getElementById('pr-title');
-        const prBodyTextarea = document.getElementById('pr-body');
-
-
-        // 輔助函式：收集所有提交訊息
-        function getAllCommitMessages() {
-            const messages = [];
-            document.querySelectorAll('.file-block').forEach(block => {
-                const id = block.getAttribute('data-file-id');
-                const message = document.getElementById(`commit-message-${id}`).value;
-                if (message.trim()) {
-                    messages.push(message.trim());
-                }
-            });
-            return messages;
-        }
-
-        // 輔助函式：設定 Gemini 按鈕的載入狀態
-        function setGeminiLoading(buttonId, isLoading) {
-            const btn = document.getElementById(buttonId);
-            if (!btn) return;
-            const spinner = document.getElementById(buttonId.replace('btn', 'spinner'));
-            const text = document.getElementById(buttonId.replace('btn', 'text'));
-            
-            if (isLoading) {
-                btn.disabled = true;
-                spinner.classList.remove('hidden');
-                text.classList.add('opacity-50');
-            } else {
-                btn.disabled = false;
-                spinner.classList.add('hidden');
-                text.classList.remove('opacity-50');
-            }
-        }
-
-        // 產生 PR 標題的事件
-        generateTitleBtn.addEventListener('click', async () => {
-            setGeminiLoading('generate-title-btn', true);
-            clearResult(); // 清除底部的主日誌
-            
-            const commitMessages = getAllCommitMessages();
-            if (commitMessages.length === 0) {
-                showResult('error', '<p class="font-bold">無法產生標題</p><p>請至少在「3. 檔案變更」區塊中填寫一則提交訊息。</p>');
-                setGeminiLoading('generate-title-btn', false);
-                return;
-            }
-
-            const prompt = `你是一個 Git 專家。根據以下的提交訊息，產生一個簡潔、單行、不超過 72 個字元的 Pull Request 標題。不要包含 "PR Title:" 或任何引號。
-            
-            提交訊息:
-            - ${commitMessages.join('\n- ')}
-            
-            PR 標題:`;
-
-            try {
-                const title = await callGeminiApi(prompt);
-                prTitleInput.value = title.trim().replace(/^"|"$/g, ''); // 清理多餘的引號
-            } catch (error) {
-                console.error('Gemini 標題產生失敗:', error);
-                showResult('error', `<p class="font-bold">AI 標題產生失敗</p><p>${error.message}</p>`);
-            } finally {
-                setGeminiLoading('generate-title-btn', false);
-            }
-        });
-
-        // 產生 PR 描述的事件
-        generateBodyBtn.addEventListener('click', async () => {
-            setGeminiLoading('generate-body-btn', true);
-            clearResult(); // 清除底部的主日誌
-
-            const commitMessages = getAllCommitMessages();
-            if (commitMessages.length === 0) {
-                showResult('error', '<p class="font-bold">無法產生描述</p><p>請至少在「3. 檔案變更」區塊中填寫一則提交訊息。</p>');
-                setGeminiLoading('generate-body-btn', false);
-                return;
-            }
-
-            const prompt = `你是一個 Git 專家。根據以下的提交訊息，產生一個結構化的 Pull Request 描述 (使用 Markdown 格式)。
-            
-            包含以下區塊：
-            - "## 變更摘要 (Summary)"：簡要總結主要的變更。
-            - "## 詳細變更 (Details)"：將提交訊息列為一個項目清單。
-            
-            不要包含任何 PR 標題。
-            
-            提交訊息:
-            - ${commitMessages.join('\n- ')}
-            
-            PR 描述:`;
-
-            try {
-                const body = await callGeminiApi(prompt);
-                prBodyTextarea.value = body.trim();
-            } catch (error) {
-                console.error('Gemini 描述產生失敗:', error);
-                showResult('error', `<p class="font-bold">AI 描述產生失敗</p><p>${error.message}</p>`);
-            } finally {
-                setGeminiLoading('generate-body-btn', false);
-            }
-        });
 
         /**
-         * 輪詢 Pull Request 的狀態，直到 mergeable 變為 true 或超時。
-         * @param {string} token GitHub PAT
-         * @param {string} owner 倉庫擁有者
-         * @param {string} repo 倉庫名稱
-         * @param {number} prNumber PR 號碼
+         * 顯示最終結果訊息
+         * @param {string} message - 最終結果 HTML/Text
+         * @param {boolean} isSuccess - 是否成功
          */
-        async function waitForMergeableStatus(token, owner, repo, prNumber) {
-            logMessage(`> 檢查 PR #${prNumber} 的可合併性狀態...`);
+        function showResult(message, isSuccess) {
+            const resultBox = document.getElementById('resultBox');
+            resultBox.className = `p-4 rounded-lg mt-4 ${isSuccess ? 'bg-green-900/50 border border-green-700' : 'bg-red-900/50 border border-red-700'}`;
+            resultBox.innerHTML = message;
+            resultBox.style.display = 'block';
+        }
+        
+        /**
+         * 檢查輸入的必要欄位是否填寫
+         * @returns {boolean}
+         */
+        function validateInputs() {
+            const token = document.getElementById('token').value.trim();
+            const repoFullName = document.getElementById('repoFullName').value.trim();
+            const newBranch = document.getElementById('newBranch').value.trim();
+            const prTitle = document.getElementById('prTitle').value.trim();
+            const baseBranch = document.getElementById('baseBranch').value.trim();
 
-            for (let i = 0; i < MAX_MERGE_RETRIES; i++) {
-                
-                // *** 錯誤修正 ***
-                // 移除 'Cache-Control' 標頭，改用 URL 參數來防止快取 (cache-busting)
-                // 這可以避免 GitHub API 回傳 (null) 的快取狀態
-                const cacheBust = `_=${new Date().getTime()}`;
-                const endpoint = `GET /repos/${owner}/${repo}/pulls/${prNumber}?${cacheBust}`;
-
-                const prDetails = await apiCall(token, endpoint);
-                
-                const mergeable = prDetails.mergeable;
-                
-                if (mergeable === true) {
-                    logMessage(`> PR 狀態：可合併。繼續進行自動合併。`);
-                    return;
-                }
-
-                if (mergeable === false) {
-                    throw new Error('Pull Request is not mergeable: 存在衝突或無法自動合併。請手動檢查。');
-                }
-
-                // mergeable is null (still calculating)
-                logMessage(`> PR 狀態仍待確認 (null)，等待 ${MERGE_RETRY_DELAY_MS / 1000} 秒後重試... (${i + 1}/${MAX_MERGE_RETRIES})`, 'info');
-                await new Promise(resolve => setTimeout(resolve, MERGE_RETRY_DELAY_MS));
+            if (!token || !repoFullName || !newBranch || !prTitle || !baseBranch) {
+                showResult('<strong>錯誤：</strong> PAT 權杖、倉庫名稱、來源分支、目標分支和 PR 標題都是必需的。請檢查所有欄位。', false);
+                return false;
             }
 
-            throw new Error(`Pull Request 狀態檢查超時 (${MAX_MERGE_RETRIES} 次)。PR 在指定時間內仍無法合併。`);
+            const fileBlocks = document.querySelectorAll('.file-block');
+            if (fileBlocks.length === 0) {
+                 showResult('<strong>錯誤：</strong> 至少需要一個檔案變更。', false);
+                return false;
+            }
+            
+            for (const block of fileBlocks) {
+                const path = block.querySelector('.file-path').value.trim();
+                const content = block.querySelector('.file-content').value;
+                const commitMessage = block.querySelector('.commit-message').value.trim();
+                if (!path || !content || !commitMessage) {
+                    showResult(`<strong>錯誤：</strong> 檔案 #${block.dataset.index} 的路徑、內容和提交訊息都是必需的。`, false);
+                    return false;
+                }
+            }
+
+            return true;
         }
 
+        /**
+         * 帶有指數退避和重試機制的 GitHub API 呼叫器 (最多 5 次)
+         * @param {string} url - API URL
+         * @param {string} method - HTTP 方法 (GET, POST, PUT, DELETE)
+         * @param {string} token - GitHub PAT
+         * @param {object} payload - JSON payload
+         * @param {number} maxRetries - 最大重試次數
+         * @returns {Promise<Response>}
+         */
+        async function callApiWithRetry(url, method, token, payload = null, maxRetries = 5) {
+            const headers = {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+            };
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            setLoading(true);
-            clearResult();
-
-            const token = document.getElementById('token').value;
-            const owner = document.getElementById('owner').value;
-            const repo = document.getElementById('repo').value;
-            const baseBranch = document.getElementById('base-branch').value;
-            const newBranch = document.getElementById('new-branch').value;
-            const prTitle = document.getElementById('pr-title').value;
-            let prBody = document.getElementById('pr-body').value; 
-            
-            // 新增：取得刪除分支選項的狀態
-            const deleteBranchAfterMerge = document.getElementById('delete-branch-after-merge').checked;
-
-            // 新增：處理 Issue 號碼
-            const issueNumberRaw = document.getElementById('issue-number').value.trim();
-            const issueNumber = issueNumberRaw.startsWith('#') ? issueNumberRaw.substring(1) : issueNumberRaw;
-
-            // 如果有有效的 Issue 號碼，將關閉關鍵字添加到 PR 描述的最前面
-            if (issueNumber && !isNaN(parseInt(issueNumber))) {
-                const issueLink = `Closes #${issueNumber}`;
-                // 在 Issue 連結和原本的描述之間加上兩行換行，以便格式化
-                prBody = `${issueLink}\n\n${prBody}`;
-                logMessage(`> 將自動連動並關閉 Issue #${issueNumber}。`);
-            }
-            // 結束 Issue 處理
-
-            const files = [];
-            document.querySelectorAll('.file-block').forEach(block => {
-                const id = block.getAttribute('data-file-id');
-                files.push({
-                    path: document.getElementById(`file-path-${id}`).value,
-                    content: document.getElementById(`file-content-${id}`).value,
-                    commit: document.getElementById(`commit-message-${id}`).value,
-                });
-            });
-
-            try {
-                // --- Step 1: 取得基礎分支的 SHA ---
-                logMessage('步驟 1/7: 正在取得基礎分支的 SHA...');
-                const baseRef = await apiCall(token, `GET /repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
-                const baseSha = baseRef.object.sha;
-                logMessage(`> 基礎 SHA: ${baseSha}`);
-
-                // --- Step 2: 建立新分支 ---
-                logMessage('步驟 2/7: 正在建立新分支...');
+            for (let i = 0; i < maxRetries; i++) {
                 try {
-                    await apiCall(token, `POST /repos/${owner}/${repo}/git/refs`, {
-                        ref: `refs/heads/${newBranch}`,
-                        sha: baseSha,
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: headers,
+                        body: payload ? JSON.stringify(payload) : null,
                     });
-                    logMessage(`> 成功建立分支: ${newBranch}`);
-                } catch (error) {
-                    if (error.message.includes("Reference already exists")) {
-                        logMessage(`> 分支 ${newBranch} 已存在，將繼續使用。`);
-                    } else {
-                        throw error;
-                    }
-                }
 
-                // --- Step 3: 逐一提交檔案 ---
-                logMessage('步驟 3/7: 正在提交檔案變更...');
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    logMessage(`> G: ${file.path}`);
+                    // 成功或 404/409 (非 5xx 錯誤) 直接返回
+                    if (response.ok || response.status === 404 || response.status === 409) {
+                        return response;
+                    }
                     
-                    let currentFileSha = undefined;
-                    try {
-                        // 嘗試取得檔案的目前 SHA (為了更新)
-                        const currentFile = await apiCall(token, `GET /repos/${owner}/${repo}/contents/${file.path}?ref=${newBranch}`);
-                        currentFileSha = currentFile.sha;
-                        logMessage(`> 檔案 ${file.path} 已存在，將進行更新。`);
-                    } catch (error) {
-                        if (error.message.includes("Not Found")) {
-                            logMessage(`> 檔案 ${file.path} 是新檔案。`);
-                        } else {
-                            throw error;
-                        }
+                    // 處理 403 Rate Limit 或 5xx 伺服器錯誤，嘗試重試
+                    if (response.status === 403 || response.status >= 500) {
+                         // 指數退避延遲
+                        const delay = Math.pow(2, i) * 1000;
+                        logMessage(`API 呼叫失敗 (${response.status} ${response.statusText})，將在 ${delay / 1000} 秒後重試...`, 'warn');
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // 進入下一個重試循環
                     }
 
-                    await apiCall(token, `PUT /repos/${owner}/${repo}/contents/${file.path}`, {
-                        message: file.commit,
-                        content: btoa(unescape(encodeURIComponent(file.content))), // 處理 UTF-8
-                        branch: newBranch,
-                        sha: currentFileSha, // 如果是新檔案，此為 undefined
-                    });
-                    logMessage(`> 成功提交: ${file.path}`);
+                    // 其他非重試錯誤 (如 400 Bad Request, 401 Bad Credentials)
+                    return response;
+                    
+                } catch (error) {
+                    // 網路錯誤
+                    const delay = Math.pow(2, i) * 1000;
+                    logMessage(`網路錯誤: ${error.message}，將在 ${delay / 1000} 秒後重試...`, 'error');
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
-                logMessage('所有檔案均已提交。');
-
-                // --- Step 4: 建立 PR ---
-                logMessage('步驟 4/7: 正在建立 Pull Request...');
-                const pr = await apiCall(token, `POST /repos/${owner}/${repo}/pulls`, {
-                    title: prTitle,
-                    body: prBody, // 使用可能已包含 Issue 關閉關鍵字的 prBody
-                    head: newBranch,
-                    base: baseBranch,
-                });
-                logMessage(`> 成功建立 PR #${pr.number}！`);
-                
-                // --- Step 5: 輪詢等待 PR 可合併狀態 ---
-                logMessage('步驟 5/7: 等待 PR 進入可合併狀態...');
-                await waitForMergeableStatus(token, owner, repo, pr.number);
-
-                // --- Step 6: 自動合併 PR ---
-                logMessage('步驟 6/7: 正在自動合併 Pull Request...');
-                await apiCall(token, `PUT /repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
-                    merge_method: 'squash', // 預設使用 squash 合併
-                    commit_title: prTitle,
-                    commit_message: prBody,
-                });
-                logMessage('> 成功合併變更到基礎分支！');
-
-                // --- Step 7: 刪除來源分支 (新增功能) ---
-                let deleteSuccess = false;
-                if (deleteBranchAfterMerge) {
-                    logMessage('步驟 7/7: 成功合併，正在刪除來源分支...', 'log'); // 使用 'log' 確保它顯示
-                    try {
-                        // GitHub API for deleting a reference: DELETE /repos/{owner}/{repo}/git/refs/{ref}
-                        // ref for a branch is 'heads/branch_name'
-                        // 使用 DELETE 方法
-                        await apiCall(token, `DELETE /repos/${owner}/${repo}/git/refs/heads/${newBranch}`, null, 'DELETE');
-                        logMessage(`> 成功刪除來源分支: ${newBranch}`);
-                        deleteSuccess = true;
-                    } catch (deleteError) {
-                        // 刪除失敗不應阻止整體成功訊息，但應記錄警告
-                        logMessage(`> ⚠️ 警告：無法刪除分支 ${newBranch}。可能需要手動刪除。錯誤訊息: ${deleteError.message}`, 'error');
-                    }
-                } else {
-                    logMessage('步驟 7/7: 跳過刪除來源分支。');
-                }
-
-
-                // --- 最終結果: 顯示成功訊息 ---
-                logMessage('✅ 處理完成！');
-                showResult('success', `
-                    <p class="font-bold">成功建立並合併變更！</p>
-                    <p class="mt-2">所有變更已自動合併到 <strong>${baseBranch}</strong> 分支。</p>
-                    ${deleteSuccess ? `<p class="mt-1 text-sm">來源分支 <strong>${newBranch}</strong> 已成功刪除。</p>` : ''}
-                    ${deleteBranchAfterMerge && !deleteSuccess ? `<p class="mt-1 text-sm text-red-700 dark:text-red-400 font-medium">⚠️ 警告：未能自動刪除分支 <strong>${newBranch}</strong>，請手動檢查。</p>` : ''}
-                    <a href="${pr.html_url}" target="_blank" class="mt-4 inline-block px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700">
-                        在 GitHub 上查看合併後的 PR
-                    </a>
-                `);
-
-            } catch (error) {
-                console.error('PR 建立或合併失敗:', error);
-                showResult('error', `
-                    <p class="font-bold">發生錯誤</p>
-                    <p class="mt-2">無法完成自動化流程。請檢查您的權杖、倉庫資訊和瀏覽器主控台中的錯誤訊息。</p>
-                    <pre class="mt-2 text-sm bg-gray-100 dark:bg-gray-900/50 p-2 rounded overflow-auto">${error.message}</pre>
-                `);
-            } finally {
-                setLoading(false);
             }
-        });
 
-        // API 呼叫輔助函式 (已修復 URL 結構並新增 DELETE 支援)
-        // 新增一個 method 參數，以支援 DELETE /refs 呼叫，該呼叫不接受 body
-        async function apiCall(token, endpoint, body, customMethod) {
+            throw new Error(`API 呼叫 ${url} 失敗，已達到最大重試次數 ${maxRetries}。`);
+        }
+        
+        /**
+         * 呼叫 Gemini API 進行 PR 標題或描述生成
+         * @param {string} systemPrompt - 系統提示詞
+         * @param {string} userQuery - 使用者輸入的內容 (來自 Commit Messages)
+         * @returns {Promise<string>} - 返回生成的文本
+         */
+        async function callGeminiApi(systemPrompt, userQuery) {
+            const btnTitle = document.getElementById('btnGenerateTitle');
+            const btnDesc = document.getElementById('btnGenerateDesc');
             
-            // 修正：從 endpoint 字串中解析 HTTP 方法和實際路徑
-            let [method, path] = endpoint.split(' ', 2);
-            let queryParams = '';
+            // 由於 API Key 是在 Canvas 環境中提供的，這裡留空
+            const apiKey = ""; 
+            const apiUrl = `${GEMINI_API_URL}${apiKey}`;
 
-            // 如果沒有明確的方法，則根據 body 或 customMethod 確定
-            if (!path) {
-                path = method;
-                method = customMethod || (body ? 'POST' : 'GET');
-            } else {
-                 method = customMethod || method; // 優先使用 customMethod
-            }
-            
-            // *** 錯誤修正 ***
-            // 檢查路徑中是否有查詢參數 (為了支援 cache-busting)
-            const queryIndex = path.indexOf('?');
-            if (queryIndex > -1) {
-                queryParams = path.substring(queryIndex);
-                path = path.substring(0, queryIndex);
-            }
-
-            // 確保路徑以 / 開頭
-            if (!path.startsWith('/')) {
-                path = '/' + path;
-            }
-
-            const url = `https://api.github.com${path}${queryParams}`; // 使用修正後的路徑並附加查詢參數
-            const options = {
-                method: method, // 使用解析出的方法
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    // DELETE /refs 不應有 Content-Type
-                    'Content-Type': method !== 'DELETE' ? 'application/json' : undefined,
-                    // *** // 錯誤修正：已移除 Cache-Control: 'no-cache' 標頭，
-                    // 因為它可能導致 'Failed to fetch' 錯誤。
-                    // 快取處理將在 waitForMergeableStatus 中透過 URL 參數進行。
-                    // ***
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
                 },
             };
             
-            // 移除 headers 中 undefined 的 'Cache-Control' (如果不是 GET)
-            // (此邏輯已移除)
-            
-            // 移除 headers 中 undefined 的 'Content-Type' (如果是 DELETE)
-             if (!options.headers['Content-Type']) {
-                delete options.headers['Content-Type'];
-            }
+            let resultText = '';
+            const maxRetries = 3;
 
-            if (body) {
-                options.body = JSON.stringify(body);
-            }
-
-            // *** 錯誤修正：將 fetch 呼叫包在 try...catch 中以便記錄更詳細的錯誤 ***
-            try {
-                const response = await fetch(url, options);
-                
-                // DELETE /refs 成功時返回 204 No Content，此時 response.json() 會拋出錯誤
-                if (response.status === 204 && method === 'DELETE') {
-                    return {}; // 刪除成功，返回空物件
-                }
-                
-                const data = await response.json();
-
-                if (!response.ok) {
-                    // 如果是 404 (Not Found)，且調用者是 GET 檔案 SHA，則這是預期的，讓調用者處理
-                    if (response.status === 404 && method === 'GET' && path.includes('/contents/')) {
-                        // 允許 404 繼續，讓調用者(submit 函式)捕獲並處理為「新檔案」
-                        throw new Error(`Not Found: ${data.message || '檔案不存在'}`);
-                    }
-                    // 如果是 404 (Not Found)，且調用者是 DELETE refs/heads/{branch}，則分支不存在，也讓調用者處理
-                    if (response.status === 404 && method === 'DELETE' && path.includes('/git/refs/heads/')) {
-                        throw new Error(`Reference Not Found: ${data.message || '分支不存在'}`);
-                    }
-                    throw new Error(data.message || `GitHub API 請求失敗 (${response.status})`);
-                }
-                return data;
-
-            } catch (error) {
-                // 捕捉 fetch 本身的錯誤 (例如 'Failed to fetch')
-                console.error(`apiCall 失敗: ${method} ${url}`, error);
-                // 重新拋出錯誤，以便外層的 try/catch 可以捕捉到
-                // 如果錯誤是 TypeError: Failed to fetch，則提供更具體的提示
-                if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                    throw new Error(`網路請求失敗 (Failed to fetch)。請檢查您的網路連線，或確認瀏覽器/環境是否允許存取 ${url}。`);
-                }
-                throw error; // 重新拋出原始錯誤
-            }
-        }
-
-        // --- UI 狀態 ---
-        function setLoading(isLoading) {
-            if (isLoading) {
-                submitBtn.disabled = true;
-                submitText.classList.add('hidden');
-                submitSpinner.classList.remove('hidden');
-            } else {
-                submitBtn.disabled = false;
-                submitText.classList.remove('hidden');
-                submitSpinner.classList.add('hidden');
-            }
-        }
-
-        // 重新排列並修正 showResult, logMessage, 和 clearResult 函數
-        
-        function showResult(type, html) {
-            resultMessage.innerHTML = html;
-            // 深色模式：調整結果訊息的樣式
-            resultMessage.className = `mt-6 p-4 rounded-md ${
-                type === 'success' ? 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-800 dark:text-green-200' :
-                type === 'error' ? 'bg-red-100 dark:bg-red-900/50 border-red-300 dark:border-red-600 text-red-800 dark:text-red-200' :
-                'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200'
-            }`;
-            resultMessage.classList.remove('hidden');
-            resultMessage.scrollTop = resultMessage.scrollHeight; // 確保捲動到最新訊息
-        }
-
-        function logMessage(message, type = 'log') {
-            // 如果當前是錯誤狀態，不要覆蓋它，只在 console 中記錄
-            if (resultMessage.classList.contains('bg-red-100')) {
-                console.log(`[LOG] ${message}`);
-                return;
-            }
-
-            // 如果是初始日誌或類型不是 info
-            if (resultMessage.classList.contains('hidden') || type === 'log' || type === 'error') {
-                // 深色模式：調整日誌基礎樣式
-                const baseClass = type === 'error' 
-                    ? 'bg-red-100 dark:bg-red-900/50 border-red-300 dark:border-red-600 text-red-800 dark:text-red-200' 
-                    : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200';
-                
-                const content = type === 'error' 
-                    ? `<div class="text-sm font-medium">${message}</div>` 
-                    : `<div class="text-sm">${message}</div>`;
-                
-                // 檢查是否是第一次 logMessage
-                if (resultMessage.classList.contains('hidden') || resultMessage.innerHTML.includes('處理中...')) {
-                    // 第一次設置 (使用 showResult 來設定基礎樣式)
-                    showResult('log', `<div class="font-bold mb-2">處理中...</div>${content}`);
-                } else {
-                    // 附加到現有的 log
-                    resultMessage.innerHTML += content;
-                }
-            } else if (type === 'info') {
-                // 'info' 類型只在日誌已開啟時附加訊息 (例如：等待重試)
-                // 深色模式：調整 info 文字顏色
-                 resultMessage.innerHTML += `<div class="text-xs text-blue-600 dark:text-blue-400">${message}</div>`;
-            }
-
-            // 自動捲動到底部
-            resultMessage.scrollTop = resultMessage.scrollHeight;
-        }
-
-        function clearResult() {
-            resultMessage.innerHTML = '';
-            resultMessage.classList.add('hidden');
-        }
-
-
-        // --- Gemini API 邏輯 ---
-        
-        /**
-         * 呼叫 Gemini API
-         * @param {string} prompt - 傳送給 LLM 的提示
-         * @param {number} maxRetries - 最大重試次數
-         * @returns {Promise<string>} - 模型的文字回應
-         */
-        async function callGeminiApi(prompt, maxRetries = 3) {
-            const apiKey = "AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs"; // 依照指示，留空。API 金鑰將由執行環境提供。
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-            };
-
-            let delay = 1000; // 初始延遲 1 秒
             for (let i = 0; i < maxRetries; i++) {
                 try {
+                    // 禁用按鈕
+                    btnTitle.disabled = true;
+                    btnDesc.disabled = true;
+                    
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-
-                    if (!response.ok) {
-                        // 嘗試解析錯誤訊息
-                        let errorData = { error: { message: response.statusText } };
-                        try {
-                            errorData = await response.json();
-                        } catch (e) {
-                            // 保持預設錯誤
-                        }
-                        throw new Error(`API Error: ${response.status} - ${errorData.error?.message || response.statusText}`);
-                    }
-
+                    
                     const result = await response.json();
-                    const candidate = result.candidates?.[0];
+                    
+                    if (response.ok && result.candidates && result.candidates.length > 0) {
+                        resultText = result.candidates[0].content?.parts?.[0]?.text || '';
+                        if (resultText) return resultText;
+                    }
 
-                    if (candidate && candidate.content?.parts?.[0]?.text) {
-                        return candidate.content.parts[0].text;
-                    } else {
-                        // 處理 API 成功但沒有有效回應的情況
-                        if (result.candidates?.[0]?.finishReason === 'SAFETY') {
-                            throw new Error('回應因安全設定被封鎖。');
-                        }
-                        throw new Error('無效的 API 回應或沒有內容。');
-                    }
-                } catch (error) {
-                    console.warn(`Gemini API 呼叫失敗 (嘗試 ${i + 1}/${maxRetries}): ${error.message}`);
-                    if (i === maxRetries - 1) {
-                        throw error; // 最後一次嘗試失敗，拋出錯誤
-                    }
-                    // 執行指數退避
+                    // 處理錯誤或無效響應，進行重試
+                    const delay = Math.pow(2, i) * 1000;
+                    logMessage(`Gemini API 呼叫失敗，將在 ${delay / 1000} 秒後重試...`, 'warn');
                     await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2; 
+                    
+                } catch (error) {
+                    const delay = Math.pow(2, i) * 1000;
+                    logMessage(`Gemini API 網路錯誤: ${error.message}，將在 ${delay / 1000} 秒後重試...`, 'error');
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } finally {
+                    // 在最後一次嘗試後或成功後重新啟用按鈕
+                    if (i === maxRetries - 1 || resultText) {
+                        btnTitle.disabled = false;
+                        btnDesc.disabled = false;
+                    }
                 }
             }
-            throw new Error('Gemini API 呼叫失敗，已達最大重試次數。');
+            
+            throw new Error('無法從 Gemini 取得有效的標題/描述。請手動輸入。');
         }
+
+        /**
+         * 產生 PR 標題
+         */
+        async function generatePRTitle() {
+            const commitMessages = Array.from(document.querySelectorAll('.commit-message'))
+                .map(el => el.value.trim())
+                .filter(msg => msg.length > 0);
+            
+            if (commitMessages.length === 0) {
+                logMessage('請先輸入至少一個檔案的「提交訊息 (Commit Message)」', 'warn');
+                return;
+            }
+
+            const prompt = `基於以下提交訊息，生成一個簡潔、單行、不超過 72 個字元的 GitHub Pull Request 標題。只輸出標題本身，不要包含任何前綴或解釋。\n\n提交訊息:\n${commitMessages.join('\n')}`;
+            const systemPrompt = "你是一位專業的 GitHub 開發者。請根據提交訊息，以最簡潔且符合規範的風格生成一個 PR 標題。";
+            
+            try {
+                logMessage('正在呼叫 Gemini AI 產生 PR 標題...');
+                const title = await callGeminiApi(systemPrompt, prompt);
+                document.getElementById('prTitle').value = title.trim();
+                logMessage('PR 標題已成功生成並填入。', 'success');
+            } catch (error) {
+                logMessage(`產生 PR 標題失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        /**
+         * 產生 PR 描述
+         */
+        async function generatePRDescription() {
+            const commitMessages = Array.from(document.querySelectorAll('.commit-message'))
+                .map(el => el.value.trim())
+                .filter(msg => msg.length > 0);
+            
+            if (commitMessages.length === 0) {
+                logMessage('請先輸入至少一個檔案的「提交訊息 (Commit Message)」', 'warn');
+                return;
+            }
+
+            const prompt = `基於以下提交訊息，生成一個結構化的 GitHub Pull Request 描述。使用 Markdown 格式，包含以下兩個頂級標題：\n1. **變更摘要** (Summary of Changes): 簡要說明這次 PR 的目的和主要變更。\n2. **詳細變更** (Detailed Changes): 以 Markdown 清單列出所有提交訊息的要點。\n\n提交訊息:\n${commitMessages.join('\n')}`;
+            const systemPrompt = "你是一位專業的 GitHub 開發者。請根據提交訊息，生成結構化且易於閱讀的 Markdown 格式 PR 描述。";
+            
+            try {
+                logMessage('正在呼叫 Gemini AI 產生 PR 描述...');
+                const description = await callGeminiApi(systemPrompt, prompt);
+                document.getElementById('prBody').value = description.trim();
+                logMessage('PR 描述已成功生成並填入。', 'success');
+            } catch (error) {
+                logMessage(`產生 PR 描述失敗: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * 處理拖放檔案上傳
+         * @param {DragEvent} e - 拖放事件物件
+         * @param {HTMLElement} block - 檔案區塊的容器元素
+         */
+        function handleFileDrop(e, block) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+
+            const filePathInput = block.querySelector('.file-path');
+            const fileContentTextarea = block.querySelector('.file-content');
+
+            // 1. 自動填入檔案名稱作為路徑
+            filePathInput.value = file.name;
+
+            // 2. 讀取檔案內容
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                fileContentTextarea.value = e.target.result;
+                logMessage(`檔案 ${file.name} (大小: ${file.size} bytes) 內容已讀取並填入。`);
+            };
+            reader.onerror = function(error) {
+                logMessage(`讀取檔案 ${file.name} 失敗: ${error}`, 'error');
+            };
+            reader.readAsText(file);
+        }
+        
+        /**
+         * 動態新增檔案變更區塊
+         * @param {string} defaultPath - 預設檔案路徑
+         * @param {string} defaultContent - 預設檔案內容
+         * @param {string} defaultCommit - 預設提交訊息
+         */
+        function addFileBlock(defaultPath = '', defaultContent = '', defaultCommit = '') {
+            fileBlockCounter++;
+            const index = fileBlockCounter;
+            const container = document.getElementById('filesContainer');
+
+            const block = document.createElement('div');
+            block.className = 'file-block bg-gray-700/50 p-4 rounded-lg space-y-3';
+            block.dataset.index = index;
+            
+            block.innerHTML = `
+                <div class="flex justify-between items-center border-b border-gray-500 pb-2">
+                    <h3 class="text-lg font-medium">檔案 #${index} 變更</h3>
+                    <button onclick="removeFileBlock(this)" class="text-red-400 hover:text-red-500 text-sm font-medium">刪除</button>
+                </div>
+
+                <div class="drop-zone rounded-lg" 
+                    ondragover="event.preventDefault(); this.classList.add('drag-over');"
+                    ondragleave="this.classList.remove('drag-over');"
+                    ondrop="handleFileDrop(event, this.closest('.file-block'));">
+                    將檔案拖放到此處，自動填入路徑與內容
+                </div>
+
+                <div>
+                    <label class="input-label block mb-1 text-sm">檔案路徑 (e.g. src/file.js)</label>
+                    <input type="text" value="${defaultPath}" class="file-path w-full p-2 rounded-lg border focus:outline-none" placeholder="檔案在倉庫中的完整路徑">
+                </div>
+                
+                <div>
+                    <label class="input-label block mb-1 text-sm">提交訊息 (Commit Message)</label>
+                    <input type="text" value="${defaultCommit}" class="commit-message w-full p-2 rounded-lg border focus:outline-none" placeholder="e.g. feat: 增加新的設定檔">
+                </div>
+
+                <div>
+                    <label class="input-label block mb-1 text-sm">檔案內容 (UTF-8)</label>
+                    <textarea rows="6" class="file-content w-full p-2 rounded-lg border focus:outline-none">${defaultContent}</textarea>
+                </div>
+            `;
+            container.appendChild(block);
+
+            // 只有在第一次載入時，如果沒有設定預設值，給予一些建議
+            if (fileBlockCounter === 1 && !defaultPath) {
+                block.querySelector('.file-path').value = 'docs/README.md';
+                block.querySelector('.commit-message').value = 'docs: 更新說明文件';
+                block.querySelector('.file-content').value = '## GitHub PR 自動產生器\n\n這份文件由自動化工具生成。';
+            }
+        }
+
+        /**
+         * 刪除檔案區塊
+         * @param {HTMLElement} button - 觸發刪除的按鈕元素
+         */
+        function removeFileBlock(button) {
+            const block = button.closest('.file-block');
+            block.remove();
+        }
+
+        /**
+         * 主執行函數：建立 PR 並自動合併
+         */
+        async function createPullRequest() {
+            if (isProcessing) return;
+            if (!validateInputs()) return;
+
+            isProcessing = true;
+            document.getElementById('mainActionButton').disabled = true;
+            document.getElementById('logContainer').innerHTML = '';
+            document.getElementById('resultBox').style.display = 'none';
+            
+            const token = document.getElementById('token').value.trim();
+            const repoFullName = document.getElementById('repoFullName').value.trim();
+            const baseBranch = document.getElementById('baseBranch').value.trim();
+            const newBranch = document.getElementById('newBranch').value.trim();
+            const prTitle = document.getElementById('prTitle').value.trim();
+            let prBody = document.getElementById('prBody').value;
+            const issueNumber = document.getElementById('issueNumber').value.trim();
+            const deleteBranchAfterMerge = document.getElementById('deleteBranch').checked;
+            
+            const [owner, repo] = repoFullName.split('/');
+            
+            // 收集檔案變更資訊
+            const fileChanges = Array.from(document.querySelectorAll('.file-block')).map(block => ({
+                path: block.querySelector('.file-path').value.trim(),
+                content: block.querySelector('.file-content').value,
+                commitMessage: block.querySelector('.commit-message').value.trim(),
+            }));
+            
+            let baseBranchSHA = null;
+            let prNumber = null;
+            
+            try {
+                // =========================================================================
+                // Step 1/7: 取得基礎 SHA
+                // =========================================================================
+                logMessage(`[1/7] 正在取得基礎分支 (${baseBranch}) 的最新 SHA...`);
+                const refUrl = `${API_BASE}/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`;
+                let response = await callApiWithRetry(refUrl, 'GET', token);
+
+                if (!response.ok) {
+                    throw new Error(`無法取得基礎分支 SHA。狀態: ${response.status} ${response.statusText}`);
+                }
+                const baseRefData = await response.json();
+                baseBranchSHA = baseRefData.object.sha;
+                logMessage(`基礎 SHA 取得成功: ${baseBranchSHA}`);
+
+                // =========================================================================
+                // Step 2/7: 建立新分支
+                // =========================================================================
+                logMessage(`[2/7] 正在嘗試建立新分支 (${newBranch})...`);
+                const newRefUrl = `${API_BASE}/repos/${owner}/${repo}/git/refs`;
+                const newRefPayload = {
+                    ref: `refs/heads/${newBranch}`,
+                    sha: baseBranchSHA
+                };
+                response = await callApiWithRetry(newRefUrl, 'POST', token, newRefPayload);
+
+                if (response.status === 422) { // 422 Unprocessable Entity - 可能是分支已存在
+                    logMessage(`分支 refs/heads/${newBranch} 已存在。跳過建立步驟，繼續使用現有分支。`, 'warn');
+                } else if (!response.ok) {
+                    throw new Error(`建立分支失敗。狀態: ${response.status} ${response.statusText}`);
+                } else {
+                    logMessage(`新分支 refs/heads/${newBranch} 建立成功。`, 'success');
+                }
+                
+                // =========================================================================
+                // Step 3/7: 提交檔案變更
+                // =========================================================================
+                logMessage(`[3/7] 正在提交 ${fileChanges.length} 個檔案變更...`);
+                
+                for (const change of fileChanges) {
+                    logMessage(`   > 處理檔案: ${change.path}`);
+                    const contentUrl = `${API_BASE}/repos/${owner}/${repo}/contents/${change.path}`;
+                    
+                    // 1. 嘗試取得現有檔案 SHA (用於更新)
+                    let existingSHA = null;
+                    const getFileResponse = await callApiWithRetry(`${contentUrl}?ref=${newBranch}`, 'GET', token);
+                    
+                    if (getFileResponse.ok) {
+                        const fileData = await getFileResponse.json();
+                        existingSHA = fileData.sha;
+                        logMessage(`   > 檔案已存在 (SHA: ${existingSHA})，將執行 **更新** 操作。`);
+                    } else if (getFileResponse.status === 404) {
+                        logMessage(`   > 檔案不存在，將執行 **新增** 操作。`);
+                    } else {
+                        throw new Error(`嘗試取得檔案 ${change.path} 資訊失敗。狀態: ${getFileResponse.status}`);
+                    }
+                    
+                    // 2. 提交 PUT 請求
+                    const putPayload = {
+                        message: change.commitMessage,
+                        content: btoa(unescape(encodeURIComponent(change.content))), // 確保 UTF-8 正確編碼
+                        branch: newBranch,
+                        sha: existingSHA // 僅在更新時提供 SHA
+                    };
+
+                    const putResponse = await callApiWithRetry(contentUrl, 'PUT', token, putPayload);
+                    if (!putResponse.ok) {
+                        const errorData = await putResponse.json();
+                        throw new Error(`提交檔案 ${change.path} 失敗: ${errorData.message || '未知錯誤'}`);
+                    }
+                    logMessage(`   > 檔案 ${change.path} 提交成功。`, 'success');
+                }
+
+                // =========================================================================
+                // Step 4/7: 建立 PR
+                // =========================================================================
+                logMessage(`[4/7] 正在建立 Pull Request...`);
+                
+                // 處理 Issue 號碼連動
+                if (issueNumber) {
+                    const issueLink = `Closes #${issueNumber}\n\n`;
+                    prBody = issueLink + prBody;
+                    logMessage(`   > 已自動加入連動 Issue 關鍵字: ${issueLink.trim()}`);
+                }
+                
+                const prUrl = `${API_BASE}/repos/${owner}/${repo}/pulls`;
+                const prPayload = {
+                    title: prTitle,
+                    body: prBody,
+                    head: newBranch,
+                    base: baseBranch
+                };
+                
+                response = await callApiWithRetry(prUrl, 'POST', token, prPayload);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`建立 PR 失敗: ${errorData.message || '未知錯誤'}`);
+                }
+                const prData = await response.json();
+                prNumber = prData.number;
+                logMessage(`PR 建立成功！編號 #${prNumber}，連結: ${prData.html_url}`, 'success');
+
+                // =========================================================================
+                // Step 5/7: 等待 PR 狀態變為可合併 (Mergeable)
+                // =========================================================================
+                logMessage(`[5/7] 正在輪詢 PR 狀態，等待可合併... (最多 10 次)`);
+                let prStatusUrl = `${API_BASE}/repos/${owner}/${repo}/pulls/${prNumber}`;
+                
+                const MAX_POLLS = 10;
+                let mergeable = false;
+
+                for (let i = 0; i < MAX_POLLS; i++) {
+                    // 使用時間戳執行 Cache-Busting
+                    const cacheBustingUrl = `${prStatusUrl}?_=${new Date().getTime()}`;
+                    response = await callApiWithRetry(cacheBustingUrl, 'GET', token);
+                    
+                    if (!response.ok) {
+                        throw new Error(`輪詢 PR 狀態失敗。狀態: ${response.status}`);
+                    }
+                    
+                    const statusData = await response.json();
+                    
+                    if (statusData.mergeable === true) {
+                        mergeable = true;
+                        logMessage(`PR 已準備好合併 (Mergeable: true)。`, 'success');
+                        break;
+                    } else if (statusData.mergeable === false) {
+                        logMessage(`PR 顯示不可合併 (Mergeable: false)，可能需要手動修復衝突或等待 CI。中止自動合併。`, 'warn');
+                        break;
+                    } else { // mergeable === null, 狀態仍在計算中
+                        logMessage(`PR 狀態仍在計算中... (第 ${i + 1}/${MAX_POLLS} 次嘗試)`);
+                        if (i < MAX_POLLS - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 2000)); // 間隔 2 秒
+                        }
+                    }
+                }
+
+                if (!mergeable) {
+                    logMessage('達到最大輪詢次數，PR 仍未顯示為可合併。中止自動合併，請手動檢查 PR。', 'warn');
+                    return; // 結束執行
+                }
+                
+                // =========================================================================
+                // Step 6/7: 自動合併 PR
+                // =========================================================================
+                logMessage(`[6/7] 正在執行自動 **Squash 合併**...`);
+                const mergeUrl = `${API_BASE}/repos/${owner}/${repo}/pulls/${prNumber}/merge`;
+                const mergePayload = {
+                    commit_title: prTitle, // 使用 PR 標題作為 Squash Commit 標題
+                    commit_message: prBody,
+                    merge_method: 'squash'
+                };
+
+                response = await callApiWithRetry(mergeUrl, 'PUT', token, mergePayload);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`自動合併 PR 失敗: ${errorData.message || '未知錯誤'}`);
+                }
+                
+                const mergeData = await response.json();
+                logMessage(`PR 合併成功！Commit SHA: ${mergeData.sha}`, 'success');
+
+                // =========================================================================
+                // Step 7/7: 刪除來源分支 (可選)
+                // =========================================================================
+                if (deleteBranchAfterMerge) {
+                    logMessage(`[7/7] 正在嘗試刪除來源分支 (${newBranch})...`);
+                    const deleteRefUrl = `${API_BASE}/repos/${owner}/${repo}/git/refs/heads/${newBranch}`;
+                    response = await callApiWithRetry(deleteRefUrl, 'DELETE', token);
+
+                    if (response.ok) {
+                        logMessage(`來源分支 ${newBranch} 刪除成功。`, 'success');
+                    } else if (response.status === 422) {
+                        logMessage(`刪除分支失敗 (422 Unprocessable Entity)，可能是分支已被鎖定或保護。`, 'warn');
+                    } else if (response.status === 404) {
+                        logMessage(`來源分支 ${newBranch} 已經不存在。`, 'warn');
+                    } else {
+                        logMessage(`刪除來源分支失敗。狀態: ${response.status} ${response.statusText}`, 'error');
+                    }
+                } else {
+                    logMessage('[7/7] 略過刪除來源分支步驟 (依設定)。');
+                }
+                
+                // 最終成功訊息
+                const finalMessage = `
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-6 h-6 text-green-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v5c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h11"/></svg>
+                        <span class="text-lg font-bold">🎉 PR 自動化流程已成功完成！</span>
+                    </div>
+                    <p class="mt-2">所有變更已合併到 <code>${baseBranch}</code>。</p>
+                    <a href="${prData.html_url}" target="_blank" class="text-indigo-400 hover:text-indigo-300 font-medium underline">點此查看 Pull Request #${prNumber}</a>
+                `;
+                showResult(finalMessage, true);
+
+            } catch (error) {
+                logMessage(`最終錯誤: ${error.message}`, 'error');
+                showResult(`<strong>🚨 流程失敗：</strong> ${error.message}<br>請檢查權杖、倉庫名稱、分支名稱或 PR #${prNumber} 的狀態。`, false);
+            } finally {
+                isProcessing = false;
+                document.getElementById('mainActionButton').disabled = false;
+            }
+        }
+        
+        // 載入時自動新增一個檔案區塊
+        window.onload = function() {
+            addFileBlock();
+        };
 
     </script>
 </body>
