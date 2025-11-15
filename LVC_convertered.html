@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Wise (LDV Paraphraser Edition)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Inter 字體 (符合 Word Wise 規格) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 全局字體 (符合 Word Wise 規格) */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+
+        /* 載入動畫 (符合 Word Wise 規格) */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #3b82f6; /* 藍色強調色 */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        .spinner-sm {
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 高亮樣式 (來自 Word Wise 規格) */
+        .highlight {
+            background-color: rgba(147, 197, 253, 0.4);
+            color: #dbeafe; /* text-blue-100 */
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+
+    <!-- 主容器 (符合 Word Wise 規格) -->
+    <div class="max-w-4xl mx-auto space-y-8">
+        
+        <!-- 標題 -->
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Word Wise (LDV Paraphraser Edition)</h1>
+            <p class="text-gray-400 mt-2">Text Paraphrasing & Analysis using Longman 2000 Core (LDV)</p>
+        </header>
+
+        <!-- API 金鑰管理 (符合 Word Wise 規格) -->
+        <section class="max-w-xl mx-auto bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+            <label for="apiKeyInput" class="block text-sm font-medium text-gray-300 mb-2">Gemini API Key</label>
+            <input 
+                type="password" 
+                id="apiKeyInput" 
+                class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Paste your API key here (optional)"
+            >
+            <p class="text-xs text-gray-500 mt-2">
+                Your key is stored only in your browser. If left blank, the built-in API credentials will be used.
+                (Note: The API key input is for UI demonstration only in this version; the actual key is provided by the script.)
+            </p>
+        </section>
+
+        <!-- 由於原始功能沒有頁籤，我們採用 "頁籤三" 的垂直面板佈局 -->
+        <!-- 面板一: 內容輸入 (模仿 "Paragraph Continuation") -->
+        <section class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 space-y-4">
+            <h2 class="text-xl font-semibold text-white">1. Enter Your Content</h2>
+            <p class="text-sm text-gray-400">Paste any English text you want to paraphrase in the LDV style.</p>
+            <textarea
+                id="userInput"
+                rows="10"
+                class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                placeholder="e.g., The armadillo is a placental mammal in the order Cingulata."
+            ></textarea>
+            <!-- 主要處理按鈕 (使用 Purple，模仿 "Continuation" 按鈕) -->
+            <button
+                id="processButton"
+                class="flex items-center justify-center w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 transition-colors duration-200"
+            >
+                <span id="buttonText">Start LDV Paraphrase</span>
+                <div id="buttonLoader" class="spinner-sm ml-2 hidden"></div>
+            </button>
+        </section>
+
+        <!-- 面板二: LDV 改寫結果 -->
+        <section class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 space-y-4">
+            <h2 class="text-xl font-semibold text-white">2. LDV Paraphrase Result</h2>
+            <div
+                id="outputArea"
+                class="w-full h-auto min-h-[150px] p-4 bg-gray-900 border border-gray-700 rounded-md shadow-inner prose prose-invert prose-base max-w-none"
+            >
+                <p class="text-gray-500">Please enter content above and click 'Start LDV Paraphrase'.</p>
+            </div>
+            <!-- TTS 播放按鈕 (使用 Green，模仿 "Validation" 按鈕) -->
+            <button
+                id="ttsButton"
+                class="flex items-center justify-center w-full md:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 transition-colors duration-200"
+            >
+                <span id="ttsButtonText">🗣️ Play Paraphrased Text</span>
+                <div id="ttsLoader" class="spinner-sm ml-2 hidden"></div>
+            </button>
+            <!-- 語音播放器 (隱藏) -->
+            <div class="mt-4 flex justify-center">
+                <audio id="audioPlayer" controls class="hidden w-full md:w-3/4"></audio>
+            </div>
+        </section>
+
+        <!-- 面板三: 詞彙分析 (模仿 "C&C SWOT Analysis") -->
+        <section class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 space-y-4">
+            <h2 class="text-xl font-semibold text-white">3. ✨ Vocabulary Analysis</h2>
+            <p class="text-sm text-gray-400">Check which words in your 'Original Input' are not part of the LDV Core 2000 list.</p>
+            <!-- 詞彙分析按鈕 (使用 Teal，模仿 "SWOT" 按鈕) -->
+            <button
+                id="analyzeButton"
+                class="flex items-center justify-center w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 transition-colors duration-200"
+            >
+                <span id="analyzeButtonText">Analyze Non-LDV Words</span>
+                <div id="analyzeLoader" class="spinner-sm ml-2 hidden"></div>
+            </button>
+            <!-- 分析結果區域 -->
+            <div 
+                id="analysisArea" 
+                class="w-full p-4 bg-gray-900 border border-gray-700 rounded-md shadow-inner min-h-[100px]"
+            >
+                <p class="text-gray-500 text-sm">Click the button to analyze the input text.</p>
+            </div>
+        </section>
+        
+    </div>
+
+    <!-- ###################################################### -->
+    <!-- 原生 JAVASCRIPT 邏輯 (功能完全保留，僅修改 UI 狀態) -->
+    <!-- ###################################################### -->
+    <script type="module">
+        // -----------------------------------------------------
+        // 朗文 2000 核心高頻詞彙 (LDV)
+        // 這是您提供的完整列表，已嵌入代碼中。
+        // -----------------------------------------------------
+        const ldvWordList = `
+        A: a, abbreviation, ability, able, about, above, abroad, absence, absent (adj), accept, acceptable, accident, accidental, according (to), account (n), achieve, achievement, acid, across, act, action, active, activity, actor/actress, actual, actually, add, addition, additional, address, adjective, admire, admit, adult, advanced, advantage, adventure (n), adverb, advertise, advertisement, advice, advise, affair, affect, afford, afraid, after (prep, conj, adv), afternoon, afterwards, again, against, age (n), ago, agree, agreement, ahead, aim, air (n)
+        B: aircraft, airport, alcohol, alive, all, allow, almost, alone, along, alphabet, already, also, although, always, among, amount (n), amuse, amusement, amusing, an, ancient (adj), and, anger (n), angle (n), angry, animal, announce, annoy, annoying, another, answer, anxiety, anxious, any, anyone, anything, anywhere, apart, apartment, appear, appearance, apple, approval, approve, area, argue, argument, arm (n), army, around, arrange, arrangement, arrival, arrive, art, article, artificial, as, ashamed, ask, asleep, association, at, atom, attach, attack, attempt, attend, attention, attitude, attract, attractive, authority, autumn, available, average (adj, n), avoid, awake (adj), away (adv), awkward
+        baby, back (adj, adv, n), background, backward(s) (adv), bad, bag (n), bake (v), balance, ball (n), band (n), bank (n), bar (n), base (n, v), baseball, basic, basin, basket, bath (n), battle (n), be, beach (n), beak, beam (n), bean, bear, beat, beautiful, beauty, because, become, bed, bee, beer, before, begin, beginning, behave, behaviour, behind (adv, prep), belief, believe, bell, belong, below, belt (n), bend, beneath, beside(s), best, bet, better (adj, adv), between, beyond (prep), bicycle (n), big (adj), bill, biology, bird, birth, bit, bite, bitter (adj), black (adj, n), blade, blame, blind (adj), block, blood, blow, blue, board (n), boat, body, boil, bomb, bone (n), book (n), boot (n), border (n), bored, boring, born, borrow, both, bottle (n), bottom (n), bowl (n), box (n), boy, boyfriend, brain (n), branch (n), brave (adj), bread, break (v), breakfast (n), breast, breath, breathe, breed, brick
+        C: bridge (n), bright, bring, broad (adj), broadcast (v), brother, brown (adj, n), brush, bubble (n), build (v), building, bullet, burn, burst (v), bury, bus, bush, business, busy, but (conj), butter (n), button (n), buy (v), by (prep)
+        cake (n), calculate, call (v), calm (adj), camera, camp (n, v), can, cap, capital, car, card, care, careful, careless, carriage, carry, case (n), castle, cat, catch (v), cattle, cause, ceiling, celebrate, cell, central, centre (n), century, ceremony, certain (adj), chain (n), chair (n), chance (n), change, character, charge, chase (v), cheap, cheat (v), check, cheek (n), cheese, chemical, chemistry, cheque, chest, chew (v), chicken, child, chin, chocolate, choice (n), choose, church, cigarette, cinema, circle (n), circular (adj), citizen, city, claim (v), class (n), clay, clean (adj, v), clear (adj, v), clever, cliff, climb (v), clock (n), close (adj, adv, v), cloth, clothes, clothing, cloud (n), club (n), coal, coast (n), coat (n), coffee, coin (n), cold (adj, n), collar (n), collect, college, colour, comb, combination, combine (v), come, comfort, comfortable, commit, committee, common (adj)
+        communicate, communication, company, compare (v), comparison, compete, competition, competitor, complain, complaint, complete, completely, complicated, computer, concern (v), concerning, concert, condition (n), confidence, confident, confuse, confusing, connect, connection, conscious, consider, consist, contain, container, continue, continuous, contract (n), control, conversation, cook, cool (adj), copy, corn, corner (n), correct, cost, cotton, cough, could, council, count (v), country (n), countryside, courage, course (n), court (n), cover, cow (n), crack (n, v), crash, crazy, cream (n), creature, crime, criminal, criticism, criticize, crop (n), cross (n, v), crowd, cruel, crush (v), cry, cup (n), cupboard, cure, curl, current (n), curtain (n), curve, custom, customer, cut
+        D: daily (adj, adv), damage, dance, danger, dangerous, dark, date (n), daughter, day, dead (adj), deal (n), deal with, death, debt, decay, deceive, decide, decision, decorate, decoration, decrease, deep (adj), defeat, defence, defend, definite, definitely, degree, delay, deliberate (adj), deliberately, delicate, deliver, demand, department, depend, dependent, depth, describe, description, desert (n), deserve, design, desirable, desire (n), desk, destroy, destruction, detail (n), determination, determined, develop, dictionary, die (v), difference, different, difficult, difficulty, dig (v), dinner, direct, direction, dirt, dirty (adj), disappoint, disappointing, discover, discovery, discuss, discussion, disease (n), dish (n), dismiss, distance, distant, divide, do (v), doctor (n), document (n), dog, dollar, door, double, doubt, down (adv, prep), draw (v), drawer, dream, dress, drink, drive, drop, drug, drum (n), drunk (adj, past part), dry
+        duck, dull (adj), during, dust (n), duty
+        E: each, eager, ear, early, earn, earth (n), east, eastern, easy (adj), eat, economic, edge (n), educate, educated, education, effect (n), effective, effort, egg, eight, either, elbow, elect (v), election, electric, electricity, electronic, else, email, embarrass, embarrassing, emotion, emphasize, employ (v), employer, employment, empty (adj, v), enclose, encourage, end, enemy, energy, engine, engineer (n), enjoy, enjoyable, enjoyment, enough, enter, entertain, entertainment, entrance (n), envelope, environment, equal (adj, n), equipment, escape, especially, establish, etc, even (adj, adv), evening, event, ever, every, everyone, everything, everywhere, evil, exact (adj), exactly, examination, examine, example, excellent, except (prep), exchange, excite, exciting, excuse, exercise, exist, existence, expect, expensive, experience, experiment, explain, explanation, explode, explosion, explosive, express (v), expression, extra (adj), extreme (adj), extremely, eye
+        F: face, fact, factory, fail, failure, fair (adj), fairly, faith, faithful (adj), fall, false, familiar, family, famous, far, farm, farmer, fashion (n), fashionable, fast (adj, adv), fasten, fat, father (n), fault, favourable, favourite (adj), fear (n), feather (n), feature (n), feed, feel (v), feeling(s), female, fence (n), fever, few, field (n), fight, figure (n), fill (v), film, final (adj), finally, financial, find (v), find out, fine (adj), finger (n), finish (v), fire, firm (adj), first (adj, adv, pron), fish, fit (adj, v), five, fix (v), flag, flame (n), flash (n, v), flat (adj), flesh, flight, float (v), flood, floor (n), flour (n), flow, flower (n), fly (n, v), fold, follow, food, foot (n), football, for (prep), force, foreign
+        foreigner, forest, forget, forgive, fork (n), form, formal, former, fortunate, forward(s) (adv), four, frame (n), free, freedom, freeze (v), frequent (adj), fresh, friend, friendly, frighten, frightening, from, front (adj, n), fruit (n), full (adj), fun, funeral, funny, fur, furniture, further (adj, adv), future
+        G: gain (v), game (n), garage (n), garden, gas (n), gate, gather (v), general (adj), generally, generous, gentle, get, gift, girl, girlfriend, give (v), glad, glass (adj, n), glue, go (v), goal, god, gold, golf, good, goodbye, goods, govern, government, graceful, gradual, grain, gram, grammar, grandfather, grandmother, grandparent, grass (n), grateful, great (adj), green, greet, greeting, grey (adj, n), ground (n), group (n), grow, growth, guard (v), guess (v), guest (n), guide, guilty, gun (n)
+        H: habit, hair, half, hall, hammer (n), hand (n), handle, hang (v), happen, happy, hard, hardly, harm, harmful, hat, hate (v), hatred, have, he, head (n), health, healthy, hear, heart, heat, heaven, heavy (adj), heel (n), height, hello, help, helpful, her(s), herb, here, herself, hide (v), high (adj, adv), hill, him, himself, his, historical, history, hit, hold (v), hole, holiday (n), hollow (adj), holy, home (adv, n), honest, honour (n), hook (n), hope, hopeful, horizontal (adj), horn, horse (n), hospital, hot (adj), hotel, hour, house (n), how (adv), human, humorous, humour, hundred(th), hungry, hunt (v), hurry, hurt (v), husband (n)
+        I: I, ice (n), idea, if, ignore, ill (adj), illegal, illness, image, imaginary, imagination, imagine, immediately, importance, important, impressive, improve, improvement, in (adv, prep), include, including, income, increase, independent, indoor(s), industrial, industry, infect, infection, infectious, influence (v), information, injure, injury, ink (n), inner, insect, inside, instead, institution, instruction, instrument, insult (v), insulting, insurance, insure, intelligence, intelligent, intend, intention, interest, interesting, international (adj), interrupt, into, introduce, introduction, invent, invention, invitation, invite (v), involve, inwards, iron (adj, n), island, it, its
+        J: jacket, jaw, jewel, jewellery, job, join, joint, joke, journey (n), judge, judgement, juice, jump, just (adv), justice
+        K: keen (adj), keep (v), key (n), kick, kill (v), kilogram, kilometre, kind, king, kiss, kitchen, knee (n), kneel, knife (n), knock (v), knot, know (v), knowledge
+        L: lack, lake, lamb, lamp, land, language, large, last, late, laugh (v), laughter, law, lawyer, lay (v), layer (n), lazy, lead (v), leaf (n), lean (v), learn, least, leather, leave (v), left, leg (n), legal, lend, length, less (adv, pron, determiner), lesson, let (v), let go of, letter, level (adj, n), library, lid, lie, lie down, life, lift, light, like (prep, v), likely, limit, line (n), lion, lip, liquid, list (n), listen (v), literature, litre, little, live (v), load, local (adj), lock, lonely, long (adj, adv), look, look after, look for, loose (adj), lord (n), lose, loss, lot, loud, love, low (adj), lower, loyal, loyalty, luck (n), lucky, lung
+        M: machine (n), machinery, magazine, magic, main (adj), make (v), make up, male, man (n), manage, manager, manner, many, map, march (v), mark, market (n), marriage, married, marry, mass (n), match, material (n), mathematics, matter, may (v), me, meal, mean (v), meaning (n), means, measure, measurement, meat, medical (adj), medicine, meet (v), meeting, melt, member, memory, mental, mention (v), message, metal (n), metre, method, middle, midnight, might (v), mile, military (adj), milk (n), million, mind, mine (n, pron), mineral, minister (n), minute (n), mirror (n), miss (v), mist (n), mistake (n), mix (v), mixture, model (n), modern (adj), moment, money, monkey (n), month, moon (n)
+        moral (adj), more, morning, most, mother (n), motor (adj, n), mountain, mouse, mouth (n), move (v), movement, much, mud, multiply, murder, muscle (n), music, musician, must (v), my, mysterious, mystery
+        N: nail, name, narrow (adj), nasty, nation, national (adj), natural (adj), nature, navy, near (adj, adv, prep), nearly, neat, necessary, neck, need, needle (n), negative (adj), neither, nerve (n), nervous, net (n), network (n), never, new, news, newspaper, next (adj, adv), nice, night, nine, no (adv, determiner), no one, noise (n), none (pron), nonsense, nor, normal, north, northern, nose (n), not, note (n), nothing, notice, noticeable, noun, now, nowhere, number (n), nurse, nut
+        O: obey, object (n), obtain, occasion (n), ocean, o'clock, of, off (adv, prep), offence, offend, offensive (adj), offer, office, officer, official, often, oil (n), old, old-fashioned, on (adv, prep), once (adv), one, onion, only, only just, onto, open (adj, v), operate, operation, opinion, opponent, opportunity, oppose, as opposed to, opposite, opposition, or, orange, order, ordinary, organ, organize, organization, origin, original, other, ought, our(s), out (adj, adv), outdoor(s), outer, outside, over (adv, prep), owe, own
+        P: pack (v), package, page (n), pain (n), painful, paint, painting, pair (n), pale (adj, n), pan (n), paper (n), parallel (adj, n), parent, park, parliament, part (n), participle, particular (adj), partly, partner (n), party (n), pass (v), passage, passenger, past, path, patient (adj), pattern (n), pause, pay, payment, peace, peaceful, pen (n), pence, pencil (n), people (n), pepper, percent, perfect (adj), perform, performance, perhaps, period (n), permanent, permission, person, personal, persuade, pet (n), petrol, photograph, phrase (n), physical (adj), physics, piano (n), pick (v), pick up, picture (n), piece (n), pig (n), pile (n), pilot (n), pin, pink, pipe (n), pity, place, plain (adj, n), plan, plane (n), plant, plastic, plate (n), play, pleasant, please, pleased, pleasure (n), plenty (pron), plural, pocket (n), poem, poet, poetry, point, pointed, poison, poisonous, pole (n), police (n), polish (v), polite, political, politician, politics, pool (n), poor, popular, population, port (n), position (n)
+        positive, possess, possession, possibility, possible (adj), possibly, post, pot (n), potato, pound (n), pour, powder (n), power (n), powerful, practical, practice, practise, praise, pray, prayer, prefer, preparation, prepare, present (adj, n), preserve (v), president, press (v), pressure (n), pretend, pretty (adj), prevent, previous, price (n), priest, prince, principle, print, prison, prisoner, private (adj), prize (n), probably (adv), problem, process (n), produce (v), product, production, profession, profit (n), program (n), programme, progress (n), project (n), promise, pronounce, pronunciation, proof (n), proper, property, proposal
+        protect, protection, protective, protest, proud, prove, provide, public, pull, pump, punish, punishment, pure, purple, purpose (n), push, put
+        Q: quality, quantity, quarrel, quarter (n), queen (n), question, quick (adj), quiet
+        R: rabbit (n), race, radio (n), railway, rain, raise (v), range (n), rank (n), rare, rat (n), rate (n), rather, raw, reach (v), react, reaction, read (v), ready (adj), real, realize, really, reason, reasonable, receive, recent, recently, recognize, record (n, v), red, reduce, reduction
+        refer, refusal, refuse (v), regard (v), regular (adj), relate, relating to, relative (n), relation, relationship, relax, relaxing, religion, religious, remain, remark (n), remember, remind, remove (v), rent, repair, repeat, replace, reply, report, represent, representative (n), request (n), respect, responsible, rest, restaurant, restrict, result, return (n, v), reward, rice, rich, rid (adj), ride, right (adj, adv, n), ring, rise, risk, river, road, rob, rock (n), roll (v), romantic (adj), roof (n), room (n), root (n), rope (n), rose, rough (adj), round (adj, adv, prep), row, royal (adj), rub (v), rubber, rude, ruin (v), rule, ruler, run, rush (v)
+        S: sad, safe (adj), safety, sail, salary, sale, salt (n), same, sand (n), sandwich (n), satisfaction, satisfactory, satisfy, sauce, save (v), say (v), scale (n), scatter (v), scene, scent, school (n), science, scientific, scientist, scissors, score, screen (n), screw, sea, search, season (n), seat, second (adv, n, number), secret, secretary, see (v), seed (n), seek (v), seem, sell (v), send, sense (n), sensible, sensitive, sentence (n), separate, series, serious, servant, serve, service (n), set (n, v), settle (v), seven, several, severe, sew, sex (n), sexual, shade, shadow (n), shake, shall, shame (n), shape, share, sharp (adj), she, sheep, sheet, shelf, shell (n), shelter, shine (v), shiny, ship (n), shirt, shock (n, v), shocking, shoe (n), shoot (v), shop, shore (n), short (adj), should, shoulder (n), shout, show, shut, shy (adj), sick (adj), side (n), sideways, sight (n), sign, signal, silence (n), silent, silk, silly, silver (n, adj), similar, simple, since, sincere, sing, single (adj), singular, sink (v), sister
+        sit, situation, six, size (n), skilful, skill, skin (n), skirt (n), sky (n), sleep, sleeve, slide (v), slight (adj), slippery, slope, slow, small, smell, smile, smoke, smooth (adj), snake (n), snow, so, soap (n), social (adj), society, sock (n), soft, software, soil (n), soldier (n), solid, solution, solve, some, somehow, someone, something, sometimes, somewhere, son, song, soon, sore (adj), sorry, sort (n), soul, sound (n, v), soup, sour (adj), south, southern, space (n), spacecraft, speak, special (adj), specific, speech, speed (n), spell (v), spend, spice (n), spicy, spin (v), in spite of, split (v), spoil (v), spoon (n), sport (n), spot (n), spread (v), spring (n), square (adj, n), stage (n), stair, stamp, stand (v), standard, star (n), start, state, statement, station (n), stay, steady (adj), steal (v), steam (n), steel (n), steep (adj), stem (n), step, stick, sticky, stiff (adj), still (adj, adv), sting, stitch, stomach (n), stone (n), stop, store, storm (n), story, straight (adj, adv), strange, stream (n), street, strength, stretch (v), strict, strike (v), string (n), strong, structure (n), struggle, student, study, stupid, style (n)
+        subject (n), substance, succeed, success, successful, such, suck (v), sudden, suffer, sugar (n), suggest, suit, suitable, sum (n), summer, sun (n), supply, support, suppose, sure (adj), surface (n), surprise, surprising, surround (v), swallow (v), swear, sweaty (v), sweet, swell (v), swim, swing, switch, sword, symbol, sympathetic, sympathy, system
+        T: table (n), tail (n), take (v), talk, tall, tape (n), taste, tax, taxi (n), tea, teach, team (n), tear, technical, technology, teenage, telephone, television, tell, temper (n), temperature, temporary, ten, tend, tendency, tennis, tense (n), tent, terrible, test, than, thank, that, the, theatre, their(s), them, then (adv), there, therefore, these, they, thick (adj), thief, thin (adj), thing, think (v), third, thirsty, this, thorough, those, though, thought, thousand, thread (n), threat, threaten, three, throat, through, throw, thumb (n), ticket (n), tidy (adj, v), tie, tight (adj), time (n), tired, tiring, title, to, tobacco, today, toe (n), together, toilet, tomato, tomorrow, tongue, tonight, too, tool (n), tooth, top (adj, n), total, touch, tour (n), towards, tower (n), town, toy (n), track (n), trade (n), traditional, traffic (n), train, training, translate, transparent, transport (n), trap, travel, treat (v), treatment, tree, tribe, trick (n, v), trip (n), tropical, trouble, trousers, truck (n), true (adj), trust, truth, try (v), tube, tune (n), turn
+        twice, twist, two, type (n), typical, tyre
+        U: ugly, under (prep), understand, underwear, undo, unexpected, uniform (n), union, unit, unite, universe, university, unless, until, unusual, up (adj, adv, prep), upper, upright (adj, adv), upset (v, adj), upside down, upstairs, urgent, us, use, useful, useless, usual
+        V: valley, valuable (adj), value (n), variety, various, vegetable, vehicle, verb, vertical (adj), very (adv), victory, video (n), view (n), village, violence, violent, visit, voice (n), vote, vowel
+        W: wage(s), waist, wait (v), wake (v), walk, wall (n), want, war (n), warm (adj, v), warmth, warn, warning, wash, waste, watch, water, wave, way, we, weak, wealth, weapon, wear (v), weather (n), weave (v), website, wedding, week, weekly (adj, adv), weigh, weight (n), welcome, well (adj, adv, n), west, western (adj), wet (adj), what, whatever, wheat, wheel (n), when, whenever, where, whether, which, while (conj), whip
+        whistle, white (adj, n), who, whole, whose, why, wide, width, wife, wild (adj, adv), will, willing, win (v), wind, window, wine, wing (n), winter, wire (n), wise (adj), wish, with, within, without, woman, wood, wooden, wool, word (n), work, world, worry, worse, worst, worth, would, wound, wrap (v), wrist, write, wrong (adj, adv, n)
+        Y: year, yellow, yes, yet, you, young (adj), your(s)
+        Z: zero
+        `;
+
+        // -----------------------------------------------------
+        // API 和 DOM 元素
+        // -----------------------------------------------------
+        // 雖然規格書中提到了 API 金鑰輸入，但原始代碼的邏輯是使用內建金鑰。
+        // 我們保留此邏輯，apiKey 變量將由 Canvas 環境自動填充。
+        const apiKey = ""; // Canvas 將自動提供
+        const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+        const userInput = document.getElementById("userInput");
+        const outputArea = document.getElementById("outputArea");
+        const analysisArea = document.getElementById("analysisArea");
+        const audioPlayer = document.getElementById("audioPlayer");
+
+        const processButton = document.getElementById("processButton");
+        const buttonText = document.getElementById("buttonText");
+        const buttonLoader = document.getElementById("buttonLoader");
+        
+        const analyzeButton = document.getElementById("analyzeButton");
+        const analyzeButtonText = document.getElementById("analyzeButtonText");
+        const analyzeLoader = document.getElementById("analyzeLoader");
+        
+        const ttsButton = document.getElementById("ttsButton");
+        const ttsButtonText = document.getElementById("ttsButtonText");
+        const ttsLoader = document.getElementById("ttsLoader");
+
+
+        // -----------------------------------------------------
+        // 事件監聽器 (功能不變)
+        // -----------------------------------------------------
+        processButton.addEventListener("click", handleProcess);
+        analyzeButton.addEventListener("click", handleAnalyze);
+        ttsButton.addEventListener("click", handleTTS);
+
+        // -----------------------------------------------------
+        // 核心處理函數 - 文本改寫 (功能不變)
+        // -----------------------------------------------------
+        async function handleProcess() {
+            const userQuery = userInput.value.trim();
+
+            if (!userQuery) {
+                outputArea.innerHTML = '<p class="text-red-400">Please enter some content first.</p>';
+                return;
+            }
+
+            setLoading(true);
+
+            // 系統提示詞 (功能不變)
+            const systemPrompt = `
+            您將扮演一個文本改寫助手。
+            您的唯一任務是**只能**使用以下「朗文 2000 個核心高頻詞彙」列表中的單字，來解釋或描述用戶提供的文本。
+
+            這是您唯一能使用的詞彙列表（您可以使用它們的不同形式，如 -ing, -ed, -s）：
+            ---
+            ${ldvWordList}
+            ---
+
+            您的寫作風格必須模仿「朗文定義詞彙」（LDV）的風格：
+            1. **限制性 (Restricted)：** 絕對不使用列表之外的任何生字。如果一個詞不在列表中，您必須用列表中的詞來解釋它。
+            2. **清晰度 (Clarity)：** 使用簡單的句子結構。解釋必須簡潔、易懂。
+            3. **目的 (Purpose)：** 您的目標是讓英語初學者也能讀懂您的描述。
+
+            請嚴格遵守這些規則，並只返回改寫後的英文文本。
+            `;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    temperature: 0.5,
+                    maxOutputTokens: 4096, 
+                }
+            };
+
+            try {
+                const response = await fetchWithRetry(textApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Body:", errorBody);
+                    throw new Error(`API 請求失敗，狀態： ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (generatedText) {
+                    outputArea.innerHTML = generatedText.replace(/\n/g, '<br>');
+                } else {
+                    console.error("API 響應中沒有找到預期的文本:", result);
+                    let errorMsg = "Could not get text from API response.";
+                    if (result?.promptFeedback?.blockReason) {
+                        errorMsg += ` Reason: ${result.promptFeedback.blockReason}`;
+                    }
+                    outputArea.innerHTML = `<p class="text-red-400">${errorMsg}</p>`;
+                }
+            } catch (error) {
+                console.error("處理時發生錯誤:", error);
+                outputArea.innerHTML = `<p class="text-red-400">An error occurred: ${error.message}</p>`;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // -----------------------------------------------------
+        // 詞彙分析 (功能不變)
+        // -----------------------------------------------------
+        async function handleAnalyze() {
+            const userQuery = userInput.value.trim();
+
+            if (!userQuery) {
+                analysisArea.innerHTML = '<p class="text-red-400 font-bold">Please enter content in the input box above first.</p>';
+                return;
+            }
+
+            setLoadingAnalyze(true);
+
+            // 系統提示詞 (功能不變)
+            const systemPrompt = `
+            您是一個詞彙分析工具。請嚴格比較用戶提供的文本與以下 LDV 詞彙列表。
+            您的任務是僅列出用戶文本中**沒有**出現在 LDV 列表中的所有單字。
+
+            這是您必須比較的 LDV 列表：
+            ---
+            ${ldvWordList}
+            ---
+            
+            請將結果格式化為一個清晰的項目符號列表 (使用 - 或 *)。如果沒有找到非 LDV 詞彙，請僅輸出英文句子："All words used are in the LDV list."
+            不要包含任何額外的解釋或評論。
+            `;
+
+            const payload = {
+                contents: [{ parts: [{ text: `User text to analyze: "${userQuery}"` }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 4096,
+                }
+            };
+
+            try {
+                const response = await fetchWithRetry(textApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Body:", errorBody);
+                    throw new Error(`分析 API 請求失敗，狀態： ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (generatedText) {
+                    let formattedText = generatedText
+                        .replace(/All words used are in the LDV list./g, '<span class="text-green-400">All words used are in the LDV list.</span>')
+                        .replace(/\n/g, '<br>');
+
+                    // 如果不是成功訊息，添加標題
+                    if (!formattedText.includes('text-green-400')) {
+                        formattedText = `<p class="font-semibold text-gray-300 mb-2">Non-LDV words found in the input text:</p><div class="text-yellow-400">${formattedText}</div>`;
+                    }
+                    analysisArea.innerHTML = formattedText;
+                } else {
+                    console.error("分析 API 響應中沒有找到預期的文本:", result);
+                    let errorMsg = "Could not get analysis from API response.";
+                    if (result?.promptFeedback?.blockReason) {
+                        errorMsg += ` Reason: ${result.promptFeedback.blockReason}`;
+                    }
+                    analysisArea.innerHTML = `<p class="text-red-400">${errorMsg}</p>`;
+                }
+            } catch (error) {
+                console.error("詞彙分析處理時發生錯誤:", error);
+                analysisArea.innerHTML = `<p class="text-red-400">Vocabulary analysis failed: ${error.message}</p>`;
+            } finally {
+                setLoadingAnalyze(false);
+            }
+        }
+        
+        // -----------------------------------------------------
+        // TTS 播放 (功能不變，僅更新 UI 狀態)
+        // -----------------------------------------------------
+        async function handleTTS() {
+            const textToSpeak = outputArea.textContent.trim();
+            const placeholder = "Please enter content above and click 'Start LDV Paraphrase'.";
+
+            if (!textToSpeak || textToSpeak === placeholder) {
+                audioPlayer.classList.add('hidden');
+                audioPlayer.src = '';
+                // 規格書禁止使用 alert()，我們將反饋顯示在分析區
+                analysisArea.innerHTML = `<p class="text-yellow-400">Please generate the paraphrased text (in Panel 2) before playing audio.</p>`;
+                return;
+            }
+
+            setLoadingTTS(true);
+            audioPlayer.classList.add('hidden');
+            audioPlayer.src = '';
+
+            try {
+                const ttsPrompt = `Say clearly and professionally: ${textToSpeak}`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: ttsPrompt }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" } // (Kore: Firm, Clear)
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const response = await fetchWithRetry(ttsApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Body:", errorBody);
+                    throw new Error(`TTS API 請求失敗，狀態： ${response.status}`);
+                }
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.classList.remove('hidden');
+                    audioPlayer.play();
+                } else {
+                     let errorMsg = "TTS response format error or missing data.";
+                    if (result?.promptFeedback?.blockReason) {
+                        errorMsg += ` Reason: ${result.promptFeedback.blockReason}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+            } catch (error) {
+                console.error("TTS 處理時發生錯誤:", error);
+                analysisArea.innerHTML = `<p class="text-red-400">Audio playback failed: ${error.message}</p>`;
+                audioPlayer.classList.add('hidden');
+            } finally {
+                setLoadingTTS(false);
+            }
+        }
+
+        // -----------------------------------------------------
+        // 帶有指數退避的重試 Fetch 函數 (功能不變)
+        // -----------------------------------------------------
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if ([429, 500, 502, 503, 504].includes(response.status) && retries > 0) {
+                    // console.warn(`收到狀態 ${response.status}。在 ${delay}ms 後重試...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    // console.warn(`Fetch 失敗。在 ${delay}ms 後重試...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                console.error("Fetch 失敗，已達最大重試次數:", error);
+                throw error;
+            }
+        }
+
+        // -----------------------------------------------------
+        // UI 狀態切換 - 主處理按鈕 (已更新以匹配新 UI)
+        // -----------------------------------------------------
+        function setLoading(isLoading) {
+            if (isLoading) {
+                processButton.disabled = true;
+                analyzeButton.disabled = true;
+                ttsButton.disabled = true;
+                buttonText.classList.add("hidden");
+                buttonLoader.classList.remove("hidden");
+                outputArea.innerHTML = `<div class="flex justify-center items-center h-full"><div class="spinner"></div><p class="ml-4 text-gray-400">Paraphrasing in progress...</p></div>`;
+            } else {
+                processButton.disabled = false;
+                analyzeButton.disabled = false;
+                ttsButton.disabled = false;
+                buttonText.classList.remove("hidden");
+                buttonLoader.classList.add("hidden");
+            }
+        }
+        
+        // -----------------------------------------------------
+        // UI 狀態切換 - 詞彙分析按鈕 (已更新以匹配新 UI)
+        // -----------------------------------------------------
+        function setLoadingAnalyze(isLoading) {
+            if (isLoading) {
+                processButton.disabled = true;
+                analyzeButton.disabled = true;
+                ttsButton.disabled = true;
+                analyzeButtonText.classList.add("hidden");
+                analyzeLoader.classList.remove("hidden");
+                analysisArea.innerHTML = `<div class="flex items-center"><div class="spinner-sm"></div><p class="ml-2 text-teal-400">Analyzing vocabulary...</p></div>`;
+            } else {
+                processButton.disabled = false;
+                analyzeButton.disabled = false;
+                ttsButton.disabled = false;
+                analyzeButtonText.classList.remove("hidden");
+                analyzeLoader.classList.add("hidden");
+            }
+        }
+
+        // -----------------------------------------------------
+        // UI 狀態切換 - TTS 按鈕 (已更新以匹配新 UI)
+        // -----------------------------------------------------
+        function setLoadingTTS(isLoading) {
+             if (isLoading) {
+                processButton.disabled = true;
+                analyzeButton.disabled = true;
+                ttsButton.disabled = true;
+                ttsButtonText.textContent = "Loading audio...";
+                ttsLoader.classList.remove("hidden");
+            } else {
+                processButton.disabled = false;
+                analyzeButton.disabled = false;
+                ttsButton.disabled = false;
+                ttsButtonText.textContent = "🗣️ Play Paraphrased Text";
+                ttsLoader.classList.add("hidden");
+            }
+        }
+
+        // -----------------------------------------------------
+        // TTS 輔助函數 (功能不變)
+        // -----------------------------------------------------
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16.length * 2, true);
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16[i], true);
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+    </script>
+</body>
+</html>
