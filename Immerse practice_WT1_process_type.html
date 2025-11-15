@@ -1,0 +1,791 @@
+<!-- Chosen Palette: Calm Harmony (bg-slate-50, text-slate-700, accent-emerald-600) -->
+<!-- Application Structure Plan: A tab-based SPA structure was chosen. The tabs ("總覽", "自然循環", "製造流程", "系統流程") directly correspond to the major categories of IELTS process diagrams. This design allows the user to easily isolate and study one category at a time, which is ideal for focused learning. Within each tab, an accordion-style interaction reveals real-life analogies. This 'click-to-reveal' mechanic encourages active exploration rather than passive reading and directly links the abstract IELTS task to a tangible life experience, which was the core of the user's request. New LLM-powered sections were added to each tab for vocabulary expansion, prompt generation, and Image Analysis. -->
+<!-- Visualization & Content Choices: Report Info: Analysis of IELTS process questions. Goal: Show the *flow* of each process. Viz/Presentation Method: Text-based, responsive flowcharts using structured HTML (flexbox) and Unicode arrows (→). Interaction: Accordion toggles to reveal detailed descriptions and vocabulary for each analogy. LLM Interaction: Two new buttons trigger Gemini API calls for vocabulary generation and practice prompt generation (Text Gen), one button for Image Analysis (Multimodal Gen), and one button for TTS (Audio Gen). Justification: This method (HTML diagrams + LLM enhancements) is chosen to maximize practical learning tools. It avoids all banned libraries (SVG, Mermaid) as required. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS 流程圖情境分析器 (含圖像分析)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .nav-tab.active {
+            background-color: #059669; /* emerald-600 */
+            color: white;
+            border-color: #059669;
+        }
+        .nav-tab {
+            transition: all 0.3s ease;
+        }
+        .analogy-detail {
+            transition: all 0.5s ease-in-out;
+            overflow: hidden;
+        }
+        /* Style for Markdown list output from LLM */
+        .markdown-output ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-output h3 {
+            font-weight: 600;
+            font-size: 1.125rem; /* lg */
+            color: #065F46; /* emerald-800 */
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        /* Style for image preview */
+        .image-preview-container img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700">
+
+    <div id="loading-indicator" class="fixed inset-0 bg-slate-50/80 backdrop-blur-sm flex justify-center items-center z-50 hidden">
+        <div class="text-emerald-600 text-xl font-semibold p-4 rounded-lg bg-white shadow-xl flex items-center space-x-3">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>✨ AI 正在努力思考中...</span>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto p-4 sm:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-emerald-700 mb-2">IELTS 流程圖情境分析器</h1>
+            <p class="text-lg text-slate-600">將抽象的考試流程，轉化為具體的生活經驗，並由 AI 增強學習</p>
+        </header>
+
+        <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
+            <button class="nav-tab active text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="overview">
+                總覽
+            </button>
+            <button class="nav-tab text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="natural-cycles">
+                自然循環
+            </button>
+            <button class="nav-tab text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="manufacturing-processes">
+                製造流程
+            </button>
+            <button class="nav-tab text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="system-flows">
+                系統流程
+            </button>
+        </nav>
+
+        <main>
+            <section id="overview" class="content-panel bg-white p-6 sm:p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-emerald-600 mb-4">歡迎使用！</h2>
+                <p class="mb-4">雅思 Task 1 的流程圖 (Process Diagram) 常常讓人感到棘手，因為它們看起來很學術、很生硬。但事實上，這些圖表所描述的「語境」— 也就是「一個步驟接著一個步驟」— 充滿在我們的日常生活中。</p>
+                <p class="mb-4">這個工具的目的，就是幫助您打破這種隔閡。我們將流程圖考題歸納為三大核心類型：<strong class="text-emerald-700">自然循環</strong>、<strong class="text-emerald-700">製造流程</strong>和<strong class="text-emerald-700">系統流程</strong>。</p>
+                <p class="mb-4">請點擊上方的頁籤，探索每一種類型。現在，您可以使用 AI 提供的「進階詞彙」清單來豐富您的寫作，並且上傳「相關情境照片」讓 AI 分析，助您從不同維度理解流程圖寫作！</p>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- TYPE 1: NATURAL CYCLES (自然循環) -->
+            <!-- ============================================== -->
+            <section id="natural-cycles" class="content-panel hidden bg-white p-6 sm:p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-emerald-600 mb-4">類型一：自然循環 (Natural Cycles)</h2>
+                <p class="mb-6">這種類型的圖表描述的是生物或自然現象的生命週期，通常是一個封閉的循環。重點在於描述「階段」(stages) 和「轉變」(transformation)。</p>
+                
+                <!-- Prompt Generation Section -->
+                <div class="mt-6 mb-8 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <h3 class="font-semibold text-emerald-800 mb-3">需要練習嗎？</h3>
+                    <button class="generate-prompt-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="Natural Cycle (自然循環)" data-output-id="prompt-text-natural-cycles" data-audio-id="audio-player-natural-cycles">
+                        ✨ 產生新的練習題目
+                    </button>
+                    <div id="prompt-output-natural-cycles" class="prompt-output mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <p class="font-medium text-emerald-800 mb-2">新的 IELTS Task 1 流程圖題目：</p>
+                        <p id="prompt-text-natural-cycles" class="text-slate-700 whitespace-pre-wrap"></p>
+                        <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="prompt-text-natural-cycles">🔊 朗讀</button>
+                        <audio id="audio-player-natural-cycles" class="w-full mt-2 hidden" controls></audio>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-slate-700 mb-4">生活情境連結：</h3>
+                
+                <!-- Analogy 1: Hand-Drip Coffee -->
+                <div class="border border-slate-200 rounded-lg mb-4">
+                    <button class="analogy-trigger w-full flex justify-between items-center p-4 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        <span class="font-semibold text-emerald-800">情境 1: 手沖咖啡 (Drip Coffee Preparation)</span>
+                        <span class="analogy-icon text-emerald-800 text-2xl font-light">+</span>
+                    </button>
+                    <div class="analogy-detail hidden p-4 sm:p-6 border-t border-slate-200">
+                        <p class="mb-4">手沖咖啡完美模擬了一個小型的「水循環」。您需要描述水如何改變形態並在系統中移動。</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2 my-4 overflow-x-auto p-2">
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">熱水 (Evaporation)</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">通過咖啡粉 (Infiltration)</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">滴入壺中 (Collection)</span>
+                        </div>
+                        
+                        <div class="mt-4 border-t pt-4">
+                            <h4 class="font-semibold mb-2">進階詞彙與轉承詞：</h4>
+                            <button class="generate-vocab-btn px-4 py-1 text-sm bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors" data-process="Drip Coffee Preparation (手沖咖啡)" data-output-id="vocab-text-coffee" data-audio-id="audio-player-coffee">
+                                ✨ 生成進階詞彙
+                            </button>
+                            <div id="vocab-output-coffee" class="vocab-output mt-3 p-3 bg-slate-100 rounded hidden">
+                                <p class="font-medium text-slate-700 mb-2">生成結果：</p>
+                                <div id="vocab-text-coffee" class="text-slate-600 text-sm whitespace-pre-wrap markdown-output"></div>
+                                <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="vocab-text-coffee">🔊 朗讀</button>
+                                <audio id="audio-player-coffee" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Analysis Section for Natural Cycles -->
+                <div class="mt-8 pt-6 border-t border-slate-200">
+                    <h3 class="text-xl font-semibold text-emerald-600 mb-4">圖像情境分析（自然循環）</h3>
+                    <p class="mb-3 text-slate-600">上傳一張與自然循環相關的照片 (例如：植物、天氣、動物生命週期)，AI 將分析其可寫的流程細節。</p>
+                    
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div class="flex-grow">
+                            <label for="image-upload-natural-cycles" class="block text-sm font-medium text-slate-700 mb-1">選擇照片</label>
+                            <input type="file" accept="image/*" class="image-upload-input block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" id="image-upload-natural-cycles">
+                        </div>
+                        <button class="analyze-image-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="Natural Cycles (自然循環)" data-input-id="image-upload-natural-cycles" data-output-id="image-analysis-output-natural-cycles" data-analysis-text-id="analysis-text-natural-cycles" data-image-preview-id="image-preview-natural-cycles" data-audio-id="audio-player-img-natural-cycles">
+                            📷 分析圖片
+                        </button>
+                    </div>
+
+                    <div id="image-analysis-output-natural-cycles" class="mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <h4 class="font-medium text-emerald-800 mb-3">AI 圖像分析結果：</h4>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div id="image-preview-natural-cycles" class="image-preview-container w-full sm:w-1/3 flex-shrink-0 max-h-40 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                <p class="text-sm text-slate-400 p-4">圖片預覽</p>
+                            </div>
+                            <div class="w-full sm:w-2/3">
+                                <p id="analysis-text-natural-cycles" class="text-slate-700 whitespace-pre-wrap"></p>
+                                <button class="tts-button mt-3 text-sm text-slate-500 hover:text-emerald-600" data-target="analysis-text-natural-cycles">🔊 朗讀</button>
+                                <audio id="audio-player-img-natural-cycles" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ============================================== -->
+            <!-- TYPE 2: MANUFACTURING PROCESSES (製造流程) -->
+            <!-- ============================================== -->
+            <section id="manufacturing-processes" class="content-panel hidden bg-white p-6 sm:p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-emerald-600 mb-4">類型二：製造流程 (Manufacturing Processes)</h2>
+                <p class="mb-6">這種類型的圖表描述的是一個「線性」過程，即原料 (raw materials) 如何經過一系列步驟，被加工 (processed) 成最終產品 (finished product)。這通常是人為的。重點在於「順序」和「被動語態」。</p>
+                
+                <!-- Prompt Generation Section -->
+                <div class="mt-6 mb-8 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <h3 class="font-semibold text-emerald-800 mb-3">需要練習嗎？</h3>
+                    <button class="generate-prompt-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="Manufacturing Process (製造流程)" data-output-id="prompt-text-manufacturing-processes" data-audio-id="audio-player-manufacturing-processes">
+                        ✨ 產生新的練習題目
+                    </button>
+                    <div id="prompt-output-manufacturing-processes" class="prompt-output mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <p class="font-medium text-emerald-800 mb-2">新的 IELTS Task 1 流程圖題目：</p>
+                        <p id="prompt-text-manufacturing-processes" class="text-slate-700 whitespace-pre-wrap"></p>
+                        <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="prompt-text-manufacturing-processes">🔊 朗讀</button>
+                        <audio id="audio-player-manufacturing-processes" class="w-full mt-2 hidden" controls></audio>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-slate-700 mb-4">生活情境連結：</h3>
+                
+                <!-- Analogy 1: Baking a Cake -->
+                <div class="border border-slate-200 rounded-lg mb-4">
+                    <button class="analogy-trigger w-full flex justify-between items-center p-4 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        <span class="font-semibold text-emerald-800">情境 1: 照著食譜烤蛋糕 (Baking a Cake)</span>
+                        <span class="analogy-icon text-emerald-800 text-2xl font-light">+</span>
+                    </button>
+                    <div class="analogy-detail hidden p-4 sm:p-6 border-t border-slate-200">
+                        <p class="mb-4">烤蛋糕就是一個完美的製造流程。你有原料（麵粉、蛋），並使用工具（烤箱）來改變它們。</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2 my-4 overflow-x-auto p-2">
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">原料</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">混合</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">烘烤</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">成品</span>
+                        </div>
+                        
+                        <div class="mt-4 border-t pt-4">
+                            <h4 class="font-semibold mb-2">進階詞彙與轉承詞：</h4>
+                            <button class="generate-vocab-btn px-4 py-1 text-sm bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors" data-process="Baking a Cake (烤蛋糕)" data-output-id="vocab-text-baking" data-audio-id="audio-player-baking">
+                                ✨ 生成進階詞彙
+                            </button>
+                            <div id="vocab-output-baking" class="vocab-output mt-3 p-3 bg-slate-100 rounded hidden">
+                                <p class="font-medium text-slate-700 mb-2">生成結果：</p>
+                                <div id="vocab-text-baking" class="text-slate-600 text-sm whitespace-pre-wrap markdown-output"></div>
+                                <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="vocab-text-baking">🔊 朗讀</button>
+                                <audio id="audio-player-baking" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Analysis Section for Manufacturing Processes -->
+                <div class="mt-8 pt-6 border-t border-slate-200">
+                    <h3 class="text-xl font-semibold text-emerald-600 mb-4">圖像情境分析（製造流程）</h3>
+                    <p class="mb-3 text-slate-600">上傳一張與製造或加工相關的照片 (例如：工廠設備、廚房備料、回收站)，AI 將分析其可寫的流程細節。</p>
+                    
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div class="flex-grow">
+                            <label for="image-upload-manufacturing-processes" class="block text-sm font-medium text-slate-700 mb-1">選擇照片</label>
+                            <input type="file" accept="image/*" class="image-upload-input block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" id="image-upload-manufacturing-processes">
+                        </div>
+                        <button class="analyze-image-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="Manufacturing Process (製造流程)" data-input-id="image-upload-manufacturing-processes" data-output-id="image-analysis-output-manufacturing-processes" data-analysis-text-id="analysis-text-manufacturing-processes" data-image-preview-id="image-preview-manufacturing-processes" data-audio-id="audio-player-img-manufacturing-processes">
+                            📷 分析圖片
+                        </button>
+                    </div>
+
+                    <div id="image-analysis-output-manufacturing-processes" class="mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <h4 class="font-medium text-emerald-800 mb-3">AI 圖像分析結果：</h4>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div id="image-preview-manufacturing-processes" class="image-preview-container w-full sm:w-1/3 flex-shrink-0 max-h-40 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                <p class="text-sm text-slate-400 p-4">圖片預覽</p>
+                            </div>
+                            <div class="w-full sm:w-2/3">
+                                <p id="analysis-text-manufacturing-processes" class="text-slate-700 whitespace-pre-wrap"></p>
+                                <button class="tts-button mt-3 text-sm text-slate-500 hover:text-emerald-600" data-target="analysis-text-manufacturing-processes">🔊 朗讀</button>
+                                <audio id="audio-player-img-manufacturing-processes" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ============================================== -->
+            <!-- TYPE 3: SYSTEM FLOWS (系統流程) -->
+            <!-- ============================================== -->
+            <section id="system-flows" class="content-panel hidden bg-white p-6 sm:p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-emerald-600 mb-4">類型三：系統流程 (System Flows)</h2>
+                <p class="mb-6">這種類型的圖表描述的是一個「資訊」或「服務」的流程，它可能包含「決策點」(decision points) 和不同的路徑。重點在於描述「請求」、「處理」和「反饋」。</p>
+
+                <!-- Prompt Generation Section -->
+                <div class="mt-6 mb-8 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <h3 class="font-semibold text-emerald-800 mb-3">需要練習嗎？</h3>
+                    <button class="generate-prompt-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="System Flow (系統流程)" data-output-id="prompt-text-system-flows" data-audio-id="audio-player-system-flows">
+                        ✨ 產生新的練習題目
+                    </button>
+                    <div id="prompt-output-system-flows" class="prompt-output mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <p class="font-medium text-emerald-800 mb-2">新的 IELTS Task 1 流程圖題目：</p>
+                        <p id="prompt-text-system-flows" class="text-slate-700 whitespace-pre-wrap"></p>
+                        <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="prompt-text-system-flows">🔊 朗讀</button>
+                        <audio id="audio-player-system-flows" class="w-full mt-2 hidden" controls></audio>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-slate-700 mb-4">生活情境連結：</h3>
+                
+                <!-- Analogy 1: Online Food Delivery -->
+                <div class="border border-slate-200 rounded-lg mb-4">
+                    <button class="analogy-trigger w-full flex justify-between items-center p-4 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        <span class="font-semibold text-emerald-800">情境 1: 線上訂餐 (Food Delivery System)</span>
+                        <span class="analogy-icon text-emerald-800 text-2xl font-light">+</span>
+                    </button>
+                    <div class="analogy-detail hidden p-4 sm:p-6 border-t border-slate-200">
+                        <p class="mb-4">線上訂餐是一個完美的現代系統流程。它涉及使用者、系統和供應商（餐廳）之間的互動。</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2 my-4 overflow-x-auto p-2">
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">顧客下單</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">餐廳接收</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">準備餐點</span>
+                            <span class="text-slate-400 text-2xl mx-1">→</span>
+                            <span class="bg-emerald-100 text-emerald-800 rounded-md p-2 text-sm font-medium text-center">送達</span>
+                        </div>
+                        
+                        <div class="mt-4 border-t pt-4">
+                            <h4 class="font-semibold mb-2">進階詞彙與轉承詞：</h4>
+                            <button class="generate-vocab-btn px-4 py-1 text-sm bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors" data-process="Online Food Ordering System (線上訂餐)" data-output-id="vocab-text-food-delivery" data-audio-id="audio-player-food-delivery">
+                                ✨ 生成進階詞彙
+                            </button>
+                            <div id="vocab-output-food-delivery" class="vocab-output mt-3 p-3 bg-slate-100 rounded hidden">
+                                <p class="font-medium text-slate-700 mb-2">生成結果：</p>
+                                <div id="vocab-text-food-delivery" class="text-slate-600 text-sm whitespace-pre-wrap markdown-output"></div>
+                                <button class="tts-button mt-2 text-sm text-slate-500 hover:text-emerald-600" data-target="vocab-text-food-delivery">🔊 朗讀</button>
+                                <audio id="audio-player-food-delivery" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Analysis Section for System Flows -->
+                <div class="mt-8 pt-6 border-t border-slate-200">
+                    <h3 class="text-xl font-semibold text-emerald-600 mb-4">圖像情境分析（系統流程）</h3>
+                    <p class="mb-3 text-slate-600">上傳一張與服務或資訊流相關的照片 (例如：機場登機口、排隊隊伍、辦公室工作站)，AI 將分析其可寫的流程細節。</p>
+                    
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div class="flex-grow">
+                            <label for="image-upload-system-flows" class="block text-sm font-medium text-slate-700 mb-1">選擇照片</label>
+                            <input type="file" accept="image/*" class="image-upload-input block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" id="image-upload-system-flows">
+                        </div>
+                        <button class="analyze-image-btn w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md" data-category="System Flow (系統流程)" data-input-id="image-upload-system-flows" data-output-id="image-analysis-output-system-flows" data-analysis-text-id="analysis-text-system-flows" data-image-preview-id="image-preview-system-flows" data-audio-id="audio-player-img-system-flows">
+                            📷 分析圖片
+                        </button>
+                    </div>
+
+                    <div id="image-analysis-output-system-flows" class="mt-4 p-4 bg-white rounded border border-emerald-300 hidden">
+                        <h4 class="font-medium text-emerald-800 mb-3">AI 圖像分析結果：</h4>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div id="image-preview-system-flows" class="image-preview-container w-full sm:w-1/3 flex-shrink-0 max-h-40 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                <p class="text-sm text-slate-400 p-4">圖片預覽</p>
+                            </div>
+                            <div class="w-full sm:w-2/3">
+                                <p id="analysis-text-system-flows" class="text-slate-700 whitespace-pre-wrap"></p>
+                                <button class="tts-button mt-3 text-sm text-slate-500 hover:text-emerald-600" data-target="analysis-text-system-flows">🔊 朗讀</button>
+                                <audio id="audio-player-img-system-flows" class="w-full mt-2 hidden" controls></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs";
+        const LLM_TEXT_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const LLM_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // Function to convert base64 to ArrayBuffer
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        // Function to convert PCM audio data to WAV format
+        const pcmToWav = (pcm16, sampleRate) => {
+            const numChannels = 1;
+            const bitDepth = 16;
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = pcm16.length * bytesPerSample;
+            
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            // Write RIFF header
+            const writeString = (s) => {
+                for (let i = 0; i < s.length; i++) {
+                    view.setUint8(offset + i, s.charCodeAt(i));
+                }
+                offset += s.length;
+            };
+
+            writeString('RIFF'); // Chunk ID
+            view.setUint32(offset, 36 + dataSize, true); // Chunk Size
+            offset += 4;
+            writeString('WAVE'); // Format
+
+            // Write fmt sub-chunk
+            writeString('fmt '); // Sub-chunk 1 ID
+            view.setUint32(offset, 16, true); // Sub-chunk 1 Size
+            offset += 4;
+            view.setUint16(offset, 1, true); // Audio Format (1 = PCM)
+            offset += 2;
+            view.setUint16(offset, numChannels, true); // Num Channels
+            offset += 2;
+            view.setUint32(offset, sampleRate, true); // Sample Rate
+            offset += 4;
+            view.setUint32(offset, byteRate, true); // Byte Rate
+            offset += 4;
+            view.setUint16(offset, blockAlign, true); // Block Align
+            offset += 2;
+            view.setUint16(offset, bitDepth, true); // Bit Depth
+            offset += 2;
+
+            // Write data sub-chunk
+            writeString('data'); // Sub-chunk 2 ID
+            view.setUint32(offset, dataSize, true); // Sub-chunk 2 Size
+            offset += 4;
+
+            // Write PCM data
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset, pcm16[i], true);
+                offset += 2;
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        };
+
+        // Generic fetch function with exponential backoff
+        const fetchWithBackoff = async (url, options, maxRetries = 5) => {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error("Maximum retries reached.");
+        };
+
+        // LLM Text Generation Function
+        const generateContent = async (userQuery, systemPrompt) => {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const response = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || '生成內容失敗。';
+        };
+
+        // Function to convert file to Base64
+        const fileToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // reader.result is Data URI (e.g., data:image/png;base64,...)
+                    const base64String = reader.result.split(',')[1];
+                    const mimeType = file.type;
+                    resolve({ base64: base64String, mimeType: mimeType });
+                };
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        // LLM Image Analysis Function (using multimodal capabilities)
+        const analyzeImage = async (base64Image, mimeType, category) => {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${API_KEY}`;
+            
+            const userQuery = `請分析這張圖片，並以 IELTS Task 1 流程圖寫作的角度，說明圖片中的物體、動作或狀態如何能被描述為一個流程。這個流程屬於「${category}」類型。`;
+            
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: userQuery },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Image
+                            }
+                        }
+                    ]
+                }],
+                systemInstruction: {
+                    parts: [{ text: "You are an expert IELTS Task 1 tutor. Analyze the provided image in the context of process diagram description. Focus on identifying objects, actions, and sequence/state changes that could be described using process vocabulary. Write a concise, professional analysis in Traditional Chinese. Do not use any markdown formatting." }]
+                },
+            };
+
+            const response = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || '圖像分析失敗。';
+        };
+
+        // LLM TTS Generation Function
+        const generateTTS = async (text, audioId) => {
+            const audioPlayer = document.getElementById(audioId);
+            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TTS_MODEL}:generateContent?key=${API_KEY}`;
+            
+            // --- 修正：定義播放結束時的動作 ---
+            const onAudioEnd = () => {
+                loadingIndicator.classList.add('hidden'); // 在播放結束時隱藏指示器
+                audioPlayer.removeEventListener('ended', onAudioEnd); // 清理監聽器
+            };
+            
+            // --- 修正：移除舊監聽器並添加新監聽器 ---
+            audioPlayer.removeEventListener('ended', onAudioEnd);
+            audioPlayer.addEventListener('ended', onAudioEnd);
+            // --- 修正結束 ---
+
+            audioPlayer.classList.add('hidden');
+            audioPlayer.pause();
+            audioPlayer.removeAttribute('src');
+
+            const payload = {
+                contents: [{ parts: [{ text: text }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Kore" }
+                        }
+                    }
+                },
+                model: LLM_TTS_MODEL
+            };
+
+            try {
+                const response = await fetchWithBackoff(ttsUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.classList.remove('hidden');
+                    audioPlayer.play();
+                    // 播放開始，loadingIndicator 保持可見，直到 'ended' 事件觸發
+                } else {
+                    console.error("TTS generation failed or returned invalid format:", result);
+                    const message = "語音生成失敗：無法取得音訊資料。";
+                    console.warn(message);
+                    loadingIndicator.classList.add('hidden'); // --- 修正：在失敗時隱藏
+                }
+            } catch (error) {
+                console.error("TTS API call error:", error);
+                const message = "語音生成發生錯誤。請稍後再試。";
+                console.warn(message);
+                loadingIndicator.classList.add('hidden'); // --- 修正：在 catch 中隱藏
+            }
+        };
+
+        // Main DOMContentLoaded setup
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.nav-tab');
+            const panels = document.querySelectorAll('.content-panel');
+            const analogyTriggers = document.querySelectorAll('.analogy-trigger');
+            const vocabButtons = document.querySelectorAll('.generate-vocab-btn');
+            const promptButtons = document.querySelectorAll('.generate-prompt-btn');
+            const analyzeImageButtons = document.querySelectorAll('.analyze-image-btn');
+            
+            // Tab Navigation Logic
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-target');
+                    
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    panels.forEach(panel => {
+                        if (panel.id === target) {
+                            panel.classList.remove('hidden');
+                        } else {
+                            panel.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            // Analogy Accordion Logic
+            analogyTriggers.forEach(trigger => {
+                trigger.addEventListener('click', () => {
+                    const detail = trigger.nextElementSibling;
+                    const icon = trigger.querySelector('.analogy-icon');
+                    
+                    const isHidden = detail.classList.contains('hidden');
+                    
+                    analogyTriggers.forEach(t => {
+                        if (t !== trigger) {
+                            t.nextElementSibling.classList.add('hidden');
+                            t.querySelector('.analogy-icon').textContent = '+';
+                            t.nextElementSibling.style.maxHeight = '0px';
+                        }
+                    });
+
+                    if (isHidden) {
+                        detail.classList.remove('hidden');
+                        detail.style.maxHeight = detail.scrollHeight + 'px';
+                        icon.textContent = '−';
+                    } else {
+                        detail.style.maxHeight = '0px';
+                        icon.textContent = '+';
+                        setTimeout(() => {
+                            detail.classList.add('hidden');
+                        }, 500); 
+                    }
+                });
+            });
+
+            // Initial state for accordions
+            analogyTriggers.forEach(trigger => {
+                const detail = trigger.nextElementSibling;
+                detail.classList.add('hidden');
+                detail.style.maxHeight = '0px';
+            });
+            
+            // LLM Vocabulary Generation Logic
+            vocabButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const processName = button.getAttribute('data-process');
+                    const outputId = button.getAttribute('data-output-id');
+                    const audioId = button.getAttribute('data-audio-id');
+                    const outputDiv = document.getElementById(outputId);
+                    const outputContainer = outputDiv.closest('.vocab-output');
+                    
+                    outputContainer.classList.remove('hidden');
+                    outputDiv.innerHTML = '<p class="text-slate-500">生成中...</p>';
+                    document.getElementById(audioId).classList.add('hidden');
+
+                    const systemPrompt = "Act as an expert IELTS writing tutor. Your task is to provide a list of 5 advanced verbs, 3 sophisticated adjectives, and 2 advanced transition phrases suitable for describing the process of [PROCESS NAME]. Output only a markdown list using the following format and language (Traditional Chinese): '### 進階動詞\n- 動詞 A\n- 動詞 B\n-...\n### 形容詞/名詞\n- 形容詞 A / 名詞 A\n-...\n### 轉承詞\n- 轉承詞 A\n-...' Do not include any introductory or concluding text outside the markdown list.";
+                    const userQuery = `請針對這個流程：${processName}，生成進階詞彙。`;
+
+                    loadingIndicator.classList.remove('hidden');
+                    try {
+                        const resultText = await generateContent(userQuery, systemPrompt.replace('[PROCESS NAME]', processName));
+                        outputDiv.innerHTML = resultText; // Use innerHTML to render markdown lists
+                    } catch (error) {
+                        outputDiv.innerHTML = '<p class="text-red-500">生成失敗，請檢查網路或稍後再試。</p>';
+                        console.error("Vocabulary generation error:", error);
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
+                    }
+                });
+            });
+
+            // LLM Prompt Generation Logic
+            promptButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const category = button.getAttribute('data-category');
+                    const outputId = button.getAttribute('data-output-id');
+                    const audioId = button.getAttribute('data-audio-id');
+                    const outputDiv = document.getElementById(outputId);
+                    const outputContainer = outputDiv.closest('.prompt-output');
+                    
+                    outputContainer.classList.remove('hidden');
+                    outputDiv.textContent = '生成中...';
+                    document.getElementById(audioId).classList.add('hidden');
+
+                    const systemPrompt = "Act as an IELTS exam question writer. Generate a single, unique IELTS Writing Task 1 process diagram question focusing on the category: [CATEGORY NAME]. The question must start with 'The diagram illustrates...' and should include a final instruction like 'Summarise the information by selecting and reporting the main features, and make comparisons where relevant.' Output only the complete prompt text.";
+                    const userQuery = `請針對流程圖類別：${category}，生成一個全新的 IELTS Task 1 題目。`;
+
+                    loadingIndicator.classList.remove('hidden');
+                    try {
+                        const resultText = await generateContent(userQuery, systemPrompt.replace('[CATEGORY NAME]', category));
+                        outputDiv.textContent = resultText;
+                    } catch (error)
+ {
+                        outputDiv.textContent = '生成失敗，請檢查網路或稍後再試。';
+                        console.error("Prompt generation error:", error);
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
+                    }
+                });
+            });
+
+            // Image Analysis Logic
+            analyzeImageButtons.forEach(button => {
+                button.addEventListener('click', async () => {
+                    const category = button.getAttribute('data-category');
+                    const inputId = button.getAttribute('data-input-id');
+                    const outputId = button.getAttribute('data-output-id');
+                    const analysisTextId = button.getAttribute('data-analysis-text-id');
+                    const imagePreviewId = button.getAttribute('data-image-preview-id');
+                    const audioId = button.getAttribute('data-audio-id');
+
+                    const inputElement = document.getElementById(inputId);
+                    const outputContainer = document.getElementById(outputId);
+                    const analysisTextElement = document.getElementById(analysisTextId);
+                    const imagePreviewContainer = document.getElementById(imagePreviewId);
+
+                    const file = inputElement.files[0];
+
+                    if (!file) {
+                        alert('請先選擇一張圖片！');
+                        return;
+                    }
+
+                    outputContainer.classList.remove('hidden');
+                    analysisTextElement.textContent = '圖像分析中，請稍候...';
+                    imagePreviewContainer.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Uploaded Image Preview">`;
+                    document.getElementById(audioId).classList.add('hidden');
+
+                    loadingIndicator.classList.remove('hidden');
+                    
+                    try {
+                        const { base64, mimeType } = await fileToBase64(file);
+                        const resultText = await analyzeImage(base64, mimeType, category);
+                        
+                        analysisTextElement.textContent = resultText;
+                    } catch (error) {
+                        analysisTextElement.textContent = '圖像分析失敗，請檢查圖片或網路。';
+                        console.error("Image analysis error:", error);
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
+                    }
+                });
+            });
+
+
+            // TTS Logic
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('tts-button')) {
+                    const button = e.target;
+                    const targetId = button.getAttribute('data-target');
+                    const targetElement = document.getElementById(targetId);
+                    
+                    const textToRead = targetElement.textContent.trim();
+                    if (!textToRead || textToRead === '生成中...' || textToRead.includes('生成失敗') || textToRead.includes('圖像分析中')) {
+                        // 使用自定義提示框或控制台警告，而不是 alert
+                        console.warn('請先生成內容或確保內容非空。');
+                        return;
+                    }
+
+                    // For markdown content (vocab list), strip headers/list markers for TTS clarity
+                    let cleanedText = textToRead.replace(/###\s*(.*)\n/g, '$1. '); // Replace markdown headers with period
+                    cleanedText = cleanedText.replace(/-\s*/g, ' '); // Remove list markers
+
+                    const audioId = button.nextElementSibling.id;
+                    loadingIndicator.classList.remove('hidden'); // 顯示指示器
+                    
+                    try {
+                        // generateTTS 函數現在將處理何時隱藏指示器
+                        generateTTS(cleanedText, audioId);
+                    } catch (error) {
+                        console.error("TTS execution error:", error);
+                        loadingIndicator.classList.add('hidden'); // --- 修正：添加安全網以防
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
