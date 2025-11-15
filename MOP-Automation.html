@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>螢幕錄製與 AI 註解工具</title>
+    <!-- 載入 Tailwind CSS 以進行快速美化 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* 使用 Inter 字體 */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* 自訂按鈕禁用時的樣式 */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* AI 註解的讀取中旋轉動畫 */
+        .spinner {
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4A90E2;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 列印專用樣式 */
+        @media print {
+            /* 隱藏所有不需要列印的 UI 元素 */
+            body > div:not(.printable-area), 
+            .controls-area, 
+            #previewContainer,
+            #playbackContainer video,
+            #playbackContainer #downloadLink,
+            #playbackContainer #printButton,
+            #errorBox,
+            #llmStatus,
+            .action-buttons, /* 隱藏所有互動按鈕 (移除/插入步驟) */
+            .image-upload-area, /* 隱藏圖片上傳區塊 */
+            .app-header, /* 隱藏應用程式主標題和描述 */
+            .title-input-area, /* 隱藏手動輸入框本身 */
+            #playbackHeader, /* 隱藏「錄製結果」標題 */
+            #screenshotsResultArea h2 /* 隱藏「AI 產生操作步驟 (可編輯)」標題 */
+             { 
+                display: none !important;
+            }
+            
+            /* 確保自訂標題在列印時顯示 */
+            .print-only {
+                display: block !important;
+            }
+            
+            /* 確保結果區域填滿頁面 */
+            .printable-area {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            /* 每個截圖項目的列印樣式 */
+            .screenshot-item {
+                page-break-inside: avoid; /* 避免圖片和文字被切斷 */
+                page-break-after: always; /* 每個項目一頁 */
+                padding: 20px;
+                border: none !important; /* 移除邊框 */
+                box-shadow: none !important; /* 移除陰影 */
+            }
+            .screenshot-item:last-child {
+                page-break-after: avoid; /* 最後一項後面不要分頁 */
+            }
+
+            .screenshot-item img {
+                max-width: 100% !important;
+                height: auto;
+                border: 1px solid #ccc;
+            }
+            
+            /* 確保註解文字樣式在列印時正確 */
+            .screenshot-item textarea {
+                border: none !important;
+                resize: none !important;
+                overflow: hidden !important;
+                height: auto !important;
+                min-height: 40px;
+                /* 為了列印，讓 textarea 內容看起來像普通文字 */
+                background-color: transparent !important;
+                padding: 0 !important; 
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            
+            /* 覆寫 AI 註解標題為「註解」 */
+            .screenshot-item h4.print-only-label {
+                 color: #000;
+                 font-size: 1rem;
+            }
+            .screenshot-item h4.print-only-label::before {
+                content: "註解:"; /* 使用偽元素替換文字 */
+            }
+            .screenshot-item h4.print-only-label {
+                /* 讓 h4 原本的內容不顯示 (防止「AI 註解:」出現) */
+                font-size: 0;
+                color: transparent;
+                display: inline;
+            }
+            .screenshot-item h4.print-only-label::before {
+                font-size: 1rem; /* 恢復字體大小 */
+                color: #000; /* 恢復字體顏色 */
+                font-weight: 600;
+                content: "註解:";
+            }
+            
+            /* 調整步驟區域的間距 */
+            #screenshotsResultArea {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- 增加 'printable-area' class 以便列印時鎖定 -->
+    <div class="bg-white w-full max-w-4xl rounded-lg shadow-xl p-6 md:p-8 printable-area">
+        
+        <!-- 應用程式主標題和描述 (controls-area 用於非列印時的 Flex 佈局) -->
+        <div class="app-header controls-area"> 
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">螢幕錄製與 AI 註解工具</h1>
+            <p class="text-center text-gray-500 mb-6 description-paragraph">點擊「開始錄製」，將會**每 2 秒自動擷取畫面**，您也可手動擷取。</p>
+        </div>
+
+        <!-- 新增：手動輸入文件標題 -->
+        <div class="mb-6 title-input-area">
+            <label for="documentTitleInput" class="block text-sm font-medium text-gray-700 mb-1">匯出文件標題 (手動輸入):</label>
+            <input type="text" id="documentTitleInput" 
+                   value="自動化 SOP 報告" 
+                   placeholder="請輸入您的報告標題"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 列印專用標題 (預設隱藏，列印時顯示) -->
+        <div id="printableTitle" class="hidden text-3xl font-bold text-gray-900 mb-8 text-center print-only"></div>
+
+        <!-- 控制按鈕 (增加 'controls-area' class) -->
+        <div class="flex items-center justify-center flex-wrap gap-4 mb-6 controls-area">
+            <button id="startButton" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium shadow-md hover:bg-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                開始錄製
+            </button>
+            <button id="screenshotButton" class="px-6 py-3 bg-yellow-500 text-white rounded-lg font-medium shadow-md hover:bg-yellow-600 transition-all focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50" disabled>
+                擷取螢幕 (手動)
+            </button>
+            <button id="stopButton" class="px-6 py-3 bg-red-600 text-white rounded-lg font-medium shadow-md hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50" disabled>
+                停止錄製
+            </button>
+        </div>
+
+        <!-- 錯誤訊息區域 -->
+        <div id="errorBox" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert" hidden>
+            <strong class="font-bold">錯誤：</strong>
+            <span id="errorMessage" class="block sm:inline"></span>
+        </div>
+
+        <!-- 即時預覽區域 -->
+        <div id="previewContainer" class="mb-6" hidden>
+            <h2 class="text-xl font-semibold text-gray-700 mb-3">即時預覽</h2>
+            <video id="previewVideo" class="w-full h-auto bg-gray-200 rounded-lg shadow-inner" autoplay muted></video>
+        </div>
+        
+        <!-- 錄製結果區域 -->
+        <div id="playbackContainer" class="text-center" hidden>
+            <h2 id="playbackHeader" class="text-xl font-semibold text-gray-700 mb-3">錄製結果</h2>
+            <video id="playbackVideo" class="w-full h-auto bg-gray-200 rounded-lg shadow-inner mb-4" controls></video>
+            
+            <!-- 狀態訊息 -->
+            <p id="llmStatus" class="text-center text-gray-600 my-4" hidden></p>
+            
+            <!-- 下載按鈕群組 -->
+            <div class="flex items-center justify-center flex-wrap gap-4">
+                <a id="downloadLink" class="inline-block px-6 py-3 bg-green-600 text-white rounded-lg font-medium shadow-md hover:bg-green-700 transition-all" hidden>
+                    下載影片 (.webm)
+                </a>
+                <!-- 新增：列印 PDF 按鈕 -->
+                <button id="printButton" class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg font-medium shadow-md hover:bg-purple-700 transition-all" hidden>
+                    匯出為 PDF (列印)
+                </button>
+            </div>
+
+            <!-- 新增：AI 註解結果顯示區域 -->
+            <div id="screenshotsResultArea" class="mt-10 text-left border-t pt-6">
+                <!-- AI 產生的截圖與註解將會顯示在這裡 -->
+            </div>
+            
+            <!-- 新增：在最後加入空步驟的按鈕 -->
+            <button id="insertFinalStepButton" onclick="insertBlankStep(screenshotCache.length - 1)" class="w-full px-6 py-3 mt-4 border border-dashed border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all" hidden>
+                + 在結尾新增一個空步驟 +
+            </button>
+        </div>
+
+    </div>
+
+    <!-- 隱藏的 Canvas 用於擷取畫面 (仍然需要) -->
+    <canvas id="screenshotCanvas" class="hidden"></canvas>
+
+    <script>
+        // 獲取 DOM 元素
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const screenshotButton = document.getElementById('screenshotButton');
+        const previewVideo = document.getElementById('previewVideo');
+        const playbackVideo = document.getElementById('playbackVideo');
+        const downloadLink = document.getElementById('downloadLink');
+        const printButton = document.getElementById('printButton');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+        const previewContainer = document.getElementById('previewContainer');
+        const playbackContainer = document.getElementById('playbackContainer');
+        const screenshotCanvas = document.getElementById('screenshotCanvas');
+        const llmStatus = document.getElementById('llmStatus');
+        const screenshotsResultArea = document.getElementById('screenshotsResultArea');
+        const insertFinalStepButton = document.getElementById('insertFinalStepButton');
+        
+        // --- 文件標題相關元素 ---
+        const documentTitleInput = document.getElementById('documentTitleInput');
+        const printableTitle = document.getElementById('printableTitle');
+        // ---------------------------------
+
+
+        // 全局變數
+        let mediaRecorder;
+        let recordedChunks = [];
+        let screenshotCache = []; // 格式: { imageDataUrl: "...", annotation: "...", status: "pending" }
+        let stream; 
+        
+        // --- 新增變數：用於自動截圖計時器 ---
+        let screenshotIntervalId = null; 
+        const AUTO_CAPTURE_DELAY = 2000; // 2000 毫秒 = 2 秒
+        // ------------------------------------
+
+        // --- 設置初始標題並監聽輸入事件 ---
+        printableTitle.textContent = documentTitleInput.value;
+        documentTitleInput.addEventListener('input', (e) => {
+            printableTitle.textContent = e.target.value;
+        });
+        // -----------------------------------
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.hidden = false;
+        }
+
+        // 隱藏錯誤訊息
+        function hideError() {
+            errorBox.hidden = true;
+        }
+
+        // 重設 UI 狀態
+        function resetUI() {
+            // --- 確保清除計時器 ---
+            if (screenshotIntervalId) {
+                clearInterval(screenshotIntervalId);
+                screenshotIntervalId = null;
+            }
+            // --------------------------
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            screenshotButton.disabled = true;
+            previewContainer.hidden = true;
+            playbackContainer.hidden = true;
+            downloadLink.hidden = true;
+            printButton.hidden = true;
+            llmStatus.hidden = true;
+            insertFinalStepButton.hidden = true; // 隱藏新增最終步驟按鈕
+            screenshotsResultArea.innerHTML = '';
+            previewVideo.srcObject = null;
+            playbackVideo.src = '';
+            downloadLink.href = '';
+            screenshotCache = [];
+            recordedChunks = [];
+        }
+
+        // --- 擷取螢幕畫面的核心函式 ---
+        function takeScreenshot() {
+            // 只有在 stream 存在且正在錄製時才執行
+            if (!stream || !previewVideo || mediaRecorder.state !== 'recording') {
+                return;
+            }
+
+            try {
+                const videoTrack = stream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                screenshotCanvas.width = settings.width || previewVideo.videoWidth;
+                screenshotCanvas.height = settings.height || previewVideo.videoHeight;
+
+                const context = screenshotCanvas.getContext('2d');
+                context.drawImage(previewVideo, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
+
+                const imageDataUrl = screenshotCanvas.toDataURL('image/jpeg', 0.8);
+
+                // 儲存為物件
+                screenshotCache.push({ 
+                    imageDataUrl: imageDataUrl, 
+                    annotation: null, 
+                    status: 'pending' 
+                });
+                
+                // 顯示擷取成功訊息
+                llmStatus.textContent = `已擷取畫面 ${screenshotCache.length} 張 (自動/手動)。`;
+                llmStatus.hidden = false;
+
+            } catch (err) {
+                console.error("擷取螢幕失敗:", err);
+                // 僅在手動點擊時顯示錯誤，避免自動模式下不斷跳出
+                if (mediaRecorder.state === 'recording' && screenshotIntervalId === null) {
+                    showError(`擷取螢幕失敗: ${err.message}`);
+                }
+            }
+        }
+        // ------------------------------------
+
+        // 開始錄製
+        startButton.addEventListener('click', async () => {
+            hideError();
+            playbackContainer.hidden = true;
+            screenshotsResultArea.innerHTML = '';
+            recordedChunks = [];
+            screenshotCache = [];
+            insertFinalStepButton.hidden = true;
+
+            try {
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true 
+                });
+
+                previewContainer.hidden = false;
+                previewVideo.srcObject = stream;
+                previewVideo.play(); 
+
+                const options = { mimeType: 'video/webm; codecs=vp9' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'video/webm';
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                // 當錄製停止時的處理 (設為 async)
+                mediaRecorder.onstop = async () => {
+                    // --- 清除自動截圖計時器 ---
+                    if (screenshotIntervalId) {
+                        clearInterval(screenshotIntervalId);
+                        screenshotIntervalId = null;
+                    }
+                    // ----------------------------
+                    
+                    // --- 影片處理 ---
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    playbackVideo.src = url;
+                    playbackContainer.hidden = false;
+                    downloadLink.href = url;
+                    downloadLink.download = `screen-recording-${new Date().toISOString()}.webm`;
+                    downloadLink.hidden = false;
+                    previewContainer.hidden = true;
+                    previewVideo.srcObject = null;
+
+                    // --- 觸發 AI 處理截圖 (新流程) ---
+                    await processScreenshotsWithLLM();
+                };
+
+                stream.getTracks().forEach(track => {
+                    track.onended = () => {
+                        if (mediaRecorder.state === 'recording') {
+                            stopButton.click();
+                        }
+                    };
+                });
+
+                mediaRecorder.start();
+
+                // --- 啟動自動截圖計時器 ---
+                screenshotIntervalId = setInterval(takeScreenshot, AUTO_CAPTURE_DELAY);
+                // -------------------------
+
+                startButton.disabled = true; 
+                stopButton.disabled = false; 
+                screenshotButton.disabled = false;
+
+            } catch (err) {
+                console.error("無法開始錄製:", err);
+                showError(`錯誤： ${err.message}.`);
+                resetUI();
+            }
+        });
+
+        // 停止錄製
+        stopButton.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                // --- 清除自動截圖計時器 ---
+                if (screenshotIntervalId) {
+                    clearInterval(screenshotIntervalId);
+                    screenshotIntervalId = null;
+                }
+                // --------------------------
+                
+                mediaRecorder.stop();
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                screenshotButton.disabled = true;
+            }
+        });
+
+        // 擷取螢幕按鈕事件 (現在僅呼叫 takeScreenshot 函式)
+        screenshotButton.addEventListener('click', takeScreenshot); 
+
+        // 呼叫 Gemini AI 的函式
+        /**
+         * 呼叫 Gemini API 進行圖片分析
+         * @param {string} base64ImageData - Base64 編碼的圖片資料 (不含 data: prefix)
+         * @param {string} mimeType - 圖片的 MIME 類型 (例如 'image/jpeg')
+         * @param {string | null} previousBase64Data - (可選) 前一張圖片的 Base64 資料
+         * @param {string | null} previousMimeType - (可選) 前一張圖片的 MIME 類型
+         * @returns {Promise<string>} - AI 產生的文字註解
+         */
+        async function callGeminiVision(base64ImageData, mimeType, previousBase64Data = null, previousMimeType = null) {
+            // 將 API 金鑰留空，Canvas 環境會自動處理
+            const apiKey = "AIzaSyAVWH17A-OPaAObl86DdfkiSkyFajnwZTw"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            let prompt = "";
+            let parts = [];
+
+            // --- 調整提示詞：放寬字數限制至 20 個單字，讓 AI 產生的步驟更實用 ---
+            if (previousBase64Data && previousMimeType) {
+                // 有前一張圖：進行差異比較
+                prompt = "請你扮演一位專業的SOP撰寫專家。你的任務是嚴格比較兩張連續截圖，並僅輸出「從舊畫面到新畫面發生的單一操作動作」。請用簡潔的英文動詞片語（例如：「Click confirm button」, 「Enter username and password」）來描述單一操作動作。字數限制在 20 個單字內。如果動作不明顯或只是畫面移動，請回答「Scroll screen」或「No visible change」。";
+                parts = [
+                    { text: "這是「舊畫面」：" },
+                    { inlineData: { mimeType: previousMimeType, data: previousBase64Data } },
+                    { text: "這是「新畫面」：" },
+                    { inlineData: { mimeType: mimeType, data: base64ImageData } },
+                    { text: prompt }
+                ];
+
+            } else {
+                // 沒有前一張圖 (第一張圖)：只做單張描述
+                prompt = "請你扮演一位專業的SOP撰寫專家。你的任務是描述這張截圖所展示的「操作起點」或「主要頁面」。請用簡潔的英文名詞片語（例如：「Home page dashboard」, 「Login screen」）來描述畫面內容。字數限制在 20 個單字內。";
+                parts = [
+                    { text: prompt },
+                    {
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64ImageData
+                        }
+                    }
+                ];
+            }
+            // --- 調整提示詞結束 ---
+
+
+            const payload = {
+                contents: [{ parts: parts }], // 使用動態產生的 parts
+                generationConfig: {
+                    temperature: 0.1, // 降低隨機性
+                    maxOutputTokens: 1024 
+                }
+            };
+
+            let response;
+            let result;
+            let retries = 3;
+            let delay = 1000; // 1 秒
+
+            // 實作指數退避重試
+            for (let i = 0; i < retries; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) { // 處理速率限制
+                        throw new Error('Rate limit exceeded (429)');
+                    }
+                    
+                    if (response.status === 403) {
+                        console.error("API 請求被拒絕 (403 Forbidden)。這通常表示 API 金鑰權限不足或 API 尚未啟用。");
+                        throw new Error('API 請求被拒絕 (403)。請檢查 API 金鑰權限。');
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`API 請求失敗: ${response.status} ${response.statusText}`);
+                    }
+
+                    result = await response.json();
+                    
+                    // 增加更安全的檢查機制
+                    if (result.candidates && 
+                        result.candidates.length > 0 && 
+                        result.candidates[0].content &&
+                        result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0 &&
+                        result.candidates[0].content.parts[0].text) {
+                        
+                        return result.candidates[0].content.parts[0].text; // 成功
+
+                    } else {
+                        if (result.promptFeedback && result.promptFeedback.blockReason) {
+                            console.error("AI 分析被封鎖:", result.promptFeedback.blockReason);
+                            throw new Error(`AI 分析被封鎖: ${result.promptFeedback.blockReason}`);
+                        }
+                        
+                        if (result.candidates && result.candidates.length > 0 && 
+                            (!result.candidates[0].content || !result.candidates[0].content.parts || result.candidates[0].content.parts.length === 0)) {
+                             const finishReason = result.candidates[0].finishReason || '未知';
+                            console.error("AI 回應為空，可能的原因:", finishReason);
+                        }
+
+                        console.error("無效的 API 回應結構:", JSON.stringify(result));
+                        throw new Error('無效的 API 回應結構');
+                    }
+
+                } catch (err) {
+                    console.warn(`AI 分析失敗 (嘗試 ${i + 1} / ${retries}):`, err.message);
+                    if (i < retries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; // 指數增加延遲
+                    } else {
+                        // 最後一次嘗試失敗
+                        throw err;
+                    }
+                }
+            }
+        }
+
+        // --- 處理所有截圖的函式 ---
+        async function processScreenshotsWithLLM() {
+            if (screenshotCache.length === 0) {
+                llmStatus.textContent = "沒有擷取任何螢幕畫面，無法產生註解。";
+                llmStatus.hidden = false;
+                return;
+            }
+
+            llmStatus.textContent = `偵測到 ${screenshotCache.length} 張截圖。正在準備呼叫 AI...`;
+            llmStatus.hidden = false;
+            insertFinalStepButton.hidden = true; // 分析中隱藏新增步驟按鈕
+            printButton.hidden = true; // 分析中隱藏列印按鈕
+
+            // 串列化處理 API 請求
+            for (let i = 0; i < screenshotCache.length; i++) {
+                const item = screenshotCache[i];
+                
+                // 跳過已經有 'success' 狀態的步驟，以及手動插入的佔位圖
+                if (item.status !== 'pending' || !item.imageDataUrl || item.imageDataUrl.includes('placeholder')) {
+                     llmStatus.textContent = `AI 分析進度... (${i + 1} / ${screenshotCache.length}) - 步驟 ${i+1} 已跳過或為手動步驟`;
+                    continue; 
+                }
+
+                try {
+                    item.status = 'processing';
+                    displayScreenshotsAndAnnotations(); // 即時更新 UI 顯示讀取中
+
+                    const [header, base64Data] = item.imageDataUrl.split(',');
+                    const mimeType = header.match(/:(.*?);/)[1];
+
+                    // 取得前一張圖片的資料 (必須是真實畫面)
+                    let prevBase64Data = null;
+                    let prevMimeType = null;
+                    
+                    if (i > 0) {
+                        const prevItem = screenshotCache[i - 1];
+                        if (prevItem && prevItem.imageDataUrl && !prevItem.imageDataUrl.includes('placeholder')) {
+                            const [prevHeader, prevData] = prevItem.imageDataUrl.split(',');
+                            prevBase64Data = prevData;
+                            prevMimeType = prevHeader.match(/:(.*?);/)[1];
+                        }
+                    }
+
+                    // 呼叫 API (傳入目前和前一張圖片)
+                    const annotation = await callGeminiVision(base64Data, mimeType, prevBase64Data, prevMimeType);
+                    
+                    item.annotation = annotation.trim();
+                    item.status = 'success';
+
+                } catch (err) {
+                    console.error(`截圖 ${i + 1} 分析失敗:`, err);
+                    
+                    const errorDetails = err.stack ? err.stack : err.message;
+                    item.annotation = `AI 分析錯誤: ${errorDetails}`;
+                    
+                    item.status = 'error';
+                }
+                
+                // 再次更新 UI
+                displayScreenshotsAndAnnotations();
+                llmStatus.textContent = `AI 分析進度... (${i + 1} / ${screenshotCache.length})`;
+            }
+
+            llmStatus.textContent = "AI 分析全部完成！報告已產生。您現在可以編輯步驟、移除、新增或替換圖片。";
+            printButton.hidden = false; // 顯示列印按鈕
+            insertFinalStepButton.hidden = false; // 顯示新增最終步驟按鈕
+        }
+
+        // --- 互動功能：處理註解變更 ---
+        function handleAnnotationChange(index, newText) {
+            if (screenshotCache[index]) {
+                screenshotCache[index].annotation = newText;
+            }
+        }
+        
+        // --- 互動功能：處理圖片上傳 ---
+        function handleImageUpload(index, file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showError("請選擇一個有效的圖片檔案。");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const newImageDataUrl = e.target.result;
+                if (screenshotCache[index]) {
+                    // 更新圖片資料
+                    screenshotCache[index].imageDataUrl = newImageDataUrl;
+                    // 將狀態設為 'success'，因為它不再是 AI 待處理的畫面 (即使是從待處理的步驟替換)
+                    screenshotCache[index].status = 'success'; 
+                    
+                    displayScreenshotsAndAnnotations(); // 重新渲染 UI
+                    hideError(); 
+
+                    // 滾動到被更新的項目
+                    setTimeout(() => {
+                        const newItem = document.getElementById(`step-item-${index}`);
+                        if (newItem) {
+                            newItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }, 50);
+                }
+            };
+            reader.onerror = (e) => {
+                showError(`讀取檔案失敗: ${e.target.error.name}`);
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        // --- 互動功能：移除步驟 ---
+        function deleteScreenshot(index) {
+            if (index >= 0 && index < screenshotCache.length) {
+                if (confirm(`確定要移除步驟 ${index + 1} 嗎？此操作不可逆。`)) {
+                    screenshotCache.splice(index, 1);
+                    displayScreenshotsAndAnnotations();
+                    if (screenshotCache.length === 0) {
+                        resetUI(); // 如果都移除了，就重設 UI
+                    }
+                }
+            }
+        }
+
+        // --- 互動功能：插入空步驟 ---
+        // 傳入的 index 是要插入的「前一個」步驟的索引 (如果為 -1 則表示插入在最開始)
+        function insertBlankStep(index) {
+             const newStep = {
+                // 使用佔位圖，提醒使用者這不是擷取的畫面
+                imageDataUrl: 'https://placehold.co/600x400/D0E0FF/000000?text=Manual+Step',
+                annotation: '請在這裡手動輸入操作步驟或說明。 (Manual step)',
+                status: 'success' // 標記為成功，可供編輯
+            };
+            
+            // 插入位置是 index + 1 (在當前步驟之後)
+            screenshotCache.splice(index + 1, 0, newStep);
+            displayScreenshotsAndAnnotations();
+            
+            // 捲動到新插入的項目 (非必要，但能改善使用者體驗)
+            setTimeout(() => {
+                const newIndex = index + 1;
+                const newItem = document.getElementById(`step-item-${newIndex}`);
+                if (newItem) {
+                    newItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+        
+        // --- 在 HTML 中顯示結果的函式 (包含編輯和操作按鈕) ---
+        function displayScreenshotsAndAnnotations() {
+            screenshotsResultArea.innerHTML = ''; // 清空現有內容
+            // 由於列印時會隱藏這個 h2，但在非列印時需要它，所以保留
+            let htmlContent = '<h2 class="text-2xl font-semibold text-gray-800 mb-6">AI 產生操作步驟 (可編輯)</h2>';
+
+            screenshotCache.forEach((item, i) => {
+                let annotationHtml = '';
+                let actionButtons = '';
+                
+                // 根據狀態顯示不同內容
+                if (item.status === 'pending') {
+                    annotationHtml = '<p class="text-gray-500">等待分析...</p>';
+                } else if (item.status === 'processing') {
+                    annotationHtml = `
+                        <div class="flex items-center gap-2 text-blue-600">
+                            <div class="spinner"></div>
+                            <span>AI 正在分析中...</span>
+                        </div>`;
+                } else if (item.status === 'success' || item.status === 'error') { 
+                    // 成功或錯誤狀態都允許編輯
+                    const isError = item.status === 'error';
+                    const textareaClasses = isError 
+                        ? 'text-red-700 bg-red-50 border-red-300' 
+                        : 'text-gray-700 bg-gray-50 border-gray-300';
+                        
+                    // 可編輯的註解區域
+                    annotationHtml = `
+                        <textarea 
+                            id="annotation-${i}"
+                            class="w-full ${textareaClasses} p-4 rounded-md border focus:ring-blue-500 focus:border-blue-500 resize-y"
+                            rows="3"
+                            onchange="handleAnnotationChange(${i}, this.value)"
+                        >${item.annotation}</textarea>
+                    `;
+
+                    // 操作按鈕區域
+                    actionButtons = `
+                        <div class="action-buttons mt-4 flex flex-wrap gap-2 justify-end">
+                            <button onclick="insertBlankStep(${i})" class="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm">
+                                插入空步驟 (後)
+                            </button>
+                            <button onclick="deleteScreenshot(${i})" class="px-3 py-1 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors shadow-sm">
+                                移除此步驟
+                            </button>
+                        </div>
+                    `;
+                }
+
+
+                htmlContent += `
+                    <div class="screenshot-item mb-8 p-4 border border-gray-200 rounded-lg shadow-md" id="step-item-${i}">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">步驟 ${i + 1}</h3>
+                        <img src="${item.imageDataUrl}" class="w-full h-auto rounded-md shadow-sm mb-4 border">
+                        
+                        <!-- 新增：圖片替換區塊 (增加 image-upload-area class 以便在列印時隱藏) -->
+                        <div class="mb-4 image-upload-area">
+                            <label for="file-upload-${i}" class="block text-sm font-medium text-gray-700 mb-2">
+                                替換步驟 ${i + 1} 的圖片 (選用):
+                            </label>
+                            <input type="file" id="file-upload-${i}" 
+                                   accept="image/*" 
+                                   class="block w-full text-sm text-gray-500
+                                          file:mr-4 file:py-2 file:px-4
+                                          file:rounded-full file:border-0
+                                          file:text-sm file:font-semibold
+                                          file:bg-violet-50 file:text-violet-700
+                                          hover:file:bg-violet-100 cursor-pointer"
+                                   onchange="handleImageUpload(${i}, this.files[0])">
+                        </div>
+                        
+                        <!-- 調整：增加 print-only-label class 用於列印時修改標題 -->
+                        <h4 class="text-md font-semibold text-blue-700 mb-2 print-only-label">AI 註解:</h4>
+                        ${annotationHtml}
+                        ${actionButtons}
+                    </div>
+                `;
+            });
+
+            screenshotsResultArea.innerHTML = htmlContent;
+
+            // 確保列印按鈕和新增最終步驟按鈕狀態正確
+            if (screenshotCache.length > 0) {
+                printButton.hidden = false;
+                insertFinalStepButton.hidden = false;
+            } else {
+                printButton.hidden = true;
+                insertFinalStepButton.hidden = true;
+            }
+        }
+
+        // --- 新增：列印按鈕事件 ---
+        printButton.addEventListener('click', () => {
+            window.print();
+        });
+
+    </script>
+</body>
+</html>
