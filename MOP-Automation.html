@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>螢幕錄製與 AI 註解工具</title>
+    <title>螢幕錄製與 AI 註解工具 (含 Word 匯出)</title>
     <!-- 載入 Tailwind CSS 以進行快速美化 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 FileSaver.js 函式庫，用於在客戶端儲存檔案 (如 .doc) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- 移除 PDF 相關的函式庫 (dompurify, html2canvas, jspdf) -->
     
     <style>
         /* 使用 Inter 字體 */
@@ -31,7 +34,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 列印專用樣式 */
+        /* 列印專用樣式 (保留，以防萬一) */
         @media print {
             /* 隱藏所有不需要列印的 UI 元素 */
             body > div:not(.printable-area), 
@@ -39,15 +42,16 @@
             #previewContainer,
             #playbackContainer video,
             #playbackContainer #downloadLink,
-            #playbackContainer #printButton,
+            /* 移除 pdfExportButton 的隱藏樣式 */
+            #playbackContainer #wordExportButton, 
             #errorBox,
             #llmStatus,
-            .action-buttons, /* 隱藏所有互動按鈕 (移除/插入步驟) */
-            .image-upload-area, /* 隱藏圖片上傳區塊 */
-            .app-header, /* 隱藏應用程式主標題和描述 */
-            .title-input-area, /* 隱藏手動輸入框本身 */
-            #playbackHeader, /* 隱藏「錄製結果」標題 */
-            #screenshotsResultArea h2 /* 隱藏「AI 產生操作步驟 (可編輯)」標題 */
+            .action-buttons, 
+            .image-upload-area, 
+            .app-header, 
+            .title-input-area, 
+            #playbackHeader, 
+            #screenshotsResultArea h2
              { 
                 display: none !important;
             }
@@ -130,7 +134,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
-    <!-- 增加 'printable-area' class 以便列印時鎖定 -->
+    <!-- 應用程式主體容器 -->
     <div class="bg-white w-full max-w-4xl rounded-lg shadow-xl p-6 md:p-8 printable-area">
         
         <!-- 應用程式主標題和描述 (controls-area 用於非列印時的 Flex 佈局) -->
@@ -184,23 +188,23 @@
             <!-- 狀態訊息 -->
             <p id="llmStatus" class="text-center text-gray-600 my-4" hidden></p>
             
-            <!-- 下載按鈕群組 -->
-            <div class="flex items-center justify-center flex-wrap gap-4">
+            <!-- (修改) 下載按鈕群組 -->
+            <div class="flex items-center justify-center flex-wrap gap-4 export-buttons">
                 <a id="downloadLink" class="inline-block px-6 py-3 bg-green-600 text-white rounded-lg font-medium shadow-md hover:bg-green-700 transition-all" hidden>
                     下載影片 (.webm)
                 </a>
-                <!-- 新增：列印 PDF 按鈕 -->
-                <button id="printButton" class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg font-medium shadow-md hover:bg-purple-700 transition-all" hidden>
-                    匯出為 PDF (列印)
+                <!-- 移除 pdfExportButton -->
+                <!-- 匯出為 Word (.doc) 按鈕 -->
+                <button id="wordExportButton" class="inline-block px-6 py-3 bg-orange-600 text-white rounded-lg font-medium shadow-md hover:bg-orange-700 transition-all" hidden>
+                    匯出為 Word (.doc)
                 </button>
             </div>
 
-            <!-- 新增：AI 註解結果顯示區域 -->
+            <!-- AI 註解結果顯示區域 -->
             <div id="screenshotsResultArea" class="mt-10 text-left border-t pt-6">
                 <!-- AI 產生的截圖與註解將會顯示在這裡 -->
             </div>
             
-            <!-- 新增：在最後加入空步驟的按鈕 -->
             <button id="insertFinalStepButton" onclick="insertBlankStep(screenshotCache.length - 1)" class="w-full px-6 py-3 mt-4 border border-dashed border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all" hidden>
                 + 在結尾新增一個空步驟 +
             </button>
@@ -208,18 +212,19 @@
 
     </div>
 
-    <!-- 隱藏的 Canvas 用於擷取畫面 (仍然需要) -->
+    <!-- 隱藏的 Canvas 用於擷取畫面 -->
     <canvas id="screenshotCanvas" class="hidden"></canvas>
 
     <script>
-        // 獲取 DOM 元素
+        // --- 獲取 DOM 元素 ---
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const screenshotButton = document.getElementById('screenshotButton');
         const previewVideo = document.getElementById('previewVideo');
         const playbackVideo = document.getElementById('playbackVideo');
         const downloadLink = document.getElementById('downloadLink');
-        const printButton = document.getElementById('printButton');
+        // 移除 pdfExportButton
+        const wordExportButton = document.getElementById('wordExportButton'); 
         const errorBox = document.getElementById('errorBox');
         const errorMessage = document.getElementById('errorMessage');
         const previewContainer = document.getElementById('previewContainer');
@@ -228,59 +233,47 @@
         const llmStatus = document.getElementById('llmStatus');
         const screenshotsResultArea = document.getElementById('screenshotsResultArea');
         const insertFinalStepButton = document.getElementById('insertFinalStepButton');
-        
-        // --- 文件標題相關元素 ---
         const documentTitleInput = document.getElementById('documentTitleInput');
         const printableTitle = document.getElementById('printableTitle');
-        // ---------------------------------
 
-
-        // 全局變數
+        // --- 全局變數 ---
         let mediaRecorder;
         let recordedChunks = [];
-        let screenshotCache = []; // 格式: { imageDataUrl: "...", annotation: "...", status: "pending" }
+        let screenshotCache = []; 
         let stream; 
-        
-        // --- 新增變數：用於自動截圖計時器 ---
         let screenshotIntervalId = null; 
-        const AUTO_CAPTURE_DELAY = 2000; // 2000 毫秒 = 2 秒
-        // ------------------------------------
+        const AUTO_CAPTURE_DELAY = 2000; 
 
-        // --- 設置初始標題並監聽輸入事件 ---
+        // --- 設置標題、錯誤訊息、重設 UI 函式 ---
         printableTitle.textContent = documentTitleInput.value;
         documentTitleInput.addEventListener('input', (e) => {
             printableTitle.textContent = e.target.value;
         });
-        // -----------------------------------
 
-        // 顯示錯誤訊息
         function showError(message) {
             errorMessage.textContent = message;
             errorBox.hidden = false;
         }
 
-        // 隱藏錯誤訊息
         function hideError() {
             errorBox.hidden = true;
         }
 
-        // 重設 UI 狀態
         function resetUI() {
-            // --- 確保清除計時器 ---
             if (screenshotIntervalId) {
                 clearInterval(screenshotIntervalId);
                 screenshotIntervalId = null;
             }
-            // --------------------------
             startButton.disabled = false;
             stopButton.disabled = true;
             screenshotButton.disabled = true;
             previewContainer.hidden = true;
             playbackContainer.hidden = true;
             downloadLink.hidden = true;
-            printButton.hidden = true;
+            // 移除 pdfExportButton 的隱藏
+            wordExportButton.hidden = true; 
             llmStatus.hidden = true;
-            insertFinalStepButton.hidden = true; // 隱藏新增最終步驟按鈕
+            insertFinalStepButton.hidden = true; 
             screenshotsResultArea.innerHTML = '';
             previewVideo.srcObject = null;
             playbackVideo.src = '';
@@ -289,46 +282,59 @@
             recordedChunks = [];
         }
 
-        // --- 擷取螢幕畫面的核心函式 ---
+
+        // --- 擷取螢幕畫面函式 ---
         function takeScreenshot() {
-            // 只有在 stream 存在且正在錄製時才執行
             if (!stream || !previewVideo || mediaRecorder.state !== 'recording') {
                 return;
             }
-
             try {
                 const videoTrack = stream.getVideoTracks()[0];
                 const settings = videoTrack.getSettings();
                 screenshotCanvas.width = settings.width || previewVideo.videoWidth;
                 screenshotCanvas.height = settings.height || previewVideo.videoHeight;
-
                 const context = screenshotCanvas.getContext('2d');
                 context.drawImage(previewVideo, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
-
                 const imageDataUrl = screenshotCanvas.toDataURL('image/jpeg', 0.8);
-
-                // 儲存為物件
                 screenshotCache.push({ 
                     imageDataUrl: imageDataUrl, 
                     annotation: null, 
                     status: 'pending' 
                 });
-                
-                // 顯示擷取成功訊息
                 llmStatus.textContent = `已擷取畫面 ${screenshotCache.length} 張 (自動/手動)。`;
                 llmStatus.hidden = false;
-
             } catch (err) {
                 console.error("擷取螢幕失敗:", err);
-                // 僅在手動點擊時顯示錯誤，避免自動模式下不斷跳出
                 if (mediaRecorder.state === 'recording' && screenshotIntervalId === null) {
                     showError(`擷取螢幕失敗: ${err.message}`);
                 }
             }
         }
-        // ------------------------------------
 
-        // 開始錄製
+        function resizeImage(base64, maxWidth = 750) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const scale = maxWidth / img.width;
+                    const newWidth = img.width > maxWidth ? maxWidth : img.width;
+                    const newHeight = img.width > maxWidth ? img.height * scale : img.height;
+                    const canvas = document.createElement("canvas");
+                    canvas.width = newWidth;
+                    canvas.height = newHeight;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                    resolve(canvas.toDataURL("image/jpeg", 0.85));
+                };
+                img.onerror = () => {
+                    console.error("圖片載入失敗，返回原 Base64 資料");
+                    resolve(base64);
+                };
+                img.src = base64;
+            });
+        }
+
+
+        // --- 開始錄製、停止錄製、擷取螢幕 事件 ---
         startButton.addEventListener('click', async () => {
             hideError();
             playbackContainer.hidden = true;
@@ -336,54 +342,44 @@
             recordedChunks = [];
             screenshotCache = [];
             insertFinalStepButton.hidden = true;
+            wordExportButton.hidden = true; 
+            // 移除 pdfExportButton 的隱藏
+            
 
             try {
                 stream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
                     audio: true 
                 });
-
                 previewContainer.hidden = false;
                 previewVideo.srcObject = stream;
                 previewVideo.play(); 
-
                 const options = { mimeType: 'video/webm; codecs=vp9' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options.mimeType = 'video/webm';
                 }
-                
                 mediaRecorder = new MediaRecorder(stream, options);
-
                 mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
                         recordedChunks.push(event.data);
                     }
                 };
-
-                // 當錄製停止時的處理 (設為 async)
                 mediaRecorder.onstop = async () => {
-                    // --- 清除自動截圖計時器 ---
                     if (screenshotIntervalId) {
                         clearInterval(screenshotIntervalId);
                         screenshotIntervalId = null;
                     }
-                    // ----------------------------
-                    
-                    // --- 影片處理 ---
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
                     const url = URL.createObjectURL(blob);
                     playbackVideo.src = url;
                     playbackContainer.hidden = false;
                     downloadLink.href = url;
-                    downloadLink.download = `screen-recording-${new Date().toISOString()}.webm`;
+                    downloadLink.download = `screen-recording-${new Date().toISOString().substring(0, 19).replace('T', '_').replace(/:/g, '-')}.webm`;
                     downloadLink.hidden = false;
                     previewContainer.hidden = true;
                     previewVideo.srcObject = null;
-
-                    // --- 觸發 AI 處理截圖 (新流程) ---
                     await processScreenshotsWithLLM();
                 };
-
                 stream.getTracks().forEach(track => {
                     track.onended = () => {
                         if (mediaRecorder.state === 'recording') {
@@ -391,17 +387,11 @@
                         }
                     };
                 });
-
                 mediaRecorder.start();
-
-                // --- 啟動自動截圖計時器 ---
                 screenshotIntervalId = setInterval(takeScreenshot, AUTO_CAPTURE_DELAY);
-                // -------------------------
-
                 startButton.disabled = true; 
                 stopButton.disabled = false; 
                 screenshotButton.disabled = false;
-
             } catch (err) {
                 console.error("無法開始錄製:", err);
                 showError(`錯誤： ${err.message}.`);
@@ -409,16 +399,12 @@
             }
         });
 
-        // 停止錄製
         stopButton.addEventListener('click', () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                // --- 清除自動截圖計時器 ---
                 if (screenshotIntervalId) {
                     clearInterval(screenshotIntervalId);
                     screenshotIntervalId = null;
                 }
-                // --------------------------
-                
                 mediaRecorder.stop();
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
@@ -429,29 +415,16 @@
             }
         });
 
-        // 擷取螢幕按鈕事件 (現在僅呼叫 takeScreenshot 函式)
         screenshotButton.addEventListener('click', takeScreenshot); 
 
-        // 呼叫 Gemini AI 的函式
-        /**
-         * 呼叫 Gemini API 進行圖片分析
-         * @param {string} base64ImageData - Base64 編碼的圖片資料 (不含 data: prefix)
-         * @param {string} mimeType - 圖片的 MIME 類型 (例如 'image/jpeg')
-         * @param {string | null} previousBase64Data - (可選) 前一張圖片的 Base64 資料
-         * @param {string | null} previousMimeType - (可選) 前一張圖片的 MIME 類型
-         * @returns {Promise<string>} - AI 產生的文字註解
-         */
+
+        // --- AI 視覺分析函式 ---
         async function callGeminiVision(base64ImageData, mimeType, previousBase64Data = null, previousMimeType = null) {
-            // 將 API 金鑰留空，Canvas 環境會自動處理
             const apiKey = "AIzaSyAVWH17A-OPaAObl86DdfkiSkyFajnwZTw"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
             let prompt = "";
             let parts = [];
-
-            // --- 調整提示詞：放寬字數限制至 20 個單字，讓 AI 產生的步驟更實用 ---
             if (previousBase64Data && previousMimeType) {
-                // 有前一張圖：進行差異比較
                 prompt = "請你扮演一位專業的SOP撰寫專家。你的任務是嚴格比較兩張連續截圖，並僅輸出「從舊畫面到新畫面發生的單一操作動作」。請用簡潔的英文動詞片語（例如：「Click confirm button」, 「Enter username and password」）來描述單一操作動作。字數限制在 20 個單字內。如果動作不明顯或只是畫面移動，請回答「Scroll screen」或「No visible change」。";
                 parts = [
                     { text: "這是「舊畫面」：" },
@@ -460,37 +433,24 @@
                     { inlineData: { mimeType: mimeType, data: base64ImageData } },
                     { text: prompt }
                 ];
-
             } else {
-                // 沒有前一張圖 (第一張圖)：只做單張描述
                 prompt = "請你扮演一位專業的SOP撰寫專家。你的任務是描述這張截圖所展示的「操作起點」或「主要頁面」。請用簡潔的英文名詞片語（例如：「Home page dashboard」, 「Login screen」）來描述畫面內容。字數限制在 20 個單字內。";
                 parts = [
                     { text: prompt },
-                    {
-                        inlineData: {
-                            mimeType: mimeType,
-                            data: base64ImageData
-                        }
-                    }
+                    { inlineData: { mimeType: mimeType, data: base64ImageData } }
                 ];
             }
-            // --- 調整提示詞結束 ---
-
-
             const payload = {
-                contents: [{ parts: parts }], // 使用動態產生的 parts
+                contents: [{ parts: parts }], 
                 generationConfig: {
-                    temperature: 0.1, // 降低隨機性
+                    temperature: 0.1, 
                     maxOutputTokens: 1024 
                 }
             };
-
             let response;
             let result;
             let retries = 3;
-            let delay = 1000; // 1 秒
-
-            // 實作指數退避重試
+            let delay = 1000; 
             for (let i = 0; i < retries; i++) {
                 try {
                     response = await fetch(apiUrl, {
@@ -498,95 +458,74 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-
-                    if (response.status === 429) { // 處理速率限制
+                    if (response.status === 429) { 
                         throw new Error('Rate limit exceeded (429)');
                     }
-                    
                     if (response.status === 403) {
-                        console.error("API 請求被拒絕 (403 Forbidden)。這通常表示 API 金鑰權限不足或 API 尚未啟用。");
+                        console.error("API 請求被拒絕 (403 Forbidden)。");
                         throw new Error('API 請求被拒絕 (403)。請檢查 API 金鑰權限。');
                     }
-
                     if (!response.ok) {
                         throw new Error(`API 請求失敗: ${response.status} ${response.statusText}`);
                     }
-
                     result = await response.json();
-                    
-                    // 增加更安全的檢查機制
                     if (result.candidates && 
                         result.candidates.length > 0 && 
                         result.candidates[0].content &&
                         result.candidates[0].content.parts &&
                         result.candidates[0].content.parts.length > 0 &&
                         result.candidates[0].content.parts[0].text) {
-                        
-                        return result.candidates[0].content.parts[0].text; // 成功
-
+                        return result.candidates[0].content.parts[0].text; 
                     } else {
                         if (result.promptFeedback && result.promptFeedback.blockReason) {
                             console.error("AI 分析被封鎖:", result.promptFeedback.blockReason);
                             throw new Error(`AI 分析被封鎖: ${result.promptFeedback.blockReason}`);
                         }
-                        
                         if (result.candidates && result.candidates.length > 0 && 
                             (!result.candidates[0].content || !result.candidates[0].content.parts || result.candidates[0].content.parts.length === 0)) {
                              const finishReason = result.candidates[0].finishReason || '未知';
                             console.error("AI 回應為空，可能的原因:", finishReason);
                         }
-
                         console.error("無效的 API 回應結構:", JSON.stringify(result));
                         throw new Error('無效的 API 回應結構');
                     }
-
                 } catch (err) {
                     console.warn(`AI 分析失敗 (嘗試 ${i + 1} / ${retries}):`, err.message);
                     if (i < retries - 1) {
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // 指數增加延遲
+                        delay *= 2; 
                     } else {
-                        // 最後一次嘗試失敗
                         throw err;
                     }
                 }
             }
         }
 
-        // --- 處理所有截圖的函式 ---
         async function processScreenshotsWithLLM() {
             if (screenshotCache.length === 0) {
                 llmStatus.textContent = "沒有擷取任何螢幕畫面，無法產生註解。";
                 llmStatus.hidden = false;
                 return;
             }
-
             llmStatus.textContent = `偵測到 ${screenshotCache.length} 張截圖。正在準備呼叫 AI...`;
             llmStatus.hidden = false;
-            insertFinalStepButton.hidden = true; // 分析中隱藏新增步驟按鈕
-            printButton.hidden = true; // 分析中隱藏列印按鈕
+            insertFinalStepButton.hidden = true; 
+            // 移除 pdfExportButton 的隱藏
+            wordExportButton.hidden = true; 
 
-            // 串列化處理 API 請求
             for (let i = 0; i < screenshotCache.length; i++) {
                 const item = screenshotCache[i];
-                
-                // 跳過已經有 'success' 狀態的步驟，以及手動插入的佔位圖
                 if (item.status !== 'pending' || !item.imageDataUrl || item.imageDataUrl.includes('placeholder')) {
                      llmStatus.textContent = `AI 分析進度... (${i + 1} / ${screenshotCache.length}) - 步驟 ${i+1} 已跳過或為手動步驟`;
                     continue; 
                 }
-
                 try {
                     item.status = 'processing';
-                    displayScreenshotsAndAnnotations(); // 即時更新 UI 顯示讀取中
-
+                    displayScreenshotsAndAnnotations(); 
                     const [header, base64Data] = item.imageDataUrl.split(',');
                     const mimeType = header.match(/:(.*?);/)[1];
-
-                    // 取得前一張圖片的資料 (必須是真實畫面)
                     let prevBase64Data = null;
                     let prevMimeType = null;
-                    
                     if (i > 0) {
                         const prevItem = screenshotCache[i - 1];
                         if (prevItem && prevItem.imageDataUrl && !prevItem.imageDataUrl.includes('placeholder')) {
@@ -595,59 +534,44 @@
                             prevMimeType = prevHeader.match(/:(.*?);/)[1];
                         }
                     }
-
-                    // 呼叫 API (傳入目前和前一張圖片)
                     const annotation = await callGeminiVision(base64Data, mimeType, prevBase64Data, prevMimeType);
-                    
                     item.annotation = annotation.trim();
                     item.status = 'success';
-
                 } catch (err) {
                     console.error(`截圖 ${i + 1} 分析失敗:`, err);
-                    
                     const errorDetails = err.stack ? err.stack : err.message;
                     item.annotation = `AI 分析錯誤: ${errorDetails}`;
-                    
                     item.status = 'error';
                 }
-                
-                // 再次更新 UI
                 displayScreenshotsAndAnnotations();
                 llmStatus.textContent = `AI 分析進度... (${i + 1} / ${screenshotCache.length})`;
             }
 
             llmStatus.textContent = "AI 分析全部完成！報告已產生。您現在可以編輯步驟、移除、新增或替換圖片。";
-            printButton.hidden = false; // 顯示列印按鈕
-            insertFinalStepButton.hidden = false; // 顯示新增最終步驟按鈕
+            // 移除 pdfExportButton 的顯示
+            wordExportButton.hidden = false; 
+            insertFinalStepButton.hidden = false; 
         }
 
-        // --- 互動功能：處理註解變更 ---
+        // --- 互動功能: 註解編輯、圖片上傳、刪除步驟、插入空步驟 ---
         function handleAnnotationChange(index, newText) {
             if (screenshotCache[index]) {
                 screenshotCache[index].annotation = newText;
             }
         }
-        
-        // --- 互動功能：處理圖片上傳 ---
         function handleImageUpload(index, file) {
             if (!file || !file.type.startsWith('image/')) {
                 showError("請選擇一個有效的圖片檔案。");
                 return;
             }
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 const newImageDataUrl = e.target.result;
                 if (screenshotCache[index]) {
-                    // 更新圖片資料
                     screenshotCache[index].imageDataUrl = newImageDataUrl;
-                    // 將狀態設為 'success'，因為它不再是 AI 待處理的畫面 (即使是從待處理的步驟替換)
                     screenshotCache[index].status = 'success'; 
-                    
-                    displayScreenshotsAndAnnotations(); // 重新渲染 UI
+                    displayScreenshotsAndAnnotations(); 
                     hideError(); 
-
-                    // 滾動到被更新的項目
                     setTimeout(() => {
                         const newItem = document.getElementById(`step-item-${index}`);
                         if (newItem) {
@@ -659,38 +583,27 @@
             reader.onerror = (e) => {
                 showError(`讀取檔案失敗: ${e.target.error.name}`);
             };
-
             reader.readAsDataURL(file);
         }
-
-        // --- 互動功能：移除步驟 ---
         function deleteScreenshot(index) {
             if (index >= 0 && index < screenshotCache.length) {
                 if (confirm(`確定要移除步驟 ${index + 1} 嗎？此操作不可逆。`)) {
                     screenshotCache.splice(index, 1);
                     displayScreenshotsAndAnnotations();
                     if (screenshotCache.length === 0) {
-                        resetUI(); // 如果都移除了，就重設 UI
+                        resetUI(); 
                     }
                 }
             }
         }
-
-        // --- 互動功能：插入空步驟 ---
-        // 傳入的 index 是要插入的「前一個」步驟的索引 (如果為 -1 則表示插入在最開始)
         function insertBlankStep(index) {
              const newStep = {
-                // 使用佔位圖，提醒使用者這不是擷取的畫面
                 imageDataUrl: 'https://placehold.co/600x400/D0E0FF/000000?text=Manual+Step',
                 annotation: '請在這裡手動輸入操作步驟或說明。 (Manual step)',
-                status: 'success' // 標記為成功，可供編輯
+                status: 'success' 
             };
-            
-            // 插入位置是 index + 1 (在當前步驟之後)
             screenshotCache.splice(index + 1, 0, newStep);
             displayScreenshotsAndAnnotations();
-            
-            // 捲動到新插入的項目 (非必要，但能改善使用者體驗)
             setTimeout(() => {
                 const newIndex = index + 1;
                 const newItem = document.getElementById(`step-item-${newIndex}`);
@@ -699,18 +612,14 @@
                 }
             }, 100);
         }
-        
-        // --- 在 HTML 中顯示結果的函式 (包含編輯和操作按鈕) ---
-        function displayScreenshotsAndAnnotations() {
-            screenshotsResultArea.innerHTML = ''; // 清空現有內容
-            // 由於列印時會隱藏這個 h2，但在非列印時需要它，所以保留
-            let htmlContent = '<h2 class="text-2xl font-semibold text-gray-800 mb-6">AI 產生操作步驟 (可編輯)</h2>';
 
+        // --- 顯示截圖與註解的函式 ---
+        function displayScreenshotsAndAnnotations() {
+            screenshotsResultArea.innerHTML = ''; 
+            let htmlContent = '<h2 class="text-2xl font-semibold text-gray-800 mb-6">AI 產生操作步驟 (可編輯)</h2>';
             screenshotCache.forEach((item, i) => {
                 let annotationHtml = '';
                 let actionButtons = '';
-                
-                // 根據狀態顯示不同內容
                 if (item.status === 'pending') {
                     annotationHtml = '<p class="text-gray-500">等待分析...</p>';
                 } else if (item.status === 'processing') {
@@ -720,13 +629,10 @@
                             <span>AI 正在分析中...</span>
                         </div>`;
                 } else if (item.status === 'success' || item.status === 'error') { 
-                    // 成功或錯誤狀態都允許編輯
                     const isError = item.status === 'error';
                     const textareaClasses = isError 
                         ? 'text-red-700 bg-red-50 border-red-300' 
                         : 'text-gray-700 bg-gray-50 border-gray-300';
-                        
-                    // 可編輯的註解區域
                     annotationHtml = `
                         <textarea 
                             id="annotation-${i}"
@@ -735,8 +641,6 @@
                             onchange="handleAnnotationChange(${i}, this.value)"
                         >${item.annotation}</textarea>
                     `;
-
-                    // 操作按鈕區域
                     actionButtons = `
                         <div class="action-buttons mt-4 flex flex-wrap gap-2 justify-end">
                             <button onclick="insertBlankStep(${i})" class="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm">
@@ -748,14 +652,10 @@
                         </div>
                     `;
                 }
-
-
                 htmlContent += `
                     <div class="screenshot-item mb-8 p-4 border border-gray-200 rounded-lg shadow-md" id="step-item-${i}">
                         <h3 class="text-lg font-semibold text-gray-700 mb-3">步驟 ${i + 1}</h3>
                         <img src="${item.imageDataUrl}" class="w-full h-auto rounded-md shadow-sm mb-4 border">
-                        
-                        <!-- 新增：圖片替換區塊 (增加 image-upload-area class 以便在列印時隱藏) -->
                         <div class="mb-4 image-upload-area">
                             <label for="file-upload-${i}" class="block text-sm font-medium text-gray-700 mb-2">
                                 替換步驟 ${i + 1} 的圖片 (選用):
@@ -770,31 +670,135 @@
                                           hover:file:bg-violet-100 cursor-pointer"
                                    onchange="handleImageUpload(${i}, this.files[0])">
                         </div>
-                        
-                        <!-- 調整：增加 print-only-label class 用於列印時修改標題 -->
                         <h4 class="text-md font-semibold text-blue-700 mb-2 print-only-label">AI 註解:</h4>
                         ${annotationHtml}
                         ${actionButtons}
                     </div>
                 `;
             });
-
             screenshotsResultArea.innerHTML = htmlContent;
-
-            // 確保列印按鈕和新增最終步驟按鈕狀態正確
+            
             if (screenshotCache.length > 0) {
-                printButton.hidden = false;
+                // 移除 pdfExportButton 的顯示
+                wordExportButton.hidden = false; 
                 insertFinalStepButton.hidden = false;
             } else {
-                printButton.hidden = true;
+                // 移除 pdfExportButton 的隱藏
+                wordExportButton.hidden = true; 
                 insertFinalStepButton.hidden = true;
             }
         }
 
-        // --- 新增：列印按鈕事件 ---
-        printButton.addEventListener('click', () => {
-            window.print();
-        });
+
+        // --- 產生 Word/PDF 共用 HTML 的函式 (未修改，但現在只被 Word 匯出使用) ---
+        async function generateExportHtml(title, cache) {
+            let stepsHtml = '';
+            
+            // 迴圈處理每一步驟
+            for (let i = 0; i < cache.length; i++) {
+                const item = cache[i];
+                
+                // 壓縮圖片 (確保 Word/PDF 不會爆框)
+                // 設置最大寬度為 750px
+                const compressedImage = await resizeImage(item.imageDataUrl, 750); 
+                
+                stepsHtml += `
+                    <div style="margin-bottom: 25px; page-break-inside: avoid; text-align: center;">
+                        <h3 style="font-size: 16pt; font-weight: bold; color: #1F2937; margin-bottom: 10px; text-align: left;">步驟 ${i + 1}</h3>
+                        
+                        <!-- 圖片使用壓縮後的 Base64 資料 -->
+                        <img src="${compressedImage}" 
+                             style="width: 100%; max-width: 750px; height: auto; display: block; margin: 0 auto 15px auto; border: 1px solid #ccc;">
+                        
+                        <h4 style="font-size: 12pt; font-weight: bold; color: #3B82F6; margin-top: 15px; margin-bottom: 5px; text-align: left;">操作註解:</h4>
+                        
+                        <p style="font-size: 11pt; color: #4B5563; padding: 10px; border: 1px solid #E5E7EB; border-radius: 4px; background-color: #F9FAFB; text-align: left; white-space: pre-wrap; word-wrap: break-word;">
+                            ${item.annotation ? item.annotation.replace(/\n/g, '<br>') : '無註解'}
+                        </p>
+                    </div>
+                    <!-- 每個步驟後嘗試強制分頁 (對 Word 提示作用) -->
+                    <div style="page-break-after: always;"></div> 
+                `;
+            }
+            
+            // 2. 完整的 HTML 結構
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="zh-Hant">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${title}</title>
+                    <style>
+                        body {
+                            font-family: 'Inter', 'Microsoft JhengHei', sans-serif;
+                            padding: 50px;
+                            line-height: 1.6;
+                        }
+                        .document-title {
+                            font-size: 24pt;
+                            font-weight: 700;
+                            text-align: center;
+                            margin-bottom: 40px;
+                            color: #111827;
+                        }
+                        /* 設置圖片的最大容器寬度，與 resizeImage 中的 750px 保持一致 */
+                        img {
+                            max-width: 750px !important; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1 class="document-title">${title}</h1>
+                    <div class="step-list">
+                        ${stepsHtml}
+                    </div>
+                </body>
+                </html>
+            `;
+            return htmlContent;
+        }
+
+
+        // --- (保留) 匯出 Word (.doc) 函式 ---
+        async function exportToWord() {
+            if (screenshotCache.length === 0) {
+                 showError("沒有可匯出的內容。");
+                 return;
+            }
+            
+            llmStatus.textContent = '正在產生 Word 檔案...';
+            llmStatus.hidden = false;
+            
+            try {
+                const title = documentTitleInput.value || '自動化 SOP 報告';
+                
+                // 1. 取得共用的 HTML 內容
+                const htmlContent = await generateExportHtml(title, screenshotCache);
+                
+                // 2. 使用 Blob 和 FileSaver 儲存為 .doc
+                const blob = new Blob([htmlContent], {
+                    type: 'application/msword;charset=utf-8' 
+                });
+                
+                const safeTitle = title.replace(/[\\/:"*?<>|]/g, '_'); 
+                const fileName = `${safeTitle}-${new Date().toISOString().substring(0, 10)}.doc`;
+                saveAs(blob, fileName);
+                
+                llmStatus.textContent = 'Word 檔案已成功匯出！';
+            
+            } catch (err) {
+                console.error("Word 產生失敗:", err);
+                showError("Word 產生失敗: " + err.message);
+                llmStatus.textContent = '匯出 Word 失敗。';
+            }
+        }
+
+        // --- 移除 exportToPDF 函式 ---
+
+
+        // --- 綁定事件 ---
+        // 移除 pdfExportButton.addEventListener('click', exportToPDF);
+        wordExportButton.addEventListener('click', exportToWord);
 
     </script>
 </body>
