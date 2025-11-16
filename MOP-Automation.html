@@ -140,7 +140,7 @@
         <!-- 應用程式主標題和描述 (controls-area 用於非列印時的 Flex 佈局) -->
         <div class="app-header controls-area"> 
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">螢幕錄製與 AI 註解工具</h1>
-            <p class="text-center text-gray-500 mb-6 description-paragraph">點擊「開始錄製」，將會**每 2 秒自動擷取畫面**，您也可手動擷取。</p>
+            <p class="text-center text-gray-500 mb-6 description-paragraph">點擊「開始錄製」，將會**每 10 秒自動擷取畫面**，您也可手動擷取。</p>
         </div>
 
         <!-- 新增：手動輸入文件標題 -->
@@ -242,7 +242,7 @@
         let screenshotCache = []; 
         let stream; 
         let screenshotIntervalId = null; 
-        const AUTO_CAPTURE_DELAY = 2000; 
+        const AUTO_CAPTURE_DELAY = 10000; 
 
         // --- 設置標題、錯誤訊息、重設 UI 函式 ---
         printableTitle.textContent = documentTitleInput.value;
