@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影片學習小助手 - 單檔案運行版</title>
+    <!-- 載入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 React, ReactDOM, Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind 設定：使用 Inter 字體並啟用一些客製化 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 確保全域使用 Inter 和 Noto Sans TC 以支援中文 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 隱藏文件輸入欄的預設樣式，使其更美觀 */
+        input[type="file"] {
+            border: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 antialiased">
+    <div id="root">
+        <!-- React App 將在此處渲染 -->
+    </div>
+
+    <!-- 核心應用程式邏輯 (使用 Babel 處理 JSX) -->
+    <script type="text/babel">
+        // 為了在 CDN 環境中運行，我們從全域變數中解構 React 鉤子
+        const { useState, useCallback, useEffect } = React;
+
+        // -----------------------------------------------------------------------------
+        // 輔助函式 (Helper Functions)
+        // -----------------------------------------------------------------------------
+
+        /**
+         * 將 File 物件轉換為 Base64 字串
+         * @param {File} file 使用者上傳的圖片檔案
+         * @returns {Promise<string>} 包含 Base64 編碼的 Data URL
+         */
+        const toBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        /**
+         * 具有指數退避重試機制的 fetch 函式
+         * @param {string} url API 端點
+         * @param {object} options fetch 選項
+         * @param {number} retries 重試次數
+         * @returns {Promise<object>} API 回應的 JSON 物件
+         */
+        async function fetchWithRetry(url, options, retries = 3) {
+          let attempt = 0;
+          while (attempt < retries) {
+            try {
+              const response = await fetch(url, options);
+              if (!response.ok) {
+                throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
+              }
+              return await response.json();
+            } catch (error) {
+              console.warn(`第 ${attempt + 1} 次 API 呼叫失敗: ${error.message}`);
+              attempt++;
+              if (attempt >= retries) {
+                throw error; // 重試次數用盡，拋出錯誤
+              }
+              const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+
+        // -----------------------------------------------------------------------------
+        // 主應用程式組件 (Main App Component)
+        // -----------------------------------------------------------------------------
+
+        /**
+         * 主應用程式組件
+         */
+        function App() {
+          // 狀態管理
+          const [transcript, setTranscript] = useState(''); // 逐字稿文字
+          const [images, setImages] = useState([]); // { name: string, base64: string }
+          const [chatHistory, setChatHistory] = useState([]); // { role: 'user' | 'model', text: string }
+          const [userQuery, setUserQuery] = useState(''); // 使用者目前輸入的問題
+          const [isLoading, setIsLoading] = useState(false); // 是否正在等待 AI 回應
+          const [categorization, setCategorization] = useState(''); // 最終的歸類總結
+
+          // !!! 重要: 請在這裡貼上您的 Google AI Studio API 金鑰 !!!
+          // 運行時，您必須將您的金鑰替換到這裡，否則 API 呼叫將失敗。
+          const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU"; 
+
+          /**
+           * 處理圖片上傳
+           * @param {React.ChangeEvent<HTMLInputElement>} e 事件物件
+           */
+          const handleImageUpload = async (e) => {
+            if (e.target.files) {
+              setIsLoading(true);
+              const fileList = Array.from(e.target.files);
+              const newImages = [];
+              for (const file of fileList) {
+                if (file.type.startsWith('image/')) {
+                  try {
+                    const base64 = await toBase64(file);
+                    newImages.push({ name: file.name, base64 });
+                  } catch (error) {
+                    console.error("處理圖片失敗:", error);
+                  }
+                }
+              }
+              setImages(prev => [...prev, ...newImages]);
+              setIsLoading(false);
+            }
+          };
+
+          /**
+           * 移除單張圖片
+           * @param {number} index 要移除的圖片索引
+           */
+          const removeImage = (index) => {
+            setImages(prev => prev.filter((_, i) => i !== index));
+          };
+
+          /**
+           * 呼叫 Gemini API
+           * @param {Array<object>} contents 傳送給 API 的內容
+           * @param {object} systemInstruction 系統指令
+           * @returns {Promise<string>} 模型產生的文字回應
+           */
+          const callGeminiAPI = async (contents, systemInstruction) => {
+            if (!apiKey) {
+                setIsLoading(false);
+                return "錯誤：請先在程式碼中貼上您的 API 金鑰！";
+            }
+            setIsLoading(true);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+              contents: contents,
+              systemInstruction: {
+                parts: [{ text: systemInstruction }]
+              }
+            };
+
+            try {
+              const result = await fetchWithRetry(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                return text;
+              } else {
+                console.error("API 回應中找不到文字:", result);
+                return "抱歉，我無法處理您的請求。請檢查 API 回應。";
+              }
+            } catch (error) {
+              console.error("API 呼叫失敗:", error);
+              // 提供更友好的錯誤提示
+              return `發生錯誤，請檢查您的網路連線或 API 金鑰是否有效：${error.message}`;
+            } finally {
+              setIsLoading(false);
+            }
+          };
+
+          /**
+           * 處理使用者提問 (引導式)
+           * @param {React.FormEvent<HTMLFormElement>} e 事件物件
+           */
+          const handleQuerySubmit = async (e) => {
+            e.preventDefault();
+            if (!userQuery.trim() || isLoading) return;
+
+            const newUserMessage = { role: 'user', text: userQuery };
+            setChatHistory(prev => [...prev, newUserMessage]);
+            setUserQuery('');
+
+            // --- 準備 API 請求 ---
+            // 系統指令：要求 AI 扮演引導者，*不要*給答案
+            const systemPrompt = `
+              你是一位學習教練。你的任務是引導使用者從他們提供的資料（逐字稿和圖片）中自己找出答案。
+              絕對不要直接回答他們的問題。
+              請根據他們提供的逐字稿、圖片以及他們的問題，提出一個「引導性的問題」，幫助他們思考並指向他們資料中的特定部分。
+              例如，如果使用者問「主題是什麼？」，你可以反問：「這是一個好問題！你介意再看一下你上傳的逐字稿嗎？開頭或結尾附近有沒有重複出現的詞語或句子？」
+              或是「你上傳的截圖中，有沒有哪一張最能總結影片的氛圍？」
+              請完全依賴使用者提供的資料。
+            `;
+            
+            // 建立內容 parts
+            const contentParts = [
+              { text: "這是我的逐字稿：\n" + (transcript || "使用者尚未提供逐字稿。") },
+            ];
+
+            // 新增圖片
+            images.forEach((img, i) => {
+              contentParts.push({ text: `這是我上傳的第 ${i + 1} 張截圖 (名稱: ${img.name})：` });
+              // 確保 Base64 格式正確
+              const base64Data = img.base64.split(',')[1];
+              const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+              const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg'; // 默認為 jpeg
+              
+              contentParts.push({
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data
+                }
+              });
+            });
+
+            contentParts.push({ text: "我的問題是：" + userQuery });
+
+            const contents = [{ role: "user", parts: contentParts }];
+
+            // --- 呼叫 API ---
+            const modelResponseText = await callGeminiAPI(contents, systemPrompt);
+            const newModelMessage = { role: 'model', text: modelResponseText };
+            setChatHistory(prev => [...prev, newModelMessage]);
+          };
+
+          /**
+           * 處理總結歸類請求
+           */
+          const handleCategorize = async () => {
+            if (isLoading || (!transcript && images.length === 0 && chatHistory.length === 0)) {
+              setCategorization("請先提供資料並進行一些對話，我才能幫您總結。");
+              return;
+            }
+
+            // 系統指令：要求 AI 扮演總結者
+            const systemPrompt = `
+              你是一個總結助手。
+              請根據以下使用者提供的逐字稿、圖片、以及我們的對話記錄，幫助使用者總結他們在對話中「自己發現」的重點。
+              請將這些重點整理成一個簡潔的摘要或條列式清單，並為這個主題提供一個或多個可能的「分類標籤」。
+              例如：
+              摘要：使用者透過逐字稿發現影片重點是關於「AI 倫理」，並從截圖中確認了情緒是「擔憂的」。
+              分類：#AI倫理 #科技衝擊
+            `;
+
+            // 建立內容 parts
+            const contentParts = [
+              { text: "這是我的逐字稿：\n" + (transcript || "未提供") },
+            ];
+            
+            images.forEach((img, i) => {
+              contentParts.push({ text: `截圖 ${i + 1} (名稱: ${img.name})：` });
+              
+              const base64Data = img.base64.split(',')[1];
+              const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+              const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+              
+              contentParts.push({
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data
+                }
+              });
+            });
+
+            contentParts.push({ text: "這是我們的對話記錄：\n" + chatHistory.map(msg => `${msg.role === 'user' ? '我' : '教練'}: ${msg.text}`).join('\n') });
+            contentParts.push({ text: "請根據以上所有資料，幫我總結並歸類我的發現。" });
+
+            const contents = [{ role: "user", parts: contentParts }];
+
+            // --- Call API ---
+            const categorizationText = await callGeminiAPI(contents, systemPrompt);
+            setCategorization(categorizationText);
+          };
+
+
+          // ---------------------------------------------------------------------------
+          // 渲染 JSX
+          // ---------------------------------------------------------------------------
+          return (
+            <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans text-gray-800">
+              {/* ----- 左側：資料上傳面板 ----- */}
+              <div className="w-full md:w-1/2 p-4 overflow-y-auto space-y-4 border-r border-gray-300">
+                <h2 className="text-2xl font-bold text-gray-700">1. 上傳您的資料</h2>
+                
+                {/* 逐字稿輸入 */}
+                <div>
+                  <label htmlFor="transcript" className="block text-lg font-medium text-gray-600 mb-2">
+                    貼上影片逐字稿
+                  </label>
+                  <textarea
+                    id="transcript"
+                    rows="10"
+                    className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="請在這裡貼上您的逐字稿..."
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                  />
+                </div>
+
+                {/* 圖片上傳 */}
+                <div>
+                  <label className="block text-lg font-medium text-gray-600 mb-2">
+                    上傳關鍵截圖
+                  </label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-full file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-50 file:text-blue-700
+                      hover:file:bg-blue-100"
+                  />
+                </div>
+
+                {/* 圖片預覽 */}
+                {images.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-gray-600">已上傳的截圖：</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                      {images.map((image, index) => (
+                        <div key={index} className="relative group p-1 bg-white rounded-lg border shadow-sm">
+                          <img src={image.base64} alt={image.name} className="w-full h-24 object-cover rounded" />
+                          <p className="text-xs text-gray-500 truncate mt-1 px-1" title={image.name}>{image.name}</p>
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute top-0 right-0 m-1 p-0.5 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="移除圖片"
+                          >
+                            {/* SVG X icon */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ----- 右側：互動與總結 ----- */}
+              <div className="w-full md:w-1/2 p-4 flex flex-col h-full">
+                {/* 聊天介面 */}
+                <div className="flex-1 flex flex-col border border-gray-300 rounded-lg shadow-lg bg-white overflow-hidden">
+                  <h2 className="text-2xl font-bold text-gray-700 p-4 border-b border-gray-200">
+                    2. 開始探索
+                  </h2>
+                  
+                  {/* 聊天記錄 */}
+                  <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
+                    {chatHistory.length === 0 && (
+                      <div className="text-center text-gray-500 mt-8">
+                        <p>上傳資料後，請在這裡提出您的問題。</p>
+                        <p className="text-sm">例如：「這部影片的主題是什麼？」</p>
+                      </div>
+                    )}
+                    {chatHistory.map((msg, index) => (
+                      <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md ${
+                            msg.role === 'user' 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-white text-gray-800 border border-gray-200'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))}
+                    {isLoading && (
+                      <div className="flex justify-start">
+                        <div className="px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 輸入框 */}
+                  <form onSubmit={handleQuerySubmit} className="p-4 border-t border-gray-200 bg-white">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="根據您的資料提問..."
+                        value={userQuery}
+                        onChange={(e) => setUserQuery(e.target.value)}
+                        disabled={isLoading || (!transcript && images.length === 0)}
+                      />
+                      <button
+                        type="submit"
+                        className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                        disabled={isLoading || !userQuery.trim()}
+                      >
+                        發送
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* 總結歸類 */}
+                <div className="mt-4 p-4 border border-gray-300 rounded-lg shadow-lg bg-white">
+                  <h2 className="text-2xl font-bold text-gray-700 mb-3">3. 總結歸類</h2>
+                  <button
+                    onClick={handleCategorize}
+                    className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                    disabled={isLoading || chatHistory.length === 0}
+                  >
+                    {isLoading ? '處理中...' : '幫我總結我的發現'}
+                  </button>
+                  {categorization && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h3 className="font-bold text-green-800">您的總結：</h3>
+                      <pre className="whitespace-pre-wrap font-sans text-gray-700 mt-2">{categorization}</pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // 初始化 React 應用程式
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
