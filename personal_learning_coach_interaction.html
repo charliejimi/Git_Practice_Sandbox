@@ -1,287 +1,295 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>影片學習小助手 - 證據分析與彙整版</title>
-    <!-- 載入 Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 載入 React, ReactDOM, Babel CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>影片學習小助手 - 證據分析與彙整版</title>
+  <!-- 載入 Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 React, ReactDOM, Babel CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 
-    <!-- Tailwind 設定 -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
-                    },
-                }
-            }
+  <!-- Tailwind 設定 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+          },
         }
-    </script>
-    <style>
-        /* 確保全域使用 Inter 和 Noto Sans TC 以支援中文 */
-        body {
-            font-family: 'Inter', 'Noto Sans TC', 'sans-serif';
-        }
-        /* 隱藏文件輸入欄的預設樣式，使其更美觀 */
-        input[type="file"] {
-            border: none;
-            padding: 0;
-        }
-        /* 預先格式化區塊，用於 AI 的結構化回覆 */
-        .ai-response-block pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: inherit; /* 讓 pre 繼承 sans-serif */
-            background-color: #f3f4f6;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            margin-top: 0.5rem;
-        }
-        /* 美化按鈕的圓角和陰影 */
-        .btn-fancy {
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transition: all 0.2s ease-in-out;
-        }
-        .btn-fancy:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
-        }
-    </style>
+      }
+    }
+  </script>
+  <style>
+    /* 確保全域使用 Inter 和 Noto Sans TC 以支援中文 */
+    body {
+      font-family: 'Inter', 'Noto Sans TC', 'sans-serif';
+    }
+
+    /* 隱藏文件輸入欄的預設樣式，使其更美觀 */
+    input[type="file"] {
+      border: none;
+      padding: 0;
+    }
+
+    /* 預先格式化區塊，用於 AI 的結構化回覆 */
+    .ai-response-block pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      /* 讓 pre 繼承 sans-serif */
+      background-color: #f3f4f6;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      margin-top: 0.5rem;
+    }
+
+    /* 美化按鈕的圓角和陰影 */
+    .btn-fancy {
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .btn-fancy:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      transform: translateY(-1px);
+    }
+  </style>
 </head>
+
 <body class="bg-gray-100 antialiased">
-    <div id="root">
-        <!-- React App 將在此處渲染 -->
-    </div>
+  <div id="root">
+    <!-- React App 將在此處渲染 -->
+  </div>
 
-    <!-- 核心應用程式邏輯 (使用 Babel 處理 JSX) -->
-    <script type="text/babel">
-        // 為了在 CDN 環境中運行，我們從全域變數中解構 React 鉤子
-        const { useState, useCallback, useEffect } = React; // <-- 移除 useRef
+  <!-- 核心應用程式邏輯 (使用 Babel 處理 JSX) -->
+  <script type="text/babel">
+    // 為了在 CDN 環境中運行，我們從全域變數中解構 React 鉤子
+    const { useState, useCallback, useEffect } = React; // <-- 移除 useRef
 
-        // -----------------------------------------------------------------------------
-        // 輔助函式 (Helper Functions)
-        // -----------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // 輔助函式 (Helper Functions)
+    // -----------------------------------------------------------------------------
 
-        /**
-         * (移除 base64ToArrayBuffer 函式)
-         */
-        
-        /**
-         * (移除 pcmToWav 函式)
-         */
+    /**
+     * (移除 base64ToArrayBuffer 函式)
+     */
+
+    /**
+     * (移除 pcmToWav 函式)
+     */
 
 
-        /**
-         * 將 File 物件轉換為 Base64 字串
-         * @param {File} file 使用者上傳的圖片檔案
-         * @returns {Promise<string>} 包含 Base64 編碼的 Data URL
-         */
-        const toBase64 = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
+    /**
+     * 將 File 物件轉換為 Base64 字串
+     * @param {File} file 使用者上傳的圖片檔案
+     * @returns {Promise<string>} 包含 Base64 編碼的 Data URL
+     */
+    const toBase64 = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
 
-        /**
-         * 具有指數退避重試機制的 fetch 函式
-         */
-        async function fetchWithRetry(url, options, retries = 3) {
-          let attempt = 0;
-          while (attempt < retries) {
-            try {
-              const response = await fetch(url, options);
-              if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`HTTP 錯誤! 狀態: ${response.status}. 錯誤詳情: ${errorBody.substring(0, 100)}...`);
+    /**
+     * 具有指數退避重試機制的 fetch 函式
+     */
+    async function fetchWithRetry(url, options, retries = 3) {
+      let attempt = 0;
+      while (attempt < retries) {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`HTTP 錯誤! 狀態: ${response.status}. 錯誤詳情: ${errorBody.substring(0, 100)}...`);
+          }
+          // 檢查是否為 TTS 請求，TTS 請求直接返回 Response 物件以便後續處理
+          if (url.includes("gemini-2.5-flash-preview-tts")) {
+            return response;
+          }
+          return await response.json();
+        } catch (error) {
+          console.warn(`第 ${attempt + 1} 次 API 呼叫失敗: ${error.message}`);
+          attempt++;
+          if (attempt >= retries) {
+            throw error; // 重試次數用盡，拋出錯誤
+          }
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // -----------------------------------------------------------------------------
+    // 主應用程式組件 (Main App Component)
+    // -----------------------------------------------------------------------------
+
+    /**
+     * 主應用程式組件
+     */
+    function App() {
+      // 狀態管理
+      const [problemStatement, setProblemStatement] = useState(''); // 欲解決的問題或目標
+      const [transcript, setTranscript] = useState(''); // 逐字稿文字
+      const [images, setImages] = useState([]); // { name: string, base64: string }
+      const [chatHistory, setChatHistory] = useState([]); // { role: 'user' | 'model', text: string }
+      const [userQuery, setUserQuery] = useState(''); // 使用者目前輸入的問題
+      const [isLoading, setIsLoading] = useState(false); // 是否正在等待 AI 回應
+      const [categorization, setCategorization] = useState(''); // 最終的歸類總結
+      const [importedSummary, setImportedSummary] = useState(''); // 新增: 匯入的上次總結內容
+      const [importedFileName, setImportedFileName] = useState(''); // 匯入的檔案名稱
+
+      // (移除 audioUrl, isTtsLoading, audioRef 狀態和 ref)
+      const [quizContent, setQuizContent] = useState(''); // 生成的測驗題內容
+      const [isQuizLoading, setIsQuizLoading] = useState(false); // 測驗題專用的 Loading 狀態
+      const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 控制側邊欄顯示/隱藏
+
+
+      // !!! 重要: 請在這裡貼上您的 Google AI Studio API 金鑰 !!!
+      const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU";
+
+      /**
+       * 處理圖片上傳
+       */
+      const handleImageUpload = async (e) => {
+        if (e.target.files) {
+          setIsLoading(true);
+          const fileList = Array.from(e.target.files);
+          const newImages = [];
+          for (const file of fileList) {
+            if (file.type.startsWith('image/')) {
+              try {
+                const base64 = await toBase64(file);
+                newImages.push({ name: file.name, base64 });
+              } catch (error) {
+                console.error("處理圖片失敗:", error);
               }
-              // 檢查是否為 TTS 請求，TTS 請求直接返回 Response 物件以便後續處理
-              if (url.includes("gemini-2.5-flash-preview-tts")) {
-                return response; 
-              }
-              return await response.json();
-            } catch (error) {
-              console.warn(`第 ${attempt + 1} 次 API 呼叫失敗: ${error.message}`);
-              attempt++;
-              if (attempt >= retries) {
-                throw error; // 重試次數用盡，拋出錯誤
-              }
-              const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-              await new Promise(resolve => setTimeout(resolve, delay));
             }
           }
+          setImages(prev => [...prev, ...newImages]);
+          setIsLoading(false);
         }
+      };
 
-        // -----------------------------------------------------------------------------
-        // 主應用程式組件 (Main App Component)
-        // -----------------------------------------------------------------------------
+      /**
+       * 移除單張圖片
+       */
+      const removeImage = (index) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+      };
 
-        /**
-         * 主應用程式組件
-         */
-        function App() {
-          // 狀態管理
-          const [problemStatement, setProblemStatement] = useState(''); // 欲解決的問題或目標
-          const [transcript, setTranscript] = useState(''); // 逐字稿文字
-          const [images, setImages] = useState([]); // { name: string, base64: string }
-          const [chatHistory, setChatHistory] = useState([]); // { role: 'user' | 'model', text: string }
-          const [userQuery, setUserQuery] = useState(''); // 使用者目前輸入的問題
-          const [isLoading, setIsLoading] = useState(false); // 是否正在等待 AI 回應
-          const [categorization, setCategorization] = useState(''); // 最終的歸類總結
-          const [importedSummary, setImportedSummary] = useState(''); // 新增: 匯入的上次總結內容
-          const [importedFileName, setImportedFileName] = useState(''); // 匯入的檔案名稱
-          
-          // (移除 audioUrl, isTtsLoading, audioRef 狀態和 ref)
-          const [quizContent, setQuizContent] = useState(''); // 生成的測驗題內容
-          const [isQuizLoading, setIsQuizLoading] = useState(false); // 測驗題專用的 Loading 狀態
-          
-          
-          // !!! 重要: 請在這裡貼上您的 Google AI Studio API 金鑰 !!!
-          const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU"; 
+      /**
+       * 處理檔案匯入 (上次的總結結果)
+       */
+      const handleImport = async (e) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        setIsLoading(true);
+        const file = e.target.files[0];
+        const reader = new FileReader();
 
-          /**
-           * 處理圖片上傳
-           */
-          const handleImageUpload = async (e) => {
-            if (e.target.files) {
-              setIsLoading(true);
-              const fileList = Array.from(e.target.files);
-              const newImages = [];
-              for (const file of fileList) {
-                if (file.type.startsWith('image/')) {
-                  try {
-                    const base64 = await toBase64(file);
-                    newImages.push({ name: file.name, base64 });
-                  } catch (error) {
-                    console.error("處理圖片失敗:", error);
-                  }
-                }
-              }
-              setImages(prev => [...prev, ...newImages]);
-              setIsLoading(false);
-            }
-          };
+        reader.onload = async (event) => {
+          try {
+            const content = event.target.result;
+            setImportedSummary(content);
+            setImportedFileName(file.name);
+            // 清空 file input value，以便再次選擇同一個檔案
+            e.target.value = null;
+            alert('匯入成功：上次的總結內容已載入，將在下次歸納時進行彙整。');
+          } catch (error) {
+            console.error("處理匯入檔案失敗:", error);
+            alert("匯入失敗：檔案格式可能不正確或無法讀取。");
+          } finally {
+            setIsLoading(false);
+          }
+        };
 
-          /**
-           * 移除單張圖片
-           */
-          const removeImage = (index) => {
-            setImages(prev => prev.filter((_, i) => i !== index));
-          };
-          
-          /**
-           * 處理檔案匯入 (上次的總結結果)
-           */
-          const handleImport = async (e) => {
-            if (!e.target.files || e.target.files.length === 0) return;
-            setIsLoading(true);
-            const file = e.target.files[0];
-            const reader = new FileReader();
+        reader.onerror = (error) => {
+          console.error("檔案讀取錯誤:", error);
+          setIsLoading(false);
+          alert("檔案讀取錯誤。");
+        };
 
-            reader.onload = async (event) => {
-                try {
-                    const content = event.target.result;
-                    setImportedSummary(content);
-                    setImportedFileName(file.name);
-                    // 清空 file input value，以便再次選擇同一個檔案
-                    e.target.value = null; 
-                    alert('匯入成功：上次的總結內容已載入，將在下次歸納時進行彙整。');
-                } catch (error) {
-                    console.error("處理匯入檔案失敗:", error);
-                    alert("匯入失敗：檔案格式可能不正確或無法讀取。");
-                } finally {
-                    setIsLoading(false);
-                }
-            };
+        reader.readAsText(file);
+      };
 
-            reader.onerror = (error) => {
-                console.error("檔案讀取錯誤:", error);
-                setIsLoading(false);
-                alert("檔案讀取錯誤。");
-            };
-
-            reader.readAsText(file);
-          };
-
-          /**
-           * 處理總結結果匯出
-           */
-          const handleExport = () => {
-              if (!categorization) {
-                  alert("請先產生總結結果才能匯出！");
-                  return;
-              }
-              const filename = `Summary_${new Date().toISOString().slice(0, 10)}.md`;
-              const blob = new Blob([categorization], { type: 'text/markdown;charset=utf-8' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(url);
-              alert(`總結結果已匯出為 ${filename}`);
-          };
+      /**
+       * 處理總結結果匯出
+       */
+      const handleExport = () => {
+        if (!categorization) {
+          alert("請先產生總結結果才能匯出！");
+          return;
+        }
+        const filename = `Summary_${new Date().toISOString().slice(0, 10)}.md`;
+        const blob = new Blob([categorization], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        alert(`總結結果已匯出為 ${filename}`);
+      };
 
 
-          /**
-           * 呼叫 Gemini API (Text/Vision)
-           */
-          const callGeminiAPI = async (contents, systemInstruction, model = 'gemini-2.5-flash-preview-09-2025') => {
-            if (!apiKey) {
-                setIsLoading(false);
-                return "錯誤：請先在程式碼中貼上您的 API 金鑰！";
-            }
-            setIsLoading(true);
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            
-            const payload = {
-              contents: contents,
-              systemInstruction: {
-                parts: [{ text: systemInstruction }]
-              }
-            };
+      /**
+       * 呼叫 Gemini API (Text/Vision)
+       */
+      const callGeminiAPI = async (contents, systemInstruction, model = 'gemini-2.5-flash-preview-09-2025') => {
+        if (!apiKey) {
+          setIsLoading(false);
+          return "錯誤：請先在程式碼中貼上您的 API 金鑰！";
+        }
+        setIsLoading(true);
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-            try {
-              const result = await fetchWithRetry(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
+        const payload = {
+          contents: contents,
+          systemInstruction: {
+            parts: [{ text: systemInstruction }]
+          }
+        };
 
-              const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) {
-                return text;
-              } else {
-                console.error("API 回應中找不到文字:", result);
-                return "抱歉，我無法處理您的請求。請檢查 API 回應結構是否正確。";
-              }
-            } catch (error) {
-              console.error("API 呼叫失敗:", error);
-              return `發生錯誤，可能是 API 金鑰無效或請求 Payload 過大 (圖片過多)。錯誤訊息：${error.message}`;
-            } finally {
-              setIsLoading(false);
-            }
-          };
+        try {
+          const result = await fetchWithRetry(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
 
-          // (移除 handleTextToSpeech 函式)
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return text;
+          } else {
+            console.error("API 回應中找不到文字:", result);
+            return "抱歉，我無法處理您的請求。請檢查 API 回應結構是否正確。";
+          }
+        } catch (error) {
+          console.error("API 呼叫失敗:", error);
+          return `發生錯誤，可能是 API 金鑰無效或請求 Payload 過大 (圖片過多)。錯誤訊息：${error.message}`;
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
-          // [!!! 測驗題新功能: 生成測驗題 !!!]
-          const handleGenerateQuestions = async () => {
-            if (!categorization || isQuizLoading) return;
+      // (移除 handleTextToSpeech 函式)
 
-            setQuizContent('');
-            setIsQuizLoading(true);
+      // [!!! 測驗題新功能: 生成測驗題 !!!]
+      const handleGenerateQuestions = async () => {
+        if (!categorization || isQuizLoading) return;
 
-            const systemInstruction = `
+        setQuizContent('');
+        setIsQuizLoading(true);
+
+        const systemInstruction = `
                 你是一位測驗設計專家。
                 你的任務是根據使用者提供的最終總結內容，生成 3-5 道測驗題，以幫助使用者檢視他們對總結中主要概念的掌握程度。
 
@@ -309,57 +317,57 @@
                 
                 **答案/解析：** B. 遠端協作的複雜性
             `;
-            
-            const contents = [{ 
-                role: "user", 
-                parts: [{ text: `請根據以下總結內容生成測驗題：\n\n${categorization}` }] 
-            }];
 
-            try {
-                // ✨ 修正：使用 callGeminiAPI 之前，確保 isQuizLoading 為 true
-                // (已在上方設置)
-                // 並且在 callGeminiAPI 內部不要動 isQuizLoading
-                
-                // 暫時將全局 isLoading 設置為 true，以便 callGeminiAPI 正常工作
-                // 但我們主要依賴 isQuizLoading 來控制 UI
-                
-                const quizText = await callGeminiAPI(contents, systemInstruction);
-                setQuizContent(quizText);
-            } catch (error) {
-                console.error("生成測驗題失敗:", error);
-                setQuizContent("抱歉，生成測驗題時發生錯誤。");
-            } finally {
-                // ✨ 修正：callGeminiAPI 內部會重置 isLoading，
-                // 我們需要在這裡重置 isQuizLoading
-                setIsQuizLoading(false); 
-            }
-          };
+        const contents = [{
+          role: "user",
+          parts: [{ text: `請根據以下總結內容生成測驗題：\n\n${categorization}` }]
+        }];
+
+        try {
+          // ✨ 修正：使用 callGeminiAPI 之前，確保 isQuizLoading 為 true
+          // (已在上方設置)
+          // 並且在 callGeminiAPI 內部不要動 isQuizLoading
+
+          // 暫時將全局 isLoading 設置為 true，以便 callGeminiAPI 正常工作
+          // 但我們主要依賴 isQuizLoading 來控制 UI
+
+          const quizText = await callGeminiAPI(contents, systemInstruction);
+          setQuizContent(quizText);
+        } catch (error) {
+          console.error("生成測驗題失敗:", error);
+          setQuizContent("抱歉，生成測驗題時發生錯誤。");
+        } finally {
+          // ✨ 修正：callGeminiAPI 內部會重置 isLoading，
+          // 我們需要在這裡重置 isQuizLoading
+          setIsQuizLoading(false);
+        }
+      };
 
 
-          const hasPreviousSummary = categorization && categorization.trim() !== '';
+      const hasPreviousSummary = categorization && categorization.trim() !== '';
 
-          /**
-           * 處理使用者提問 (證據分析式)
-           */
-          const handleQuerySubmit = async (e) => {
-            e.preventDefault();
-            if (!userQuery.trim() || isLoading) return;
-            // 清空測驗題和音頻，準備開始新一輪提問
-            setQuizContent('');
-            // (移除 audioUrl 和 audioRef 相關程式碼)
+      /**
+       * 處理使用者提問 (證據分析式)
+       */
+      const handleQuerySubmit = async (e) => {
+        e.preventDefault();
+        if (!userQuery.trim() || isLoading) return;
+        // 清空測驗題和音頻，準備開始新一輪提問
+        setQuizContent('');
+        // (移除 audioUrl 和 audioRef 相關程式碼)
 
-            const newUserMessage = { role: 'user', text: userQuery };
-            setChatHistory(prev => [...prev, newUserMessage]);
-            const currentQuery = userQuery; // 儲存當前問題
-            setUserQuery('');
+        const newUserMessage = { role: 'user', text: userQuery };
+        setChatHistory(prev => [...prev, newUserMessage]);
+        const currentQuery = userQuery; // 儲存當前問題
+        setUserQuery('');
 
-            // --- 準備 API 請求 ---
-            
-            let systemPrompt;
+        // --- 準備 API 請求 ---
 
-            if (hasPreviousSummary) {
-              // 情況 B: 已經有總結，使用者正在提追問
-              systemPrompt = `
+        let systemPrompt;
+
+        if (hasPreviousSummary) {
+          // 情況 B: 已經有總結，使用者正在提追問
+          systemPrompt = `
                 你是一位證據型學習分析教練。你先前已經幫助使用者歸納出一個總結。
                 現在，使用者正在對該總結或原始資料提出「後續追問」。
 
@@ -375,9 +383,9 @@
                 **針對新問題的分析：：** [根據新問題，從資料中找到的證據摘要]
                 **與總結的關聯性：** [解釋新答案如何補充或修正先前的總結]
               `;
-            } else {
-              // 情況 A: 這是第一次或尚未總結前的提問
-              systemPrompt = `
+        } else {
+          // 情況 A: 這是第一次或尚未總結前的提問
+          systemPrompt = `
                 你是一位證據型學習分析教練。你的主要目標是幫助使用者利用他們提供的資料（逐字稿和圖片）來回答他們的問題，並達成他們的探索目標。
 
                 **請遵循以下步驟和格式，不要省略任何一步：**
@@ -394,62 +402,62 @@
 
                 請完全依賴使用者提供的資料，不要引入任何外部知識。如果資料中找不到明確答案，請引導使用者思考資料的局限性。
               `;
+        }
+
+        // 建立內容 parts
+        const contentParts = [
+          { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
+          { text: "這是我的逐字稿：\n" + (transcript || "使用者尚未提供逐字稿。") },
+        ];
+
+        // 新增圖片
+        images.forEach((img, i) => {
+          contentParts.push({ text: `這是我上傳的第 ${i + 1} 張截圖 (名稱: ${img.name})：` });
+          const base64Data = img.base64.split(',')[1];
+          const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+
+          contentParts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
             }
-            
-            // 建立內容 parts
-            const contentParts = [
-              { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
-              { text: "這是我的逐字稿：\n" + (transcript || "使用者尚未提供逐字稿。") },
-            ];
+          });
+        });
 
-            // 新增圖片
-            images.forEach((img, i) => {
-              contentParts.push({ text: `這是我上傳的第 ${i + 1} 張截圖 (名稱: ${img.name})：` });
-              const base64Data = img.base64.split(',')[1];
-              const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-              const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-              
-              contentParts.push({
-                inlineData: {
-                  mimeType: mimeType,
-                  data: base64Data
-                }
-              });
-            });
+        if (hasPreviousSummary) {
+          contentParts.push({ text: `這是我「先前」得到的總結內容（請以此為基礎進行回顧和分析）：\n${categorization}` });
+        }
 
-            if (hasPreviousSummary) {
-              contentParts.push({ text: `這是我「先前」得到的總結內容（請以此為基礎進行回顧和分析）：\n${categorization}` });
-            }
+        contentParts.push({ text: `我的最新問題是：${currentQuery}` });
 
-            contentParts.push({ text: `我的最新問題是：${currentQuery}` });
+        const contents = [{ role: "user", parts: contentParts }];
 
-            const contents = [{ role: "user", parts: contentParts }];
+        // --- 呼叫 API ---
+        // ✨ 修正：在 callGeminiAPI 內部，isLoading 會被設置為 true/false
+        const modelResponseText = await callGeminiAPI(contents, systemPrompt);
+        const newModelMessage = { role: 'model', text: modelResponseText };
+        setChatHistory(prev => [...prev, newModelMessage]);
+      };
 
-            // --- 呼叫 API ---
-            // ✨ 修正：在 callGeminiAPI 內部，isLoading 會被設置為 true/false
-            const modelResponseText = await callGeminiAPI(contents, systemPrompt);
-            const newModelMessage = { role: 'model', text: modelResponseText };
-            setChatHistory(prev => [...prev, newModelMessage]);
-          };
+      /**
+       * 處理總結歸類請求 (包含上次匯入的內容)
+       */
+      const handleCategorize = async () => {
+        if (isLoading || isQuizLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)) {
+          setCategorization("請先提供資料或匯入上次的總結，我才能幫您彙整總結。");
+          return;
+        }
+        // 每次生成新的總結時，清空測驗題和音頻
+        setQuizContent('');
+        // (移除 audioUrl 和 audioRef 相關程式碼)
 
-          /**
-           * 處理總結歸類請求 (包含上次匯入的內容)
-           */
-          const handleCategorize = async () => {
-            if (isLoading || isQuizLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)) {
-              setCategorization("請先提供資料或匯入上次的總結，我才能幫您彙整總結。");
-              return;
-            }
-            // 每次生成新的總結時，清空測驗題和音頻
-            setQuizContent('');
-            // (移除 audioUrl 和 audioRef 相關程式碼)
+        // 系統指令：要求 AI 扮演總結者，總結內容必須回應「要解決的問題」
+        const integrationPrompt = importedSummary ?
+          "**重要指令：** 提供了「上次的探索總結結果」。請將其內容與本次提供的所有新資料和對話進行智慧彙整，並輸出一個全面、升級且更完整的總結。如果兩次主題相同，請合併並深化見解。" :
+          "";
 
-            // 系統指令：要求 AI 扮演總結者，總結內容必須回應「要解決的問題」
-            const integrationPrompt = importedSummary ? 
-                "**重要指令：** 提供了「上次的探索總結結果」。請將其內容與本次提供的所有新資料和對話進行智慧彙整，並輸出一個全面、升級且更完整的總結。如果兩次主題相同，請合併並深化見解。" : 
-                "";
-
-            const systemPrompt = `
+        const systemPrompt = `
               你是一個總結助手。
               ${integrationPrompt}
               請根據以下使用者定義的目標、提供的逐字稿、圖片、以及我們的對話記錄，幫助使用者總結他們在對話中「自己發現」的重點，並且總結內容必須圍繞著「${problemStatement || '影片的主要內容'}」來回答。
@@ -460,319 +468,353 @@
               **分類標籤：** #標籤A #標籤B
             `;
 
-            // 建立內容 parts
-            const contentParts = [
-              { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
-              { text: "這是我的逐字稿：\n" + (transcript || "未提供") },
-            ];
-            
-            images.forEach((img, i) => {
-              contentParts.push({ text: `截圖 ${i + 1} (名稱: ${img.name})：` });
-              
-              const base64Data = img.base64.split(',')[1];
-              const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-              const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-              
-              contentParts.push({
-                inlineData: {
-                  mimeType: mimeType,
-                  data: base64Data
-                }
-              });
-            });
+        // 建立內容 parts
+        const contentParts = [
+          { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
+          { text: "這是我的逐字稿：\n" + (transcript || "未提供") },
+        ];
 
-            // 新增上次匯入的總結內容
-            contentParts.push({ text: `以下是上次的探索總結結果（如果有的話，請智慧彙整）：\n${importedSummary || '無上次總結結果。'}` });
+        images.forEach((img, i) => {
+          contentParts.push({ text: `截圖 ${i + 1} (名稱: ${img.name})：` });
 
-            contentParts.push({ text: "這是我們的對話記錄：\n" + chatHistory.map(msg => `${msg.role === 'user' ? '我' : '教練'}: ${msg.text}`).join('\n') });
-            contentParts.push({ text: "請根據以上所有資料，幫我總結並歸類我的發現，總結內容必須聚焦於我的目標。" });
+          const base64Data = img.base64.split(',')[1];
+          const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
 
-            const contents = [{ role: "user", parts: contentParts }];
+          contentParts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        });
 
-            // --- Call API ---
-            // ✨ 修正：callGeminiAPI 內部會處理 isLoading
-            const categorizationText = await callGeminiAPI(contents, systemPrompt);
-            setCategorization(categorizationText);
-          };
+        // 新增上次匯入的總結內容
+        contentParts.push({ text: `以下是上次的探索總結結果（如果有的話，請智慧彙整）：\n${importedSummary || '無上次總結結果。'}` });
 
-          // ---------------------------------------------------------------------------
-          // 渲染 JSX
-          // ---------------------------------------------------------------------------
+        contentParts.push({ text: "這是我們的對話記錄：\n" + chatHistory.map(msg => `${msg.role === 'user' ? '我' : '教練'}: ${msg.text}`).join('\n') });
+        contentParts.push({ text: "請根據以上所有資料，幫我總結並歸類我的發現，總結內容必須聚焦於我的目標。" });
 
-          /**
-           * 渲染 AI 回覆的區塊 (使用 pre 標籤來保留 Markdown 格式化，例如換行和粗體)
-           */
-          const ModelMessage = ({ text }) => (
-            <div className="flex justify-start">
-              <div 
-                className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200 ai-response-block"
-              >
-                <pre className="whitespace-pre-wrap">{text}</pre>
-              </div>
+        const contents = [{ role: "user", parts: contentParts }];
+
+        // --- Call API ---
+        // ✨ 修正：callGeminiAPI 內部會處理 isLoading
+        const categorizationText = await callGeminiAPI(contents, systemPrompt);
+        setCategorization(categorizationText);
+      };
+
+      // ---------------------------------------------------------------------------
+      // 渲染 JSX
+      // ---------------------------------------------------------------------------
+
+      /**
+       * 渲染 AI 回覆的區塊 (使用 pre 標籤來保留 Markdown 格式化，例如換行和粗體)
+       */
+      const ModelMessage = ({ text }) => (
+        <div className="flex justify-start">
+          <div
+            className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200 ai-response-block"
+          >
+            <pre className="whitespace-pre-wrap">{text}</pre>
+          </div>
+        </div>
+      );
+
+      // ✨ 修正：在 React 組件中定義全局 Loading 狀態
+      // (isLoading: 處理文字生成)
+      // (isQuizLoading: 處理測驗生成)
+      const isOverallLoading = isLoading || isQuizLoading; // <-- 修正重複宣告錯誤
+
+      return (
+        <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans text-gray-800">
+          {/* ----- 左側：資料上傳面板 (可收折) ----- */}
+          <div className={`${isSidebarOpen ? 'w-full md:w-4/12 lg:w-3/12' : 'hidden'} p-4 overflow-y-auto space-y-4 border-r border-gray-300 min-h-[40vh] md:h-full transition-all duration-300 ease-in-out bg-gray-50`}>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-700">1. 設定與資料</h2>
+              <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          );
-          
-          // ✨ 修正：在 React 組件中定義全局 Loading 狀態
-          // (isLoading: 處理文字生成)
-          // (isQuizLoading: 處理測驗生成)
-          const isOverallLoading = isLoading || isQuizLoading; // <-- 修正重複宣告錯誤
 
-          return (
-            <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans text-gray-800">
-              {/* ----- 左側：資料上傳面板 ----- */}
-              <div className="w-full md:w-1/2 p-4 overflow-y-auto space-y-4 border-r border-gray-300 min-h-[40vh] md:h-full">
-                <h2 className="text-2xl font-bold text-gray-700">1. 設定目標與資料上傳</h2>
+            {/* 目標輸入 */}
+            <div className="bg-white p-4 rounded-lg shadow-md border border-indigo-200">
+              <label htmlFor="problemStatement" className="block text-lg font-bold text-indigo-700 mb-2">
+                本次探索目標 (要解決的問題)
+              </label>
+              <textarea
+                id="problemStatement"
+                rows="3"
+                className="w-full p-3 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="例如：這部影片是否支持「彈性工作」的觀點？"
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                disabled={isOverallLoading}
+              />
+            </div>
 
-                {/* 目標輸入 */}
-                <div className="bg-white p-4 rounded-lg shadow-md border border-indigo-200">
-                    <label htmlFor="problemStatement" className="block text-lg font-bold text-indigo-700 mb-2">
-                        本次探索目標 (要解決的問題)
-                    </label>
-                    <textarea
-                        id="problemStatement"
-                        rows="3"
-                        className="w-full p-3 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        placeholder="例如：這部影片是否支持「彈性工作」的觀點？"
-                        value={problemStatement}
-                        onChange={(e) => setProblemStatement(e.target.value)}
-                        disabled={isOverallLoading}
-                    />
-                </div>
-
-                {/* 匯入上次總結 */}
-                <div className="bg-white p-4 rounded-lg shadow-md border border-yellow-200">
-                    <label htmlFor="importSummary" className="block text-lg font-bold text-yellow-700 mb-2">
-                        匯入上次探索總結 (.md 或 .txt)
-                    </label>
-                    <input
-                        type="file"
-                        id="importSummary"
-                        accept=".md,.txt"
-                        onChange={handleImport}
-                        className="block w-full text-sm text-gray-500
+            {/* 匯入上次總結 */}
+            <div className="bg-white p-4 rounded-lg shadow-md border border-yellow-200">
+              <label htmlFor="importSummary" className="block text-lg font-bold text-yellow-700 mb-2">
+                匯入上次探索總結 (.md 或 .txt)
+              </label>
+              <input
+                type="file"
+                id="importSummary"
+                accept=".md,.txt"
+                onChange={handleImport}
+                className="block w-full text-sm text-gray-500
                           file:mr-4 file:py-2 file:px-4
                           file:rounded-full file:border-0
                           file:text-sm file:font-semibold
                           file:bg-yellow-50 file:text-yellow-700
                           hover:file:bg-yellow-100"
-                        disabled={isOverallLoading}
-                    />
-                    {importedSummary && (
-                        <p className="mt-2 text-sm text-yellow-600 truncate" title={importedSummary}>
-                            已載入上次總結：**{importedFileName}**
-                            <button onClick={() => {setImportedSummary(''); setImportedFileName('');}} className="ml-2 text-red-500 hover:text-red-700 font-bold" disabled={isOverallLoading}>
-                                [清除]
-                            </button>
-                        </p>
-                    )}
-                </div>
-                
-                {/* 逐字稿輸入 */}
-                <div>
-                  <label htmlFor="transcript" className="block text-lg font-medium text-gray-600 mb-2">
-                    貼上影片逐字稿
-                  </label>
-                  <textarea
-                    id="transcript"
-                    rows="7"
-                    className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    placeholder="請在這裡貼上您的逐字稿..."
-                    value={transcript}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    disabled={isOverallLoading}
-                  />
-                </div>
+                disabled={isOverallLoading}
+              />
+              {importedSummary && (
+                <p className="mt-2 text-sm text-yellow-600 truncate" title={importedSummary}>
+                  已載入上次總結：**{importedFileName}**
+                  <button onClick={() => { setImportedSummary(''); setImportedFileName(''); }} className="ml-2 text-red-500 hover:text-red-700 font-bold" disabled={isOverallLoading}>
+                    [清除]
+                  </button>
+                </p>
+              )}
+            </div>
 
-                {/* 圖片上傳 */}
-                <div>
-                  <label className="block text-lg font-medium text-gray-600 mb-2">
-                    上傳關鍵截圖
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="block w-full text-sm text-gray-500
+            {/* 逐字稿輸入 */}
+            <div>
+              <label htmlFor="transcript" className="block text-lg font-medium text-gray-600 mb-2">
+                貼上影片逐字稿
+              </label>
+              <textarea
+                id="transcript"
+                rows="7"
+                className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="請在這裡貼上您的逐字稿..."
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                disabled={isOverallLoading}
+              />
+            </div>
+
+            {/* 圖片上傳 */}
+            <div>
+              <label className="block text-lg font-medium text-gray-600 mb-2">
+                上傳關鍵截圖
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="block w-full text-sm text-gray-500
                       file:mr-4 file:py-2 file:px-4
                       file:rounded-full file:border-0
                       file:text-sm file:font-semibold
                       file:bg-blue-50 file:text-blue-700
                       hover:file:bg-blue-100"
-                    disabled={isOverallLoading}
-                  />
-                </div>
+                disabled={isOverallLoading}
+              />
+            </div>
 
-                {/* 圖片預覽 */}
-                {images.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="font-semibold text-gray-600">已上傳的截圖：</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative group p-1 bg-white rounded-lg border shadow-sm">
-                          <img src={image.base64} alt={image.name} className="w-full h-24 object-cover rounded" />
-                          <p className="text-xs text-gray-500 truncate mt-1 px-1" title={image.name}>{image.name}</p>
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute top-0 right-0 m-1 p-0.5 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="移除圖片"
-                            disabled={isOverallLoading}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
+            {/* 圖片預覽 */}
+            {images.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-semibold text-gray-600">已上傳的截圖：</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                  {images.map((image, index) => (
+                    <div key={index} className="relative group p-1 bg-white rounded-lg border shadow-sm">
+                      <img src={image.base64} alt={image.name} className="w-full h-24 object-cover rounded" />
+                      <p className="text-xs text-gray-500 truncate mt-1 px-1" title={image.name}>{image.name}</p>
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-0 right-0 m-1 p-0.5 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="移除圖片"
+                        disabled={isOverallLoading}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ----- 右側：互動與總結 ----- */}
+          <div className={`${isSidebarOpen ? 'w-full md:w-8/12 lg:w-9/12' : 'w-full'} p-4 flex flex-col h-full transition-all duration-300 ease-in-out relative`}>
+
+            {/* 側邊欄切換按鈕 (當側邊欄隱藏時顯示，或在桌面版顯示以切換) */}
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="absolute top-4 left-4 z-10 p-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-100 text-gray-600"
+                title="展開設定面板"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+
+            {/* 桌面版：即使側邊欄打開，也提供一個收折按鈕在頂部導航列或適當位置 (這裡選擇放在標題旁或獨立懸浮，為了簡潔，我們放在標題列左側) */}
+            {isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="hidden md:block absolute top-6 left-[-12px] z-10 p-1 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-100 text-gray-500"
+                title="收折面板"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+
+            {/* 聊天介面 (步驟 2) */}
+            <div className="flex-1 md:min-h-[35rem] flex flex-col border border-gray-300 rounded-lg shadow-lg bg-white overflow-hidden">
+              <h2 className="text-2xl font-bold text-gray-700 p-4 border-b border-gray-200 pl-8 md:pl-4">
+                2. 開始探索與證據分析
+              </h2>
+
+              {/* 聊天記錄 */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
+                {chatHistory.length === 0 && (
+                  <div className="text-center text-gray-500 mt-8">
+                    <p>請先設定目標並上傳資料。</p>
+                    <p className="text-sm">教練將根據您的提問，提供證據分析和引導。</p>
+                    {problemStatement && <p className="text-sm font-semibold text-indigo-500 mt-2">目標: {problemStatement}</p>}
+                  </div>
+                )}
+                {chatHistory.map((msg, index) => (
+                  msg.role === 'user' ? (
+                    <div key={index} className="flex justify-end">
+                      <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-blue-600 text-white">
+                        {msg.text}
+                      </div>
+                    </div>
+                  ) : (
+                    <ModelMessage key={index} text={msg.text} />
+                  )
+                ))}
+                {/* ✨ 修正：這裡的 Loading 指示器只在 'isLoading' (文字生成) 時顯示 */}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* ----- 右側：互動與總結 ----- */}
-              <div className="w-full md:w-1/2 p-4 flex flex-col min-h-[40vh] md:h-full">
-                
-                {/* 聊天介面 (步驟 2) */}
-                <div className="flex-1 md:min-h-[25rem] flex flex-col border border-gray-300 rounded-lg shadow-lg bg-white overflow-hidden">
-                  <h2 className="text-2xl font-bold text-gray-700 p-4 border-b border-gray-200">
-                    2. 開始探索與證據分析
-                  </h2>
-                  
-                  {/* 聊天記錄 */}
-                  <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
-                    {chatHistory.length === 0 && (
-                      <div className="text-center text-gray-500 mt-8">
-                        <p>請先設定目標並上傳資料。</p>
-                        <p className="text-sm">教練將根據您的提問，提供證據分析和引導。</p>
-                        {problemStatement && <p className="text-sm font-semibold text-indigo-500 mt-2">目標: {problemStatement}</p>}
-                      </div>
-                    )}
-                    {chatHistory.map((msg, index) => (
-                      msg.role === 'user' ? (
-                        <div key={index} className="flex justify-end">
-                          <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-blue-600 text-white">
-                            {msg.text}
-                          </div>
-                        </div>
-                      ) : (
-                        <ModelMessage key={index} text={msg.text} />
-                      )
-                    ))}
-                    {/* ✨ 修正：這裡的 Loading 指示器只在 'isLoading' (文字生成) 時顯示 */}
-                    {isLoading && (
-                      <div className="flex justify-start">
-                        <div className="px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 輸入框 (步驟 2 的一部分) */}
-                  <form onSubmit={handleQuerySubmit} className="p-4 border-t border-gray-200 bg-white">
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        placeholder={hasPreviousSummary ? "基於總結繼續提問..." : "根據您的資料提問..."}
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                        disabled={isOverallLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)}
-                      />
-                      <button
-                        type="submit"
-                        className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
-                        disabled={isOverallLoading || !userQuery.trim()}
-                      >
-                        {hasPreviousSummary ? '追問' : '發送'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* 總結歸類 (步驟 3) */}
-                <div className="mt-4 p-4 border border-gray-300 rounded-lg shadow-lg bg-white">
-                  <h2 className="text-2xl font-bold text-gray-700 mb-3">3. 總結歸類與彙整</h2>
-                  <button
-                    onClick={handleCategorize}
-                    className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
+              {/* 輸入框 (步驟 2 的一部分) */}
+              <form onSubmit={handleQuerySubmit} className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder={hasPreviousSummary ? "基於總結繼續提問..." : "根據您的資料提問..."}
+                    value={userQuery}
+                    onChange={(e) => setUserQuery(e.target.value)}
                     disabled={isOverallLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)}
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
+                    disabled={isOverallLoading || !userQuery.trim()}
                   >
-                    {isLoading ? '處理中...' : (importedSummary ? '彙整並升級我的發現' : '幫我總結我的發現')}
+                    {hasPreviousSummary ? '追問' : '發送'}
                   </button>
-                  
-                  {categorization && (
-                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h3 className="font-bold text-green-800">本次總結：</h3>
-                      <pre className="whitespace-pre-wrap font-sans text-gray-700 mt-2">{categorization}</pre>
-                      
-                      {/* 朗讀/測驗題/匯出按鈕區 */}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {/* (移除 TTS 按鈕) */}
+                </div>
+              </form>
+            </div>
 
-                        {/* 測驗題按鈕 (NEW FEATURE 2) */}
-                        <button
-                          onClick={handleGenerateQuestions}
-                          disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                          className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy text-sm"
-                        >
-                          {isQuizLoading ? '生成中...' : '生成測驗題 ✨'}
-                        </button>
+            {/* 總結歸類 (步驟 3) */}
+            <div className="mt-4 p-4 border border-gray-300 rounded-lg shadow-lg bg-white">
+              <h2 className="text-2xl font-bold text-gray-700 mb-3">3. 總結歸類與彙整</h2>
+              <button
+                onClick={handleCategorize}
+                className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
+                disabled={isOverallLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)}
+              >
+                {isLoading ? '處理中...' : (importedSummary ? '彙整並升級我的發現' : '幫我總結我的發現')}
+              </button>
 
-                        {/* 清除總結 (回到提問) 按鈕 */}
-                        <button
-                          onClick={() => {
-                            setCategorization('');
-                            setQuizContent(''); // 清除測驗題
-                            // ✨ 修正：移除 audioUrl 和 audioRef 相關程式碼
-                          }}
-                          className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 btn-fancy text-sm"
-                          disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                        >
-                          清除總結 (回到提問)
-                        </button>
-                        
-                        <button
-                          onClick={handleExport}
-                          className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 btn-fancy text-sm"
-                          disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                        >
-                          匯出總結 (.md)
-                        </button>
-                      </div>
+              {categorization && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h3 className="font-bold text-green-800">本次總結：</h3>
+                  <pre className="whitespace-pre-wrap font-sans text-gray-700 mt-2">{categorization}</pre>
 
-                      {/* (移除 TTS 播放器) */}
+                  {/* 朗讀/測驗題/匯出按鈕區 */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {/* (移除 TTS 按鈕) */}
 
-                      {/* 測驗題顯示區 (NEW FEATURE 2 Display) */}
-                      {/* ✨ 修正：使用 isQuizLoading 顯示 Loading 狀態 */}
-                      {isQuizLoading && (
-                        <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-center text-purple-700">
-                          測驗題生成中...
-                        </div>
-                      )}
-                      
-                      {quizContent && !isQuizLoading && (
-                        <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg ai-response-block">
-                          <h3 className="font-bold text-purple-800 flex items-center mb-2">
-                             測驗與反思題
-                          </h3>
-                          <pre className="whitespace-pre-wrap font-sans text-gray-700">{quizContent}</pre>
-                        </div>
-                      )}
+                    {/* 測驗題按鈕 (NEW FEATURE 2) */}
+                    <button
+                      onClick={handleGenerateQuestions}
+                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
+                      className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy text-sm"
+                    >
+                      {isQuizLoading ? '生成中...' : '生成測驗題 ✨'}
+                    </button>
+
+                    {/* 清除總結 (回到提問) 按鈕 */}
+                    <button
+                      onClick={() => {
+                        setCategorization('');
+                        setQuizContent(''); // 清除測驗題
+                        // ✨ 修正：移除 audioUrl 和 audioRef 相關程式碼
+                      }}
+                      className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 btn-fancy text-sm"
+                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
+                    >
+                      清除總結 (回到提問)
+                    </button>
+
+                    <button
+                      onClick={handleExport}
+                      className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 btn-fancy text-sm"
+                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
+                    >
+                      匯出總結 (.md)
+                    </button>
+                  </div>
+
+                  {/* (移除 TTS 播放器) */}
+
+                  {/* 測驗題顯示區 (NEW FEATURE 2 Display) */}
+                  {/* ✨ 修正：使用 isQuizLoading 顯示 Loading 狀態 */}
+                  {isQuizLoading && (
+                    <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-center text-purple-700">
+                      測驗題生成中...
+                    </div>
+                  )}
+
+                  {quizContent && !isQuizLoading && (
+                    <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg ai-response-block">
+                      <h3 className="font-bold text-purple-800 flex items-center mb-2">
+                        測驗與反思題
+                      </h3>
+                      <pre className="whitespace-pre-wrap font-sans text-gray-700">{quizContent}</pre>
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </div>
-          );
-        }
+          </div>
+        </div>
+      );
+    }
 
-        // 初始化 React 應用程式
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
+    // 初始化 React 應用程式
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
 </body>
+
 </html>
