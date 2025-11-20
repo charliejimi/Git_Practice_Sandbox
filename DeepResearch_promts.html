@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Deep Research 提示詞架構師</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Marked for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+            background-color: #f9fafb;
+        }
+        .sidebar-item-active {
+            background-color: #eff6ff;
+            border-right: 3px solid #3b82f6;
+            color: #1d4ed8;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Prose for markdown content */
+        .prose h1 { font-size: 1.5em; font-weight: bold; margin-bottom: 0.5em; }
+        .prose h2 { font-size: 1.25em; font-weight: bold; margin-bottom: 0.5em; margin-top: 1em; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose p { margin-bottom: 1em; }
+        .prose strong { font-weight: bold; color: #1f2937; }
+
+        /* Custom CSS for the switch/toggle */
+        .toggle-checkbox {
+            opacity: 0;
+            height: 0;
+            width: 0;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10B981; /* Emerald-600 */
+        }
+        .toggle-checkbox:checked + .toggle-label:before {
+            transform: translateX(1.1rem);
+        }
+        .toggle-label {
+            display: block;
+            overflow: hidden;
+            cursor: pointer;
+            background-color: #ccc;
+            border-radius: 9999px;
+            height: 1.5rem; /* h-6 */
+            width: 2.5rem; /* w-10 */
+            transition: background-color 0.2s ease;
+        }
+        .toggle-label:before {
+            content: "";
+            display: block;
+            width: 1.1rem;
+            height: 1.1rem;
+            background: #fff;
+            margin-top: 0.2rem;
+            margin-left: 0.2rem;
+            border-radius: 9999px;
+            transition: transform 0.2s ease;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden text-gray-800">
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10 hidden md:flex">
+        <div class="p-6 border-b border-gray-100">
+            <div class="flex items-center gap-2 text-blue-600 mb-1">
+                <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+                <h1 class="font-bold text-lg tracking-tight">Deep Research AI</h1>
+            </div>
+            <p class="text-xs text-gray-400">提示詞架構師 & 工程引擎</p>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide" id="sidebar-content">
+            <!-- Sidebar content will be injected here by JS -->
+        </div>
+
+        <div class="p-4 border-t border-gray-100 text-xs text-center text-gray-400">
+            Powered by Gemini Architecture
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-white relative">
+        
+        <!-- Top Bar -->
+        <header class="h-16 border-b border-gray-200 flex items-center justify-between px-8 bg-white shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <h2 id="current-formula-title" class="text-xl font-semibold text-gray-800 truncate">請選擇左側分析構面</h2>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="resetForm()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 重置
+                </button>
+            </div>
+        </header>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 pb-24">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                <!-- Left Column: Configuration -->
+                <div class="lg:col-span-7 space-y-6">
+                    
+                    <!-- Variable Settings -->
+                    <section id="variables-section" class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hidden">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-4 h-4"></i> 參數設定
+                        </h3>
+                        <div id="variables-container" class="space-y-5">
+                            <!-- Dynamic Variables here -->
+                        </div>
+                    </section>
+
+                    <!-- Context & Materials -->
+                    <section class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> 情境補充與素材
+                        </h3>
+                        
+                        <!-- File Upload Area -->
+                        <label for="file-input-id" class="mb-4 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors cursor-pointer group block">
+                            <div class="flex flex-col items-center justify-center">
+                                <i data-lucide="upload-cloud" class="w-8 h-8 text-gray-300 group-hover:text-blue-500 mb-2 transition-colors"></i>
+                                <p class="text-sm text-gray-500">點擊選擇文件 (<span class="font-medium text-green-600">.txt, .md, .png, .jpg</span>)</p>
+                                <p class="text-xs text-gray-400 mt-1">文字內容將自動匯入下方；圖像將作為多模態輸入。</p>
+                            </div>
+                            <input type="file" id="file-input-id" class="hidden" multiple accept=".txt,.md,image/*" onchange="handleFileUpload(this)">
+                        </label>
+                        
+                        <div id="file-list" class="mt-3 flex flex-wrap gap-2 justify-start mb-6"></div>
+
+                        <!-- Text Context -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">背景說明 / 關鍵文字素材</label>
+                            <textarea id="context-input" rows="4" class="w-full rounded-md border-gray-200 border p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" placeholder="在此輸入具體的背景資訊、限制條件，或貼上文件/網頁的文字內容... (上傳的文字文件內容也會匯入此處)"></textarea>
+                        </div>
+
+                        <!-- Web Grounding Switch -->
+                        <div class="mt-4 flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <label for="grounding-switch" class="text-sm font-medium text-blue-800 flex items-center gap-2">
+                                <i data-lucide="globe" class="w-4 h-4 text-blue-600"></i>
+                                啟用網路搜索與資訊落地 (Google Grounding)
+                            </label>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="grounding-switch" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="grounding-switch" class="toggle-label block overflow-hidden h-6 rounded-full bg-blue-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                    </section>
+                </div>
+
+                <!-- Right Column: Preview & Output -->
+                <div class="lg:col-span-5 flex flex-col gap-4">
+                    <div class="sticky top-4 space-y-4">
+                        
+                        <!-- Action Buttons -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                            <button onclick="generatePrompt()" class="w-full bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-lg font-medium transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> 重新組合提示詞
+                            </button>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="callGeminiAction('refine')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 relative group">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i> 
+                                    <span>智能優化</span>
+                                    <span class="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Gemini</span>
+                                </button>
+                                <button onclick="callGeminiAction('preview')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 relative group">
+                                    <i data-lucide="play-circle" class="w-4 h-4"></i> 
+                                    <span>模擬試跑</span>
+                                    <span class="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Gemini</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Output Area -->
+                        <div class="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden flex flex-col h-[450px]">
+                            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center shrink-0">
+                                <span class="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+                                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                                    Prompt Preview
+                                </span>
+                                <div class="flex gap-2">
+                                    <button onclick="copyToClipboard('output-area')" class="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="複製">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="downloadTxt()" class="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="下載 .txt">
+                                        <i data-lucide="download" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="output-area" class="flex-1 w-full p-4 text-sm text-gray-700 font-mono leading-relaxed resize-none outline-none bg-white" readonly placeholder="提示詞將顯示於此..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Custom Value Modal -->
+        <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-100">
+                <h3 class="text-lg font-bold mb-4 text-gray-800">新增自定義選項</h3>
+                <input type="text" id="custom-input-value" class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="輸入您的內容...">
+                <div class="flex justify-end gap-2">
+                    <button onclick="closeCustomModal()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+                    <button onclick="confirmCustomValue()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">確認新增</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Result Modal -->
+        <div id="api-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col transform transition-all scale-100">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <div class="flex items-center gap-2">
+                        <i id="api-modal-icon" data-lucide="sparkles" class="w-5 h-5 text-blue-600"></i>
+                        <h3 id="api-modal-title" class="text-lg font-bold text-gray-800">Gemini 智能分析</h3>
+                    </div>
+                    <button onclick="closeApiModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <!-- Content -->
+                <div class="p-6 overflow-y-auto flex-1 bg-white relative">
+                    <!-- Loading State -->
+                    <div id="api-loading" class="hidden flex-col items-center justify-center h-40 space-y-4">
+                        <div class="loader"></div>
+                        <p class="text-sm text-gray-500 animate-pulse">Gemini 正在思考中...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="api-error" class="hidden p-4 bg-red-50 text-red-700 rounded-lg text-sm"></div>
+
+                    <!-- Success Content -->
+                    <div id="api-content" class="prose prose-sm max-w-none text-gray-700 leading-relaxed"></div>
+                    
+                    <!-- Grounding Attribution -->
+                    <div id="api-sources" class="mt-6 border-t pt-4 hidden">
+                        <h4 class="text-sm font-semibold text-gray-600 mb-2">資訊來源 (Grounding Sources):</h4>
+                        <ul id="sources-list" class="space-y-1 text-xs text-gray-500"></ul>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
+                    <button onclick="closeApiModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm font-medium">關閉</button>
+                    <button id="btn-use-refined" onclick="applyRefinedPrompt()" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i> 套用此提示詞
+                    </button>
+                     <button id="btn-copy-result" onclick="copyApiResult()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                        <i data-lucide="copy" class="w-4 h-4"></i> 複製內容
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- CONFIGURATION ---
+        const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU"; // API key injected by environment
+        const MAX_CONTEXT_LENGTH = 10000; // 限制文字文件匯入的字元數
+
+        // --- DATA: JSON Structure (unchanged for brevity) ---
+        const promptData = {
+          "topic": "Gemini Deep Research",
+          "aspects": [
+            {
+              "id": "a1",
+              "name": "1. 研究目標定位 (Goal Definition)",
+              "formulas": [
+                {
+                  "id": "f1_1",
+                  "name": "角色與任務框架法",
+                  "template": "你現在是一位 {Expertise_Role}。針對 {Research_Topic} 主題，你的目標是進行一項 {Depth_Level} 的研究。請先制定一份詳細的研究大綱，重點關注 {Focus_Area}，並列出需要驗證的關鍵假設。",
+                  "variables": [
+                    { "name": "Expertise_Role", "label": "專家角色", "options": ["資深產業分析師", "學術研究員", "調查記者", "技術架構師", "政策制定顧問"] },
+                    { "name": "Research_Topic", "label": "研究主題", "options": ["量子計算的商業應用", "2030年全球能源轉型趨勢", "生成式AI的法律風險", "長壽科學的最新突破", "地緣政治對供應鏈的影響"] },
+                    { "name": "Depth_Level", "label": "研究深度", "options": ["廣度優先的掃描式", "針對特定問題的深入挖掘", "全方位的窮盡式調查", "跨領域的比較分析"] },
+                    { "name": "Focus_Area", "label": "關注焦點", "options": ["技術可行性與瓶頸", "市場規模與增長潛力", "競爭對手策略分析", "歷史演變與未來預測", "監管環境與合規性"] }
+                  ]
+                },
+                {
+                  "id": "f1_2",
+                  "name": "問題拆解矩陣",
+                  "template": "為了回答「{Core_Question}」這個核心問題，請將其拆解為 {Sub_Question_Count} 個子問題。這些子問題必須涵蓋 {Dimension_Type} 面向。請確保每個子問題都是具體的、可搜索的，並能導向 {Evidence_Requirement} 的證據。",
+                  "variables": [
+                    { "name": "Core_Question", "label": "核心問題", "options": ["如何評估SaaS公司價值？", "氣候變遷對房產的影響？", "Web3.0的落地場景？"] },
+                    { "name": "Sub_Question_Count", "label": "子問題數量", "options": ["3-5", "5-7", "8-10", "至少10"] },
+                    { "name": "Dimension_Type", "label": "分析維度", "options": ["PEST (政治/經濟/社會/技術)", "SWOT (優勢/劣勢/機會/威脅)", "時間軸 (過去/現在/未來)", "利益相關者"] },
+                    { "name": "Evidence_Requirement", "label": "證據要求", "options": ["量化數據與統計", "同儕評審的學術論文", "第一手專家訪談", "官方報告與白皮書"] }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "a2",
+              "name": "2. 迭代搜索策略 (Iterative Search)",
+              "formulas": [
+                {
+                  "id": "f2_1",
+                  "name": "鏈式查詢生成法",
+                  "template": "基於目前的已知資訊，我們需要填補關於 {Information_Gap} 的缺口。請生成 {Query_Count} 組搜尋關鍵字，策略上採用 {Search_Strategy}。如果搜尋結果彼此矛盾，請執行 {Conflict_Resolution} 的步驟。",
+                  "variables": [
+                    { "name": "Information_Gap", "label": "資訊缺口", "options": ["具體實施細節", "最新的市場數據", "反面觀點與批評", "案例研究的結果"] },
+                    { "name": "Query_Count", "label": "查詢組數", "options": ["3組不同角度", "5組漸進式", "10組廣泛覆蓋"] },
+                    { "name": "Search_Strategy", "label": "搜索策略", "options": ["布林邏輯精確搜索", "自然語言模糊搜索", "特定域名限定搜索 (site:)", "文件類型限定搜索 (filetype:pdf)"] },
+                    { "name": "Conflict_Resolution", "label": "衝突解決", "options": ["尋找第三方權威來源驗證", "追溯原始數據出處", "列出雙方觀點並存", "根據發布日期採用最新資訊"] }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "a3",
+              "name": "3. 多源資訊綜合 (Synthesis)",
+              "formulas": [
+                {
+                  "id": "f3_1",
+                  "name": "交叉驗證摘要法",
+                  "template": "請閱讀並分析提供的資料來源。針對 {Analysis_Target}，請提取出 {Key_Insight_Type}。在綜合過程中，請特別標註 {Pattern_Recognition}，並以 {Output_Structure} 的形式呈現綜合結果。",
+                  "variables": [
+                    { "name": "Analysis_Target", "label": "分析標的", "options": ["不同來源對同一事件的描述", "多份財報中的財務健康度", "多篇論文中的實驗結果", "多個新聞報導的敘事角度"] },
+                    { "name": "Key_Insight_Type", "label": "洞察類型", "options": ["共識與分歧點", "因果關係鏈", "潛在的偏見", "時間演變趨勢"] },
+                    { "name": "Pattern_Recognition", "label": "模式識別", "options": ["重複出現的關鍵詞", "數據異常值", "邏輯謬誤", "被忽略的變數"] },
+                    { "name": "Output_Structure", "label": "輸出結構", "options": ["比較對照表", "時間軸敘事", "論點樹狀圖", "摘要段落加引用標註"] }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "a4",
+              "name": "4. 深度報告產出 (Output)",
+              "formulas": [
+                {
+                  "id": "f4_1",
+                  "name": "執行摘要與詳情法",
+                  "template": "請將上述研究成果撰寫成一份 {Report_Format}。報告語氣應保持 {Tone_Style}。結構上，必須包含一個針對 {Audience_Type} 的執行摘要 (Executive Summary)，隨後是詳細的論證章節。請確保所有關鍵主張都附帶 {Citation_Format}。",
+                  "variables": [
+                    { "name": "Report_Format", "label": "報告格式", "options": ["戰略白皮書", "投資備忘錄", "學術文獻回顧", "技術評估報告", "政策建議書"] },
+                    { "name": "Tone_Style", "label": "語氣風格", "options": ["客觀中立且權威", "具有說服力且前瞻", "批判性且謹慎", "通俗易懂且引人入勝"] },
+                    { "name": "Audience_Type", "label": "目標受眾", "options": ["C-Level 高階主管", "風險投資人", "技術開發團隊", "一般大眾"] },
+                    { "name": "Citation_Format", "label": "引用格式", "options": ["內文超連結", "APA 格式註腳", "文末參考文獻列表", "數據來源括號標註"] }
+                  ]
+                }
+              ]
+            }
+          ]
+        };
+
+        // --- STATE ---
+        let activeAspectId = null;
+        let activeFormula = null;
+        let currentVariables = {};
+        let customTargetInputId = null;
+        let latestApiResultText = ""; // Store plain text for copy
+        let uploadedFiles = []; // New state: [{ name, mimeType, data (base64 for image) }]
+
+
+        // --- INITIALIZATION (unchanged) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            lucide.createIcons();
+            
+            if(promptData.aspects.length > 0) {
+                const firstAspect = promptData.aspects[0];
+                toggleAspect(firstAspect.id);
+                if(firstAspect.formulas.length > 0) {
+                    selectFormula(firstAspect.id, firstAspect.formulas[0].id);
+                }
+            }
+            document.getElementById('context-input').addEventListener('input', generatePrompt);
+            document.getElementById('grounding-switch').addEventListener('change', generatePrompt);
+        });
+
+        // --- RENDER FUNCTIONS (mostly unchanged) ---
+        function renderSidebar() {
+            const container = document.getElementById('sidebar-content');
+            container.innerHTML = '';
+
+            promptData.aspects.forEach(aspect => {
+                const aspectBtn = document.createElement('button');
+                aspectBtn.className = `w-full text-left px-4 py-3 rounded-lg font-medium text-sm transition-all mb-1 flex justify-between items-center group hover:bg-gray-50 text-gray-700`;
+                aspectBtn.onclick = () => toggleAspect(aspect.id);
+                aspectBtn.innerHTML = `
+                    <span>${aspect.name}</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform duration-300 transform ${activeAspectId === aspect.id ? 'rotate-180' : ''}" id="icon-${aspect.id}"></i>
+                `;
+                
+                container.appendChild(aspectBtn);
+
+                const formulaContainer = document.createElement('div');
+                formulaContainer.id = `formulas-${aspect.id}`;
+                formulaContainer.className = `ml-4 pl-4 border-l border-gray-200 space-y-1 mb-3 overflow-hidden transition-all duration-300 ${activeAspectId === aspect.id ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`;
+                
+                aspect.formulas.forEach(formula => {
+                    const fBtn = document.createElement('button');
+                    fBtn.id = `btn-${formula.id}`;
+                    fBtn.className = `w-full text-left px-3 py-2 text-xs rounded-md transition-colors hover:text-blue-600 hover:bg-blue-50 text-gray-500 block truncate`;
+                    fBtn.innerText = formula.name;
+                    fBtn.onclick = () => selectFormula(aspect.id, formula.id);
+                    formulaContainer.appendChild(fBtn);
+                });
+
+                container.appendChild(formulaContainer);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleAspect(aspectId) {
+            const prevId = activeAspectId;
+            activeAspectId = (activeAspectId === aspectId) ? null : aspectId;
+            
+            promptData.aspects.forEach(a => {
+                const el = document.getElementById(`formulas-${a.id}`);
+                const icon = document.getElementById(`icon-${a.id}`);
+                if (a.id === activeAspectId) {
+                    el.classList.remove('max-h-0', 'opacity-0');
+                    el.classList.add('max-h-96', 'opacity-100');
+                    icon.classList.add('rotate-180');
+                } else {
+                    el.classList.add('max-h-0', 'opacity-0');
+                    el.classList.remove('max-h-96', 'opacity-100');
+                    icon.classList.remove('rotate-180');
+                }
+            });
+        }
+
+        function selectFormula(aspectId, formulaId) {
+            const aspect = promptData.aspects.find(a => a.id === aspectId);
+            const formula = aspect.formulas.find(f => f.id === formulaId);
+            
+            activeFormula = formula;
+            
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+                btn.classList.remove('sidebar-item-active');
+                btn.classList.remove('font-semibold');
+            });
+            const activeBtn = document.getElementById(`btn-${formulaId}`);
+            if(activeBtn) {
+                activeBtn.classList.add('sidebar-item-active');
+                activeBtn.classList.add('font-semibold');
+            }
+
+            document.getElementById('current-formula-title').innerHTML = `
+                <span class="text-gray-400 font-normal text-base mr-2">${aspect.name.split('.')[1].trim()} /</span>
+                ${formula.name}
+            `;
+
+            renderMainArea();
+            generatePrompt();
+            
+            // On mobile, auto close sidebar after selection
+            if(window.innerWidth < 768) {
+                document.querySelector('aside').classList.add('hidden');
+            }
+        }
+
+        function renderMainArea() {
+            if (!activeFormula) return;
+
+            const varContainer = document.getElementById('variables-container');
+            const varSection = document.getElementById('variables-section');
+            varContainer.innerHTML = '';
+            varSection.classList.remove('hidden');
+            
+            currentVariables = {};
+
+            activeFormula.variables.forEach((variable) => {
+                currentVariables[variable.name] = variable.options[0];
+
+                const wrapper = document.createElement('div');
+                wrapper.className = "grid grid-cols-1 md:grid-cols-3 gap-4 items-center";
+
+                const label = document.createElement('label');
+                label.className = "text-sm font-medium text-gray-600";
+                label.innerText = variable.label;
+
+                const selectWrapper = document.createElement('div');
+                selectWrapper.className = "md:col-span-2 relative";
+
+                const select = document.createElement('select');
+                select.className = "w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 appearance-none cursor-pointer hover:bg-gray-100 transition-colors";
+                select.id = `input-${variable.name}`;
+                select.onchange = (e) => handleVariableChange(e, variable.name);
+
+                variable.options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.innerText = opt;
+                    select.appendChild(option);
+                });
+
+                const customOpt = document.createElement('option');
+                customOpt.value = "__custom__";
+                customOpt.innerText = "+ 新增自定義項目...";
+                customOpt.className = "text-blue-600 font-bold";
+                select.appendChild(customOpt);
+
+                const chevron = document.createElement('div');
+                chevron.className = "absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none";
+                chevron.innerHTML = `<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
+
+                selectWrapper.appendChild(select);
+                selectWrapper.appendChild(chevron);
+
+                wrapper.appendChild(label);
+                wrapper.appendChild(selectWrapper);
+                varContainer.appendChild(wrapper);
+            });
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('aside');
+            sidebar.classList.toggle('hidden');
+            // Make it absolute on mobile
+            sidebar.classList.toggle('absolute');
+            sidebar.classList.toggle('h-full');
+        }
+
+        // --- LOGIC HANDLERS ---
+        function handleFileUpload(input) {
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            // For now, we reset uploaded images/files on new upload to keep it simple
+            // and append text content to the existing context.
+            uploadedFiles = []; 
+            document.getElementById('context-input').value = '';
+
+            if (!input.files || input.files.length === 0) return;
+
+            Array.from(input.files).forEach(file => {
+                const reader = new FileReader();
+                const isTextFile = file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md');
+                const isImageFile = file.type.startsWith('image/') && ['image/png', 'image/jpeg', 'image/webp'].includes(file.type);
+
+                if (isTextFile) {
+                    reader.onload = function(e) {
+                        let content = e.target.result;
+                        if (content.length > MAX_CONTEXT_LENGTH) {
+                             content = content.substring(0, MAX_CONTEXT_LENGTH) + '\n\n... [文件過長，已截斷至 10000 字元] ...';
+                             alert(`警告：文字文件 "${file.name}" 過長，已自動截斷至 ${MAX_CONTEXT_LENGTH} 字元並匯入下方文字框。`);
+                        }
+                        
+                        // Append text to the context input
+                        const contextInput = document.getElementById('context-input');
+                        contextInput.value += (contextInput.value ? '\n\n---\n' : '') + 
+                                              `【文件: ${file.name} 內容】\n${content}`;
+                        
+                        generatePrompt(); // Regenerate prompt with new context
+                    };
+                    reader.readAsText(file);
+                    
+                    const badge = document.createElement('span');
+                    badge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200";
+                    badge.innerHTML = `<i data-lucide="file-text" class="w-3 h-3 mr-1"></i> ${file.name} (文字內容已匯入)`;
+                    fileList.appendChild(badge);
+
+                } else if (isImageFile) {
+                    reader.onload = function(e) {
+                        // Base64 data for API call (strip the mime type prefix)
+                        const base64Data = e.target.result.split(',')[1];
+                        
+                        // Store image data for API call
+                        uploadedFiles.push({
+                            name: file.name,
+                            mimeType: file.type,
+                            data: base64Data
+                        });
+                        
+                        // Display image thumbnail
+                        const imageContainer = document.createElement('div');
+                        imageContainer.className = "relative group";
+                        imageContainer.innerHTML = `
+                            <img src="${e.target.result}" alt="${file.name}" class="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-md">
+                            <span class="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-1 rounded-bl-lg rounded-tr-lg">圖像</span>
+                        `;
+                        fileList.appendChild(imageContainer);
+                        generatePrompt();
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    const badge = document.createElement('span');
+                    badge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200";
+                    badge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3 mr-1"></i> ${file.name} (格式不支援)`;
+                    fileList.appendChild(badge);
+                }
+            });
+            lucide.createIcons();
+            // Note: generatePrompt() is called inside the readers' onload for async handling
+        }
+
+
+        function handleVariableChange(e, varName) {
+            if (e.target.value === "__custom__") {
+                customTargetInputId = `input-${varName}`;
+                document.getElementById('custom-modal').classList.remove('hidden');
+                document.getElementById('custom-modal').classList.add('flex');
+                document.getElementById('custom-input-value').focus();
+            } else {
+                currentVariables[varName] = e.target.value;
+                generatePrompt();
+            }
+        }
+
+        function closeCustomModal() {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            
+            const select = document.getElementById(customTargetInputId);
+            if (select && select.value === "__custom__") {
+                 const key = customTargetInputId.replace('input-', '');
+                 select.value = currentVariables[key];
+            }
+        }
+
+        function confirmCustomValue() {
+            const val = document.getElementById('custom-input-value').value.trim();
+            if (val) {
+                const select = document.getElementById(customTargetInputId);
+                const varName = customTargetInputId.replace('input-', '');
+                
+                const newOpt = document.createElement('option');
+                newOpt.value = val;
+                newOpt.innerText = val;
+                select.insertBefore(newOpt, select.lastElementChild);
+                
+                select.value = val;
+                currentVariables[varName] = val;
+                
+                document.getElementById('custom-input-value').value = '';
+                generatePrompt();
+            }
+            closeCustomModal();
+        }
+
+        function generatePrompt() {
+            if (!activeFormula) return;
+
+            let promptText = activeFormula.template;
+            
+            for (const [key, value] of Object.entries(currentVariables)) {
+                promptText = promptText.replace(`{${key}}`, value);
+            }
+
+            const context = document.getElementById('context-input').value;
+            const isGroundingEnabled = document.getElementById('grounding-switch').checked;
+            
+            let supplement = "";
+            if (context || uploadedFiles.length > 0 || isGroundingEnabled) {
+                supplement += "\n\n---\n### 補充情境與資料 (Context & Data)\n";
+                
+                if (isGroundingEnabled) {
+                    supplement += "【重要指示】由於您已開啟**網路資訊落地 (Grounding)**，請務必使用 Google Search Tool 獲取並納入最新的、經過驗證的資料來執行任務。如果提示詞包含查詢意圖，請將其作為搜索關鍵詞。\n";
+                }
+
+                if (uploadedFiles.length > 0) {
+                    const imageNames = uploadedFiles.filter(f => f.mimeType.startsWith('image')).map(f => f.name).join(', ');
+                    supplement += `【圖像提示】使用者已上傳 ${uploadedFiles.length} 張圖像素材 (${imageNames})。請將這些視覺資訊納入你的研究與分析中。\n`;
+                }
+
+                if (context) {
+                    supplement += `【背景說明與文字素材】以下是使用者提供的額外背景或需分析的文字：\n\n\`\`\`text\n${context}\n\`\`\`\n`;
+                }
+            }
+
+            document.getElementById('output-area').value = promptText + supplement;
+        }
+
+        function copyToClipboard(elementId = 'output-area') {
+            const copyText = document.getElementById(elementId);
+            copyText.select();
+            document.execCommand("copy");
+            alert("內容已複製到剪貼簿！");
+        }
+        
+        function copyApiResult() {
+             navigator.clipboard.writeText(latestApiResultText).then(() => {
+                alert("Gemini 回應已複製！");
+            });
+        }
+
+        function downloadTxt() {
+            const text = document.getElementById("output-area").value;
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', 'Gemini_Deep_Research_Prompt.txt');
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+        
+        function resetForm() {
+            document.getElementById('context-input').value = '';
+            document.getElementById('file-list').innerHTML = '';
+            document.getElementById('grounding-switch').checked = false;
+            uploadedFiles = []; // Reset uploaded files
+            if(activeFormula) {
+                activeFormula.variables.forEach(v => {
+                    currentVariables[v.name] = v.options[0];
+                    document.getElementById(`input-${v.name}`).value = v.options[0];
+                });
+            }
+            generatePrompt();
+        }
+
+        // --- GEMINI API INTEGRATION ---
+        
+        async function callGeminiAction(mode) {
+            const currentPrompt = document.getElementById('output-area').value;
+            if(!currentPrompt) {
+                alert("請先生成基礎提示詞！");
+                return;
+            }
+            
+            const isGroundingEnabled = document.getElementById('grounding-switch').checked;
+
+            const modal = document.getElementById('api-modal');
+            const titleEl = document.getElementById('api-modal-title');
+            const contentEl = document.getElementById('api-content');
+            const loadingEl = document.getElementById('api-loading');
+            const errorEl = document.getElementById('api-error');
+            const useBtn = document.getElementById('btn-use-refined');
+            const iconEl = document.getElementById('api-modal-icon');
+            const sourcesContainer = document.getElementById('api-sources');
+            const sourcesList = document.getElementById('sources-list');
+
+
+            // Setup Modal State
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            contentEl.innerHTML = '';
+            errorEl.classList.add('hidden');
+            loadingEl.classList.remove('hidden');
+            loadingEl.classList.add('flex');
+            useBtn.classList.add('hidden');
+            sourcesContainer.classList.add('hidden');
+            sourcesList.innerHTML = '';
+
+            let systemPrompt = "";
+            if (mode === 'refine') {
+                titleEl.innerText = "Gemini 智能優化提示詞";
+                iconEl.className = "w-5 h-5 text-blue-600";
+                systemPrompt = "You are an expert Prompt Engineer specialized in Chain-of-Thought and Complex Reasoning tasks. Your goal is to optimize the user's prompt to be more effective for Large Language Models. Improve clarity, structure, and robustness without changing the core intent. Return ONLY the improved prompt in plain text (you can use markdown formatting like bolding). Do not add conversational filler.";
+                // Enable "Use This" button for refine mode
+                useBtn.classList.remove('hidden');
+            } else {
+                titleEl.innerText = "Gemini 模擬試跑結果";
+                iconEl.className = "w-5 h-5 text-emerald-600";
+                systemPrompt = "You are a high-capability AI simulator. Act as the persona described in the prompt and provide a HIGH-QUALITY, CONCISE sample output (approx 300-500 words) to demonstrate how you would respond to this request. This is a 'Preview Run' to help the user verify their prompt logic.";
+            }
+
+            try {
+                const { text, sources } = await fetchGemini(currentPrompt, systemPrompt, isGroundingEnabled);
+                
+                loadingEl.classList.add('hidden');
+                loadingEl.classList.remove('flex');
+                
+                latestApiResultText = text; // Save plain text for copy/apply
+                
+                // Parse Markdown for display
+                contentEl.innerHTML = marked.parse(text);
+
+                // Display sources if available
+                if (sources.length > 0) {
+                    sourcesContainer.classList.remove('hidden');
+                    sources.forEach(source => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<a href="${source.uri}" target="_blank" class="text-blue-600 hover:underline">${source.title}</a>`;
+                        sourcesList.appendChild(li);
+                    });
+                }
+
+            } catch (error) {
+                loadingEl.classList.add('hidden');
+                loadingEl.classList.remove('flex');
+                errorEl.innerText = `API 錯誤: ${error.message}`;
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        async function fetchGemini(userPrompt, systemInstruction, isGroundingEnabled) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            // Build the contents array for multimodal input
+            let contentsParts = [];
+            
+            // 1. Add uploaded image parts (if any)
+            uploadedFiles.forEach(file => {
+                if (file.mimeType.startsWith('image')) {
+                    contentsParts.push({
+                        inlineData: {
+                            mimeType: file.mimeType,
+                            data: file.data
+                        }
+                    });
+                }
+            });
+            
+            // 2. Add the text prompt part (Always last for best results with multimodal)
+            contentsParts.push({ text: userPrompt });
+
+            // The full contents array
+            const payload = {
+                contents: [{ parts: contentsParts }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+            
+            if (isGroundingEnabled) {
+                payload.tools = [{ "google_search": {} }];
+            }
+
+            // Exponential backoff logic
+            const maxRetries = 5;
+            let currentDelay = 1000; // 1 second
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            // Retry on rate limit
+                            await new Promise(resolve => setTimeout(resolve, currentDelay));
+                            currentDelay *= 2;
+                            continue;
+                        }
+                        throw new Error(data.error?.message || `HTTP Error: ${response.status}`);
+                    }
+                    
+                    const candidate = data.candidates?.[0];
+                    const text = candidate?.content?.parts?.[0]?.text || "No content generated.";
+                    
+                    let sources = [];
+                    const groundingMetadata = candidate?.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+                    
+                    return { text, sources };
+
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                         throw error;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, currentDelay));
+                    currentDelay *= 2;
+                }
+            }
+        }
+
+        function closeApiModal() {
+            const modal = document.getElementById('api-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function applyRefinedPrompt() {
+            if(latestApiResultText) {
+                document.getElementById('output-area').value = latestApiResultText;
+                closeApiModal();
+                // Small visual feedback
+                const area = document.getElementById('output-area');
+                area.classList.add('bg-blue-50');
+                setTimeout(() => area.classList.remove('bg-blue-50'), 500);
+            }
+        }
+
+    </script>
+</body>
+</html>
