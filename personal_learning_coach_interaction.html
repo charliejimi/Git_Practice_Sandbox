@@ -4,13 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>影片學習小助手 - 證據分析與彙整版</title>
+  <title>影片學習小助手 - 證據分析與 N+1 推論版</title>
   <!-- 載入 Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- 載入 React, ReactDOM, Babel CDN -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- 載入 PDF.js 以支援 PDF 解析 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <!-- Tailwind 設定 -->
   <script>
@@ -69,26 +71,18 @@
 
   <!-- 核心應用程式邏輯 (使用 Babel 處理 JSX) -->
   <script type="text/babel">
+    // 設定 PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     // 為了在 CDN 環境中運行，我們從全域變數中解構 React 鉤子
-    const { useState, useCallback, useEffect } = React; // <-- 移除 useRef
+    const { useState, useCallback, useEffect } = React;
 
     // -----------------------------------------------------------------------------
     // 輔助函式 (Helper Functions)
     // -----------------------------------------------------------------------------
 
     /**
-     * (移除 base64ToArrayBuffer 函式)
-     */
-
-    /**
-     * (移除 pcmToWav 函式)
-     */
-
-
-    /**
-     * 將 File 物件轉換為 Base64 字串
-     * @param {File} file 使用者上傳的圖片檔案
-     * @returns {Promise<string>} 包含 Base64 編碼的 Data URL
+     * 將 File 物件轉換為 Base64 字串 (用於圖片)
      */
     const toBase64 = (file) => new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -96,6 +90,33 @@
       reader.onload = () => resolve(reader.result);
       reader.onerror = error => reject(error);
     });
+
+    /**
+     * 讀取文字檔案 (.txt)
+     */
+    const readTextFile = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsText(file);
+    });
+
+    /**
+     * 讀取 PDF 檔案並提取純文字
+     */
+    const readPdfFile = async (file) => {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = "";
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(" ");
+        fullText += `[Page ${i}] ${pageText}\n`;
+      }
+      return fullText;
+    };
 
     /**
      * 具有指數退避重試機制的 fetch 函式
@@ -134,28 +155,33 @@
      * 主應用程式組件
      */
     function App() {
-      // 狀態管理
+      // --- 基本資料狀態 ---
       const [problemStatement, setProblemStatement] = useState(''); // 欲解決的問題或目標
       const [transcript, setTranscript] = useState(''); // 逐字稿文字
       const [images, setImages] = useState([]); // { name: string, base64: string }
-      const [chatHistory, setChatHistory] = useState([]); // { role: 'user' | 'model', text: string }
-      const [userQuery, setUserQuery] = useState(''); // 使用者目前輸入的問題
-      const [isLoading, setIsLoading] = useState(false); // 是否正在等待 AI 回應
-      const [categorization, setCategorization] = useState(''); // 最終的歸類總結
-      const [importedSummary, setImportedSummary] = useState(''); // 新增: 匯入的上次總結內容
-      const [importedFileName, setImportedFileName] = useState(''); // 匯入的檔案名稱
+      
+      // --- N+1 補充資料狀態 ---
+      const [suppText, setSuppText] = useState(''); // 使用者直接貼上的補充文字
+      const [suppFiles, setSuppFiles] = useState([]); // [{ type: 'image'|'text', name: string, content: string(base64 or text) }]
 
-      // (移除 audioUrl, isTtsLoading, audioRef 狀態和 ref)
-      const [quizContent, setQuizContent] = useState(''); // 生成的測驗題內容
-      const [isQuizLoading, setIsQuizLoading] = useState(false); // 測驗題專用的 Loading 狀態
-      const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 控制側邊欄顯示/隱藏
+      // --- 互動與系統狀態 ---
+      const [chatHistory, setChatHistory] = useState([]); 
+      const [userQuery, setUserQuery] = useState(''); 
+      const [isLoading, setIsLoading] = useState(false); 
+      const [categorization, setCategorization] = useState(''); 
+      const [importedSummary, setImportedSummary] = useState(''); 
+      const [importedFileName, setImportedFileName] = useState(''); 
+
+      const [quizContent, setQuizContent] = useState(''); 
+      const [isQuizLoading, setIsQuizLoading] = useState(false); 
+      const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
 
 
       // !!! 重要: 請在這裡貼上您的 Google AI Studio API 金鑰 !!!
       const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU";
 
       /**
-       * 處理圖片上傳
+       * 處理基本圖片上傳 (原始資料)
        */
       const handleImageUpload = async (e) => {
         if (e.target.files) {
@@ -177,11 +203,50 @@
         }
       };
 
-      /**
-       * 移除單張圖片
-       */
       const removeImage = (index) => {
         setImages(prev => prev.filter((_, i) => i !== index));
+      };
+
+      /**
+       * 處理 N+1 補充資料上傳 (支援 PDF, TXT, 圖片)
+       */
+      const handleSuppFileUpload = async (e) => {
+        if (!e.target.files) return;
+        setIsLoading(true);
+        const fileList = Array.from(e.target.files);
+        const newFiles = [];
+
+        for (const file of fileList) {
+            try {
+                let fileData = null;
+                if (file.type === 'application/pdf') {
+                    const text = await readPdfFile(file);
+                    fileData = { type: 'text', name: file.name, content: text };
+                } else if (file.type === 'text/plain') {
+                    const text = await readTextFile(file);
+                    fileData = { type: 'text', name: file.name, content: text };
+                } else if (file.type.startsWith('image/')) {
+                    const base64 = await toBase64(file);
+                    fileData = { type: 'image', name: file.name, content: base64 };
+                } else {
+                    alert(`不支援的檔案格式: ${file.name}。僅支援 PDF, TXT, JPG, PNG。`);
+                    continue;
+                }
+                if(fileData) newFiles.push(fileData);
+            } catch (error) {
+                console.error(`處理檔案 ${file.name} 失敗:`, error);
+                alert(`讀取 ${file.name} 失敗，請確認檔案是否損毀。`);
+            }
+        }
+
+        setSuppFiles(prev => [...prev, ...newFiles]);
+        setIsLoading(false);
+        // 清空 input 以便重複上傳
+        e.target.value = null;
+      };
+
+      const removeSuppFile = (index) => {
+        setSuppFiles(prev => prev.filter((_, i) => i !== index));
       };
 
       /**
@@ -198,7 +263,6 @@
             const content = event.target.result;
             setImportedSummary(content);
             setImportedFileName(file.name);
-            // 清空 file input value，以便再次選擇同一個檔案
             e.target.value = null;
             alert('匯入成功：上次的總結內容已載入，將在下次歸納時進行彙整。');
           } catch (error) {
@@ -208,13 +272,6 @@
             setIsLoading(false);
           }
         };
-
-        reader.onerror = (error) => {
-          console.error("檔案讀取錯誤:", error);
-          setIsLoading(false);
-          alert("檔案讀取錯誤。");
-        };
-
         reader.readAsText(file);
       };
 
@@ -241,7 +298,7 @@
 
 
       /**
-       * 呼叫 Gemini API (Text/Vision)
+       * 呼叫 Gemini API
        */
       const callGeminiAPI = async (contents, systemInstruction, model = 'gemini-2.5-flash-preview-09-2025') => {
         if (!apiKey) {
@@ -280,9 +337,7 @@
         }
       };
 
-      // (移除 handleTextToSpeech 函式)
-
-      // [!!! 測驗題新功能: 生成測驗題 !!!]
+      // [測驗題功能]
       const handleGenerateQuestions = async () => {
         if (!categorization || isQuizLoading) return;
 
@@ -292,30 +347,11 @@
         const systemInstruction = `
                 你是一位測驗設計專家。
                 你的任務是根據使用者提供的最終總結內容，生成 3-5 道測驗題，以幫助使用者檢視他們對總結中主要概念的掌握程度。
-
-                **請嚴格遵循以下要求：**
-                1. 僅使用總結內容作為出題依據，不要引入外部資訊。
-                2. 題目類型可以是選擇題、是非題或簡答題，但請務必提供正確答案或參考答案。
+                請嚴格遵循以下要求：
+                1. 僅使用總結內容作為出題依據。
+                2. 題目類型可以是選擇題、是非題或簡答題，務必提供正確答案。
                 3. 必須使用繁體中文。
-                
-                **輸出格式：**
-                請使用清晰的 Markdown 格式，將題目、選項（如果適用）和答案/解析列出。
-
-                範例格式：
-                
-                ### 學習成效檢測
-                
-                1. 根據總結，影片中提到彈性工作帶來的主要優點是什麼？ (簡答題)
-                
-                **答案/解析：** [在此提供答案]
-                
-                2. 選擇題：以下哪個選項是總結中提及的挑戰？
-                   A. 交通問題
-                   B. 遠端協作的複雜性
-                   C. 辦公室租金上漲
-                   D. 咖啡品質下降
-                
-                **答案/解析：** B. 遠端協作的複雜性
+                輸出格式：Markdown。
             `;
 
         const contents = [{
@@ -324,21 +360,12 @@
         }];
 
         try {
-          // ✨ 修正：使用 callGeminiAPI 之前，確保 isQuizLoading 為 true
-          // (已在上方設置)
-          // 並且在 callGeminiAPI 內部不要動 isQuizLoading
-
-          // 暫時將全局 isLoading 設置為 true，以便 callGeminiAPI 正常工作
-          // 但我們主要依賴 isQuizLoading 來控制 UI
-
           const quizText = await callGeminiAPI(contents, systemInstruction);
           setQuizContent(quizText);
         } catch (error) {
           console.error("生成測驗題失敗:", error);
           setQuizContent("抱歉，生成測驗題時發生錯誤。");
         } finally {
-          // ✨ 修正：callGeminiAPI 內部會重置 isLoading，
-          // 我們需要在這裡重置 isQuizLoading
           setIsQuizLoading(false);
         }
       };
@@ -347,86 +374,97 @@
       const hasPreviousSummary = categorization && categorization.trim() !== '';
 
       /**
-       * 處理使用者提問 (證據分析式)
+       * 處理使用者提問 (證據分析式 + N+1 推論)
        */
       const handleQuerySubmit = async (e) => {
         e.preventDefault();
         if (!userQuery.trim() || isLoading) return;
-        // 清空測驗題和音頻，準備開始新一輪提問
         setQuizContent('');
-        // (移除 audioUrl 和 audioRef 相關程式碼)
 
         const newUserMessage = { role: 'user', text: userQuery };
         setChatHistory(prev => [...prev, newUserMessage]);
-        const currentQuery = userQuery; // 儲存當前問題
+        const currentQuery = userQuery;
         setUserQuery('');
 
-        // --- 準備 API 請求 ---
+        // --- 準備 System Prompt ---
+        const inferenceInstructions = `
+          **特別指令：N+1 / N+2 推論機制**
+          當使用者明確要求「根據資料推論」、「推測」、「如果...會怎樣」或詢問目前資料無法直接回答的問題時，請務必依照以下三個結構進行回應：
+          
+          ### 1. 現狀確認 (N)
+          - **已知事實：** 明確指出目前提供的資料 (逐字稿/截圖) 中確認了什麼事實。
+          - **缺口說明：** 說明為什麼這些資料不足以直接回答問題。
+          
+          ### 2. 推理過程 (N+1 / N+2)
+          - **邏輯推演：** 基於已知事實 (N)，進行合理的邏輯延伸。
+          - **條列式展示：** **必須使用條列式清單** 一步步展示推理邏輯 (例如：1. 因為事實 A... 2. 通常情況下 B 意味著 C... 3. 故推測 D)。
+          - 清楚區分哪些是「證據」哪些是「推論」。
+          
+          ### 3. 提升準確度的資料需求 (關鍵)
+          - **需要的資料方向：** 為了讓上述推論 (N+1) 變為確定的事實 (N)，系統**必須要求**使用者補充特定方向的資料。
+          - **具體建議：** 請明確告訴使用者「哪個方向」的資料有幫助。
+            - 例如：「為了證實這點，請提供 [設定選單] 的截圖」或「請確認逐字稿中是否有關於 [XX 功能] 的討論」。
+          - **目的說明：** 解釋這份新資料將如何驗證推論的正確性。
+
+          **注意：** 如果使用者已經在「補充驗證資料」區塊提供了資料，請優先參考該資料來驗證之前的推論，並在回答中明確指出「根據您新提供的補充資料...」。
+        `;
 
         let systemPrompt;
+        let baseInstructions = hasPreviousSummary 
+            ? `你是一位證據型學習分析教練。你先前已經幫助使用者歸納出一個總結。現在，使用者正在對該總結或原始資料提出「後續追問」。`
+            : `你是一位證據型學習分析教練。你的主要目標是幫助使用者利用資料回答問題。`;
 
-        if (hasPreviousSummary) {
-          // 情況 B: 已經有總結，使用者正在提追問
-          systemPrompt = `
-                你是一位證據型學習分析教練。你先前已經幫助使用者歸納出一個總結。
-                現在，使用者正在對該總結或原始資料提出「後續追問」。
+        let responseFormat = hasPreviousSummary
+            ? `**一般回答步驟 (若非推論請求)：** 1. 回顧總結 2. 定位新證據 3. 連結。`
+            : `**一般回答步驟 (若非推論請求)：** 1. 定位與摘要 2. 提供摘要與位置 3. 解釋相關性。`;
 
-                **請遵循以下步驟：**
+        systemPrompt = `
+            ${baseInstructions}
+            ${inferenceInstructions}
+            ${responseFormat}
+            **輸出格式 (繁體中文)：**
+            如果是推論請求，請依照「N+1 推論機制」的格式輸出。
+            否則請依照一般回答步驟。
+        `;
 
-                1. **回顧總結：** 首先，簡短地重述一次「先前的總結」的核心要點，提醒使用者目前的上下文。
-                2. **定位新證據：** 根據使用者的「最新問題」，在「原始資料」（逐字稿、圖片）和「先前的總結」中尋找最相關的證據。
-                3. **回答並連結：** 回答使用者的最新問題，並說明這個答案如何與「先前的總結」相連結或對其進行補充。
-                
-                **輸出格式 (使用中文繁體，必須包含這三個標題)：**
-
-                **回顧上次總結：** [簡短重述 categorization 的核心內容]
-                **針對新問題的分析：：** [根據新問題，從資料中找到的證據摘要]
-                **與總結的關聯性：** [解釋新答案如何補充或修正先前的總結]
-              `;
-        } else {
-          // 情況 A: 這是第一次或尚未總結前的提問
-          systemPrompt = `
-                你是一位證據型學習分析教練。你的主要目標是幫助使用者利用他們提供的資料（逐字稿和圖片）來回答他們的問題，並達成他們的探索目標。
-
-                **請遵循以下步驟和格式，不要省略任何一步：**
-
-                1. **定位與摘要：** 根據使用者最新的問題 (Query) 和他們設定的探索目標 (Problem Statement)，在提供的逐字稿和圖片中找出 **最相關的證據或片段**。
-                2. **提供摘要與位置：** 以簡潔的方式摘要這段證據的內容，並明確指出它位於哪個部分（例如：逐字稿的哪個主題/段落，或第幾張圖片的內容）。
-                3. **解釋相關性與引導：** 說明為什麼這段證據與使用者的提問最相關，以及這段證據如何幫助他們推進對探索目標的理解。
-                
-                **輸出格式 (使用中文繁體，必須包含這三個標題，且內容必須使用 Markdown 格式化)：**
-
-                **相關證據定位與摘要：** [簡短描述證據來源和內容摘要]
-                **與提問的相關性說明：：** [解釋為什麼這段資訊與使用者的問題相關]
-                **下一步引導：：** [提出一個引導性問題，鼓勵使用者根據這段摘要進一步思考或確認，以得出自己的結論。]
-
-                請完全依賴使用者提供的資料，不要引入任何外部知識。如果資料中找不到明確答案，請引導使用者思考資料的局限性。
-              `;
-        }
-
-        // 建立內容 parts
+        // --- 建立內容 parts ---
         const contentParts = [
           { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
-          { text: "這是我的逐字稿：\n" + (transcript || "使用者尚未提供逐字稿。") },
+          { text: "這是我的原始逐字稿：\n" + (transcript || "使用者尚未提供逐字稿。") },
         ];
 
-        // 新增圖片
+        // 原始圖片
         images.forEach((img, i) => {
-          contentParts.push({ text: `這是我上傳的第 ${i + 1} 張截圖 (名稱: ${img.name})：` });
+          contentParts.push({ text: `原始截圖 ${i + 1} (名稱: ${img.name})：` });
           const base64Data = img.base64.split(',')[1];
           const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
           const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-
-          contentParts.push({
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
-            }
-          });
+          contentParts.push({ inlineData: { mimeType: mimeType, data: base64Data } });
         });
 
+        // --- 加入 N+1 補充資料 ---
+        if (suppText.trim() || suppFiles.length > 0) {
+            contentParts.push({ text: "\n=== 使用者提供的補充驗證資料 (N+1) ===\n請使用以下資料來驗證或修正你的推論，或回答需要更多資訊的問題。" });
+            
+            if (suppText.trim()) {
+                contentParts.push({ text: `補充文字說明：\n${suppText}` });
+            }
+
+            suppFiles.forEach((file, i) => {
+                if (file.type === 'text') {
+                    contentParts.push({ text: `補充文件 ${i + 1} (${file.name}) 內容：\n${file.content}` });
+                } else if (file.type === 'image') {
+                    contentParts.push({ text: `補充截圖 ${i + 1} (名稱: ${file.name})：` });
+                    const base64Data = file.content.split(',')[1];
+                    const mimeTypeMatch = file.content.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+                    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+                    contentParts.push({ inlineData: { mimeType: mimeType, data: base64Data } });
+                }
+            });
+        }
+
         if (hasPreviousSummary) {
-          contentParts.push({ text: `這是我「先前」得到的總結內容（請以此為基礎進行回顧和分析）：\n${categorization}` });
+          contentParts.push({ text: `這是我「先前」得到的總結內容：\n${categorization}` });
         }
 
         contentParts.push({ text: `我的最新問題是：${currentQuery}` });
@@ -434,299 +472,234 @@
         const contents = [{ role: "user", parts: contentParts }];
 
         // --- 呼叫 API ---
-        // ✨ 修正：在 callGeminiAPI 內部，isLoading 會被設置為 true/false
         const modelResponseText = await callGeminiAPI(contents, systemPrompt);
         const newModelMessage = { role: 'model', text: modelResponseText };
         setChatHistory(prev => [...prev, newModelMessage]);
       };
 
       /**
-       * 處理總結歸類請求 (包含上次匯入的內容)
+       * 處理總結歸類
        */
       const handleCategorize = async () => {
         if (isLoading || isQuizLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)) {
           setCategorization("請先提供資料或匯入上次的總結，我才能幫您彙整總結。");
           return;
         }
-        // 每次生成新的總結時，清空測驗題和音頻
         setQuizContent('');
-        // (移除 audioUrl 和 audioRef 相關程式碼)
 
-        // 系統指令：要求 AI 扮演總結者，總結內容必須回應「要解決的問題」
         const integrationPrompt = importedSummary ?
-          "**重要指令：** 提供了「上次的探索總結結果」。請將其內容與本次提供的所有新資料和對話進行智慧彙整，並輸出一個全面、升級且更完整的總結。如果兩次主題相同，請合併並深化見解。" :
-          "";
+          "**重要指令：** 提供了「上次的探索總結結果」。請將其內容與本次提供的所有新資料和對話進行智慧彙整，並輸出一個全面、升級且更完整的總結。" : "";
 
         const systemPrompt = `
               你是一個總結助手。
               ${integrationPrompt}
-              請根據以下使用者定義的目標、提供的逐字稿、圖片、以及我們的對話記錄，幫助使用者總結他們在對話中「自己發現」的重點，並且總結內容必須圍繞著「${problemStatement || '影片的主要內容'}」來回答。
-              請將這些重點整理成一個簡潔的摘要或條列式清單，並為這個主題提供一個或多個可能的「分類標籤」。
+              請根據以下使用者定義的目標、提供的逐字稿、圖片、補充資料以及我們的對話記錄，幫助使用者總結他們在對話中「自己發現」的重點，並且總結內容必須圍繞著「${problemStatement || '影片的主要內容'}」來回答。
               格式範例：
-              **解決目標：** [使用者定義的目標]
-              **摘要/發現：** [根據對話和資料得到的結論]
-              **分類標籤：** #標籤A #標籤B
+              **解決目標：** [目標]
+              **摘要/發現：** [結論]
+              **分類標籤：** #標籤A
             `;
 
-        // 建立內容 parts
+        // 建構總結用的 context，也需要包含補充資料
         const contentParts = [
           { text: `使用者定義的本次探索目標（問題）是：${problemStatement || '無明確目標'}` },
           { text: "這是我的逐字稿：\n" + (transcript || "未提供") },
         ];
-
-        images.forEach((img, i) => {
-          contentParts.push({ text: `截圖 ${i + 1} (名稱: ${img.name})：` });
-
-          const base64Data = img.base64.split(',')[1];
-          const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-
-          contentParts.push({
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
-            }
-          });
+        
+        images.forEach((img, i) => { /* 簡略：添加原始圖片邏輯 (同 handleQuerySubmit) */
+             const base64Data = img.base64.split(',')[1];
+             const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+             contentParts.push({ text: `截圖 ${i+1}:`, inlineData: { mimeType: mimeTypeMatch?mimeTypeMatch[1]:'image/jpeg', data: base64Data } });
         });
 
-        // 新增上次匯入的總結內容
-        contentParts.push({ text: `以下是上次的探索總結結果（如果有的話，請智慧彙整）：\n${importedSummary || '無上次總結結果。'}` });
+        // 添加補充資料至總結
+        if (suppText.trim() || suppFiles.length > 0) {
+             contentParts.push({ text: "補充驗證資料：" + suppText });
+             suppFiles.forEach(f => {
+                 if(f.type === 'text') contentParts.push({ text: `補充文件 (${f.name}): ${f.content}` });
+                 if(f.type === 'image') {
+                     const b64 = f.content.split(',')[1];
+                     const mime = f.content.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+                     contentParts.push({ text: `補充圖片 (${f.name}):`, inlineData: { mimeType: mime?mime[1]:'image/jpeg', data: b64 }});
+                 }
+             });
+        }
 
-        contentParts.push({ text: "這是我們的對話記錄：\n" + chatHistory.map(msg => `${msg.role === 'user' ? '我' : '教練'}: ${msg.text}`).join('\n') });
-        contentParts.push({ text: "請根據以上所有資料，幫我總結並歸類我的發現，總結內容必須聚焦於我的目標。" });
+        contentParts.push({ text: `上次匯入總結：\n${importedSummary || '無'}` });
+        contentParts.push({ text: "對話記錄：\n" + chatHistory.map(msg => `${msg.role === 'user' ? '我' : '教練'}: ${msg.text}`).join('\n') });
+        contentParts.push({ text: "請根據以上資料總結。" });
 
         const contents = [{ role: "user", parts: contentParts }];
-
-        // --- Call API ---
-        // ✨ 修正：callGeminiAPI 內部會處理 isLoading
         const categorizationText = await callGeminiAPI(contents, systemPrompt);
         setCategorization(categorizationText);
       };
 
-      // ---------------------------------------------------------------------------
-      // 渲染 JSX
-      // ---------------------------------------------------------------------------
-
-      /**
-       * 渲染 AI 回覆的區塊 (使用 pre 標籤來保留 Markdown 格式化，例如換行和粗體)
-       */
       const ModelMessage = ({ text }) => (
         <div className="flex justify-start">
-          <div
-            className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200 ai-response-block"
-          >
+          <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200 ai-response-block">
             <pre className="whitespace-pre-wrap">{text}</pre>
           </div>
         </div>
       );
 
-      // ✨ 修正：在 React 組件中定義全局 Loading 狀態
-      // (isLoading: 處理文字生成)
-      // (isQuizLoading: 處理測驗生成)
-      const isOverallLoading = isLoading || isQuizLoading; // <-- 修正重複宣告錯誤
+      const isOverallLoading = isLoading || isQuizLoading;
 
       return (
         <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans text-gray-800">
-          {/* ----- 左側：資料上傳面板 (可收折) ----- */}
+          {/* ----- 左側：資料上傳面板 ----- */}
           <div className={`${isSidebarOpen ? 'w-full md:w-4/12 lg:w-3/12' : 'hidden'} p-4 overflow-y-auto space-y-4 border-r border-gray-300 min-h-[40vh] md:h-full transition-all duration-300 ease-in-out bg-gray-50`}>
+            
+            {/* 1. 設定與資料 */}
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-700">1. 設定與資料</h2>
+              <h2 className="text-xl font-bold text-gray-700">1. 基礎設定與資料</h2>
               <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-500 hover:text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
-            {/* 目標輸入 */}
             <div className="bg-white p-4 rounded-lg shadow-md border border-indigo-200">
-              <label htmlFor="problemStatement" className="block text-lg font-bold text-indigo-700 mb-2">
-                本次探索目標 (要解決的問題)
-              </label>
+              <label htmlFor="problemStatement" className="block text-lg font-bold text-indigo-700 mb-2">本次探索目標</label>
               <textarea
                 id="problemStatement"
-                rows="3"
-                className="w-full p-3 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="例如：這部影片是否支持「彈性工作」的觀點？"
+                rows="2"
+                className="w-full p-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                placeholder="例如：這部影片是否支持..."
                 value={problemStatement}
                 onChange={(e) => setProblemStatement(e.target.value)}
                 disabled={isOverallLoading}
               />
             </div>
 
-            {/* 匯入上次總結 */}
             <div className="bg-white p-4 rounded-lg shadow-md border border-yellow-200">
-              <label htmlFor="importSummary" className="block text-lg font-bold text-yellow-700 mb-2">
-                匯入上次探索總結 (.md 或 .txt)
-              </label>
-              <input
-                type="file"
-                id="importSummary"
-                accept=".md,.txt"
-                onChange={handleImport}
-                className="block w-full text-sm text-gray-500
-                          file:mr-4 file:py-2 file:px-4
-                          file:rounded-full file:border-0
-                          file:text-sm file:font-semibold
-                          file:bg-yellow-50 file:text-yellow-700
-                          hover:file:bg-yellow-100"
-                disabled={isOverallLoading}
-              />
-              {importedSummary && (
-                <p className="mt-2 text-sm text-yellow-600 truncate" title={importedSummary}>
-                  已載入上次總結：**{importedFileName}**
-                  <button onClick={() => { setImportedSummary(''); setImportedFileName(''); }} className="ml-2 text-red-500 hover:text-red-700 font-bold" disabled={isOverallLoading}>
-                    [清除]
-                  </button>
-                </p>
+              <label className="block text-sm font-bold text-yellow-700 mb-1">匯入上次總結 (.md/.txt)</label>
+              <input type="file" accept=".md,.txt" onChange={handleImport} className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100" disabled={isOverallLoading}/>
+              {importedSummary && <p className="mt-1 text-xs text-yellow-600 truncate">已載入：{importedFileName}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">基礎逐字稿</label>
+              <textarea rows="4" className="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm" placeholder="貼上逐字稿..." value={transcript} onChange={(e) => setTranscript(e.target.value)} disabled={isOverallLoading}/>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">基礎截圖</label>
+              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" disabled={isOverallLoading}/>
+              {images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="relative group"><img src={img.base64} className="w-full h-16 object-cover rounded border"/><button onClick={()=>removeImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100">×</button></div>
+                  ))}
+                </div>
               )}
             </div>
+            
+            <hr className="border-gray-300 my-2" />
 
-            {/* 逐字稿輸入 */}
-            <div>
-              <label htmlFor="transcript" className="block text-lg font-medium text-gray-600 mb-2">
-                貼上影片逐字稿
-              </label>
+            {/* 4. N+1 驗證資料區塊 (New) */}
+            <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+              <h2 className="text-lg font-bold text-orange-800 mb-2 flex items-center">
+                 N+1 驗證資料
+                 <span className="ml-2 text-xs font-normal bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full">提升準確度</span>
+              </h2>
+              
+              {/* 文字補充 */}
+              <label className="block text-sm font-medium text-orange-700 mb-1">補充文字/觀察：</label>
               <textarea
-                id="transcript"
-                rows="7"
-                className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="請在這裡貼上您的逐字稿..."
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
+                rows="3"
+                className="w-full p-2 border border-orange-300 rounded bg-white text-sm mb-3 focus:ring-2 focus:ring-orange-400 focus:outline-none"
+                placeholder="直接貼上新的證據文字..."
+                value={suppText}
+                onChange={(e) => setSuppText(e.target.value)}
                 disabled={isOverallLoading}
               />
-            </div>
 
-            {/* 圖片上傳 */}
-            <div>
-              <label className="block text-lg font-medium text-gray-600 mb-2">
-                上傳關鍵截圖
-              </label>
+              {/* 檔案補充 */}
+              <label className="block text-sm font-medium text-orange-700 mb-1">上傳佐證檔案 (PDF, TXT, 圖片)：</label>
               <input
                 type="file"
                 multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
+                accept=".pdf,.txt,image/*"
+                onChange={handleSuppFileUpload}
+                className="block w-full text-xs text-gray-500
+                      file:mr-2 file:py-1 file:px-2
                       file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
+                      file:text-xs file:font-semibold
+                      file:bg-orange-100 file:text-orange-700
+                      hover:file:bg-orange-200"
                 disabled={isOverallLoading}
               />
+
+              {/* 補充檔案列表 */}
+              {suppFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                    {suppFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white p-1.5 rounded border border-orange-100 text-xs">
+                            <span className="truncate max-w-[80%] text-gray-600" title={file.name}>
+                                {file.type === 'image' ? '🖼️' : (file.name.endsWith('.pdf') ? '📄' : '📝')} {file.name}
+                            </span>
+                            <button onClick={() => removeSuppFile(idx)} className="text-red-500 hover:text-red-700 font-bold px-1">×</button>
+                        </div>
+                    ))}
+                </div>
+              )}
             </div>
 
-            {/* 圖片預覽 */}
-            {images.length > 0 && (
-              <div className="mt-4">
-                <h3 className="font-semibold text-gray-600">已上傳的截圖：</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                  {images.map((image, index) => (
-                    <div key={index} className="relative group p-1 bg-white rounded-lg border shadow-sm">
-                      <img src={image.base64} alt={image.name} className="w-full h-24 object-cover rounded" />
-                      <p className="text-xs text-gray-500 truncate mt-1 px-1" title={image.name}>{image.name}</p>
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-0 right-0 m-1 p-0.5 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-label="移除圖片"
-                        disabled={isOverallLoading}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* ----- 右側：互動與總結 ----- */}
           <div className={`${isSidebarOpen ? 'w-full md:w-8/12 lg:w-9/12' : 'w-full'} p-4 flex flex-col h-full transition-all duration-300 ease-in-out relative`}>
 
-            {/* 側邊欄切換按鈕 (當側邊欄隱藏時顯示，或在桌面版顯示以切換) */}
             {!isSidebarOpen && (
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="absolute top-4 left-4 z-10 p-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-100 text-gray-600"
-                title="展開設定面板"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+              <button onClick={() => setIsSidebarOpen(true)} className="absolute top-4 left-4 z-10 p-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-100 text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+            )}
+             {isSidebarOpen && (
+              <button onClick={() => setIsSidebarOpen(false)} className="hidden md:block absolute top-6 left-[-12px] z-10 p-1 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-100 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
             )}
 
-            {/* 桌面版：即使側邊欄打開，也提供一個收折按鈕在頂部導航列或適當位置 (這裡選擇放在標題旁或獨立懸浮，為了簡潔，我們放在標題列左側) */}
-            {isSidebarOpen && (
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="hidden md:block absolute top-6 left-[-12px] z-10 p-1 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-100 text-gray-500"
-                title="收折面板"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            )}
-
-            {/* 聊天介面 (步驟 2) */}
+            {/* 聊天介面 */}
             <div className="flex-1 md:min-h-[35rem] flex flex-col border border-gray-300 rounded-lg shadow-lg bg-white overflow-hidden">
               <h2 className="text-2xl font-bold text-gray-700 p-4 border-b border-gray-200 pl-8 md:pl-4">
                 2. 開始探索與證據分析
               </h2>
 
-              {/* 聊天記錄 */}
               <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
                 {chatHistory.length === 0 && (
                   <div className="text-center text-gray-500 mt-8">
                     <p>請先設定目標並上傳資料。</p>
-                    <p className="text-sm">教練將根據您的提問，提供證據分析和引導。</p>
-                    {problemStatement && <p className="text-sm font-semibold text-indigo-500 mt-2">目標: {problemStatement}</p>}
+                    <p className="text-sm">若教練要求補充資料，請使用左側的「N+1 驗證資料」區塊上傳。</p>
                   </div>
                 )}
                 {chatHistory.map((msg, index) => (
                   msg.role === 'user' ? (
                     <div key={index} className="flex justify-end">
-                      <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-blue-600 text-white">
-                        {msg.text}
-                      </div>
+                      <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-md bg-blue-600 text-white">{msg.text}</div>
                     </div>
                   ) : (
                     <ModelMessage key={index} text={msg.text} />
                   )
                 ))}
-                {/* ✨ 修正：這裡的 Loading 指示器只在 'isLoading' (文字生成) 時顯示 */}
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
-                      </div>
-                    </div>
-                  </div>
+                  <div className="flex justify-start"><div className="px-4 py-3 rounded-lg shadow-md bg-white text-gray-800 border border-gray-200">Thinking...</div></div>
                 )}
               </div>
 
-              {/* 輸入框 (步驟 2 的一部分) */}
               <form onSubmit={handleQuerySubmit} className="p-4 border-t border-gray-200 bg-white">
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    placeholder={hasPreviousSummary ? "基於總結繼續提問..." : "根據您的資料提問..."}
+                    placeholder="提問..."
                     value={userQuery}
                     onChange={(e) => setUserQuery(e.target.value)}
-                    disabled={isOverallLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)}
+                    disabled={isOverallLoading}
                   />
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
+                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 btn-fancy"
                     disabled={isOverallLoading || !userQuery.trim()}
                   >
                     {hasPreviousSummary ? '追問' : '發送'}
@@ -735,72 +708,33 @@
               </form>
             </div>
 
-            {/* 總結歸類 (步驟 3) */}
+            {/* 總結歸類 */}
             <div className="mt-4 p-4 border border-gray-300 rounded-lg shadow-lg bg-white">
-              <h2 className="text-2xl font-bold text-gray-700 mb-3">3. 總結歸類與彙整</h2>
+              <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-2xl font-bold text-gray-700">3. 總結歸類與彙整</h2>
+              </div>
               <button
                 onClick={handleCategorize}
-                className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy"
-                disabled={isOverallLoading || (!transcript && images.length === 0 && chatHistory.length === 0 && !importedSummary)}
+                className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 btn-fancy"
+                disabled={isOverallLoading}
               >
-                {isLoading ? '處理中...' : (importedSummary ? '彙整並升級我的發現' : '幫我總結我的發現')}
+                {isLoading ? '處理中...' : '總結我的發現 (含 N+1 資料)'}
               </button>
 
               {categorization && (
                 <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <h3 className="font-bold text-green-800">本次總結：</h3>
                   <pre className="whitespace-pre-wrap font-sans text-gray-700 mt-2">{categorization}</pre>
-
-                  {/* 朗讀/測驗題/匯出按鈕區 */}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {/* (移除 TTS 按鈕) */}
-
-                    {/* 測驗題按鈕 (NEW FEATURE 2) */}
-                    <button
-                      onClick={handleGenerateQuestions}
-                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                      className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 btn-fancy text-sm"
-                    >
-                      {isQuizLoading ? '生成中...' : '生成測驗題 ✨'}
-                    </button>
-
-                    {/* 清除總結 (回到提問) 按鈕 */}
-                    <button
-                      onClick={() => {
-                        setCategorization('');
-                        setQuizContent(''); // 清除測驗題
-                        // ✨ 修正：移除 audioUrl 和 audioRef 相關程式碼
-                      }}
-                      className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 btn-fancy text-sm"
-                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                    >
-                      清除總結 (回到提問)
-                    </button>
-
-                    <button
-                      onClick={handleExport}
-                      className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 btn-fancy text-sm"
-                      disabled={isOverallLoading} // ✨ 修正：使用全局 Loading 狀態
-                    >
-                      匯出總結 (.md)
-                    </button>
+                    <button onClick={handleGenerateQuestions} disabled={isOverallLoading} className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 btn-fancy text-sm">{isQuizLoading ? '生成中...' : '生成測驗題 ✨'}</button>
+                    <button onClick={() => {setCategorization(''); setQuizContent('');}} className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 btn-fancy text-sm" disabled={isOverallLoading}>清除總結</button>
+                    <button onClick={handleExport} className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 btn-fancy text-sm" disabled={isOverallLoading}>匯出總結</button>
                   </div>
 
-                  {/* (移除 TTS 播放器) */}
-
-                  {/* 測驗題顯示區 (NEW FEATURE 2 Display) */}
-                  {/* ✨ 修正：使用 isQuizLoading 顯示 Loading 狀態 */}
-                  {isQuizLoading && (
-                    <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-center text-purple-700">
-                      測驗題生成中...
-                    </div>
-                  )}
-
+                  {isQuizLoading && <div className="mt-4 text-center text-purple-700">測驗題生成中...</div>}
                   {quizContent && !isQuizLoading && (
                     <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg ai-response-block">
-                      <h3 className="font-bold text-purple-800 flex items-center mb-2">
-                        測驗與反思題
-                      </h3>
+                      <h3 className="font-bold text-purple-800 mb-2">測驗與反思題</h3>
                       <pre className="whitespace-pre-wrap font-sans text-gray-700">{quizContent}</pre>
                     </div>
                   )}
@@ -812,9 +746,7 @@
       );
     }
 
-    // 初始化 React 應用程式
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
-
 </html>
