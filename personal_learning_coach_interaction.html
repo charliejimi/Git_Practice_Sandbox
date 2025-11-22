@@ -178,7 +178,7 @@
 
 
       // !!! 重要: 請在這裡貼上您的 Google AI Studio API 金鑰 !!!
-      const apiKey = "AIzaSyDgEJp5PR_XH2mAKQd_FsCDOABtLPkI9qU";
+      const apiKey = "AIzaSyC_j3fFjAMZumVnAdlVG5DOtEaCFgIQzSs"; // 請在此處填入您的 API Key
 
       /**
        * 處理基本圖片上傳 (原始資料)
@@ -303,6 +303,7 @@
       const callGeminiAPI = async (contents, systemInstruction, model = 'gemini-2.5-flash-preview-09-2025') => {
         if (!apiKey) {
           setIsLoading(false);
+          alert("錯誤：請先在程式碼中貼上您的 API 金鑰！");
           return "錯誤：請先在程式碼中貼上您的 API 金鑰！";
         }
         setIsLoading(true);
@@ -506,10 +507,13 @@
           { text: "這是我的逐字稿：\n" + (transcript || "未提供") },
         ];
         
-        images.forEach((img, i) => { /* 簡略：添加原始圖片邏輯 (同 handleQuerySubmit) */
+        // 修正點 1：拆分圖片描述與資料，避免 "oneof" 錯誤
+        images.forEach((img, i) => {
              const base64Data = img.base64.split(',')[1];
              const mimeTypeMatch = img.base64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-             contentParts.push({ text: `截圖 ${i+1}:`, inlineData: { mimeType: mimeTypeMatch?mimeTypeMatch[1]:'image/jpeg', data: base64Data } });
+             const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+             contentParts.push({ text: `截圖 ${i+1}:` });
+             contentParts.push({ inlineData: { mimeType: mimeType, data: base64Data } });
         });
 
         // 添加補充資料至總結
@@ -517,10 +521,13 @@
              contentParts.push({ text: "補充驗證資料：" + suppText });
              suppFiles.forEach(f => {
                  if(f.type === 'text') contentParts.push({ text: `補充文件 (${f.name}): ${f.content}` });
+                 // 修正點 2：拆分補充圖片描述與資料，避免 "oneof" 錯誤
                  if(f.type === 'image') {
                      const b64 = f.content.split(',')[1];
                      const mime = f.content.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-                     contentParts.push({ text: `補充圖片 (${f.name}):`, inlineData: { mimeType: mime?mime[1]:'image/jpeg', data: b64 }});
+                     const mimeType = mime ? mime[1] : 'image/jpeg';
+                     contentParts.push({ text: `補充圖片 (${f.name}):` });
+                     contentParts.push({ inlineData: { mimeType: mimeType, data: b64 }});
                  }
              });
         }
