@@ -147,7 +147,7 @@
                 <!-- Image Analysis Section for Natural Cycles -->
                 <div class="mt-8 pt-6 border-t border-slate-200">
                     <h3 class="text-xl font-semibold text-emerald-600 mb-4">圖像情境分析（自然循環）</h3>
-                    <p class="mb-3 text-slate-600">上傳一張與自然循環相關的照片 (例如：植物、天氣、動物生命週期)，AI 將分析其可寫的流程細節。</p>
+                    <p class="mb-3 text-slate-600">上傳一張與自然循環相關的照片 (例如：植物、天氣、動物生命週期)，AI 將分析其可寫的流程細節。<br><span class="text-xs text-emerald-600 font-semibold">*注意：AI 將會特別提醒您在此類題型中使用主動語態 (Active Voice)。</span></p>
                     
                     <div class="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
                         <div class="flex-grow">
@@ -355,7 +355,7 @@
     </div>
 
     <script>
-        const API_KEY = "AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs";
+        const apiKey = "AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs";
         const LLM_TEXT_MODEL = 'gemini-2.5-flash-preview-09-2025';
         const LLM_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
         const loadingIndicator = document.getElementById('loading-indicator');
@@ -453,7 +453,7 @@
 
         // LLM Text Generation Function
         const generateContent = async (userQuery, systemPrompt) => {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${apiKey}`;
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -485,9 +485,16 @@
 
         // LLM Image Analysis Function (using multimodal capabilities)
         const analyzeImage = async (base64Image, mimeType, category) => {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${apiKey}`;
             
-            const userQuery = `請分析這張圖片，並以 IELTS Task 1 流程圖寫作的角度，說明圖片中的物體、動作或狀態如何能被描述為一個流程。這個流程屬於「${category}」類型。`;
+            // --- 修正開始：針對自然循環添加強制主動語態提醒 ---
+            let extraInstruction = "";
+            if (category.includes("Natural Cycles") || category.includes("自然循環")) {
+                extraInstruction = " 重要提醒：針對「自然循環」類型，請在回應中明確提醒學生，描述自然界生物生長或循環時，必須使用「主動語態」(Active Voice)。";
+            }
+            // --- 修正結束 ---
+
+            const userQuery = `請分析這張圖片，並以 IELTS Task 1 流程圖寫作的角度，說明圖片中的物體、動作或狀態如何能被描述為一個流程。這個流程屬於「${category}」類型。${extraInstruction}`;
             
             const payload = {
                 contents: [{
@@ -519,7 +526,7 @@
         // LLM TTS Generation Function
         const generateTTS = async (text, audioId) => {
             const audioPlayer = document.getElementById(audioId);
-            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TTS_MODEL}:generateContent?key=${API_KEY}`;
+            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TTS_MODEL}:generateContent?key=${apiKey}`;
             
             // --- 修正：定義播放結束時的動作 ---
             const onAudioEnd = () => {
