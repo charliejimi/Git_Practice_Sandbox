@@ -1,0 +1,37 @@
+<rpc message-id="1" xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+      <edit-config>
+        <target>
+          <running/>
+        </target>
+        <config>
+        <mds:manager-directory xmlns:mds="http://www.nokia.com/management-solutions/manager-directory-service">
+          <mds:global-poll-interval>3600</mds:global-poll-interval>
+          <mds:manager-info>
+        <mds:name>av</mds:name>
+        <mds:site-name>site1</mds:site-name>
+        <mds:manager-type>NAV</mds:manager-type>
+        <mds:geo-supported>false</mds:geo-supported>
+        <mds:protocol>https</mds:protocol>
+        <mds:http-url>https://202.39.123.117/nokiasolution-altiplano-av </mds:http-url>
+        <mds:ip>nokiasolution-altiplano-av</mds:ip>
+        <mds:user-name>adminuser</mds:user-name>
+        <mds:password>$-0$2Ge7ZafdMJMvH3sebgZ+0oKU1Q7ndV/Ag8cPzGO7dFE=</mds:password>
+        <mds:max-connections>20</mds:max-connections>
+        <mds:max-netconf-connections>50</mds:max-netconf-connections>
+        <mds:poll-start-time>0</mds:poll-start-time>
+        <mds:socket-connect-timeout>15</mds:socket-connect-timeout>
+        <mds:socket-read-timeout>300</mds:socket-read-timeout>
+        <mds:file-transfer-protocol>http and https</mds:file-transfer-protocol>
+        <mds:ipfix-authentication-method>mutual-tls</mds:ipfix-authentication-method>
+        <mds:ipfix-fe-collector-ip-address>202.39.123.117</mds:ipfix-fe-collector-ip-address>
+        <mds:ipfix-fe-collector-password>$-0$0O7XtJn7q5l1VXxFBi5cU6xlkbllv3gLPHHORiSlW+g=</mds:ipfix-fe-collector-password>
+        <mds:ipfix-fe-collector-port>30494</mds:ipfix-fe-collector-port>
+        <mds:ipfix-fe-collector-tls-port>30493</mds:ipfix-fe-collector-tls-port>
+        <mds:ipfix-fe-collector-username>adminuser</mds:ipfix-fe-collector-username>
+        <mds:license-server-port>8443</mds:license-server-port>
+        <mds:netconf-port>6514</mds:netconf-port>
+          </mds:manager-info>
+        </mds:manager-directory>
+        </config>
+      </edit-config>
+    </rpc>
