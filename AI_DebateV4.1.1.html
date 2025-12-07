@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 安全辯論管線 (Anti-Hallucination Pipeline)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* 動畫 */
+        .glow-blue { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .glow-red { box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+        .glow-green { box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }
+
+        .pulse-border-blue { animation: pulse-blue 2s infinite; }
+        .pulse-border-red { animation: pulse-red 2s infinite; }
+        .pulse-border-green { animation: pulse-green 2s infinite; }
+
+        @keyframes pulse-blue { 0% { border-color: rgba(59, 130, 246, 0.5); } 50% { border-color: rgba(59, 130, 246, 1); } 100% { border-color: rgba(59, 130, 246, 0.5); } }
+        @keyframes pulse-red { 0% { border-color: rgba(239, 68, 68, 0.5); } 50% { border-color: rgba(239, 68, 68, 1); } 100% { border-color: rgba(239, 68, 68, 0.5); } }
+        @keyframes pulse-green { 0% { border-color: rgba(34, 197, 94, 0.5); } 50% { border-color: rgba(34, 197, 94, 1); } 100% { border-color: rgba(34, 197, 94, 0.5); } }
+
+        /* 滾動條 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        /* 驗證標籤樣式 */
+        .verify-badge { display: inline-flex; items-align: center; gap: 4px; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-top: 4px; }
+        .verify-pass { background-color: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+        .verify-fail { background-color: #450a0a; color: #fca5a5; border: 1px solid #dc2626; }
+        .verify-loading { background-color: #1e3a8a; color: #93c5fd; border: 1px solid #2563eb; animation: pulse 1s infinite; }
+
+        .citation-ref { color: #38bdf8; text-decoration: underline; cursor: help; }
+        .modal-bg { background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-emerald-500"></i> System Configuration
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">可隨時調整 API Key 與 Token 參數。<br>調整後將立即應用於下一個 Agent 動作。</p>
+            
+            <div class="space-y-4 mb-6">
+                <!-- API Keys -->
+                <div class="p-3 bg-slate-900/50 rounded border border-slate-700">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase mb-3">API Credentials</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-blue-400 text-xs font-bold mb-1">Gemini API Key (Retriever & Pro & Judge)</label>
+                            <input type="password" id="geminiKey" placeholder="Enter Gemini Key" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-red-400 text-xs font-bold mb-1">Groq API Key (Con & Verifier)</label>
+                            <input type="password" id="groqKey" placeholder="Enter Groq Key" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-red-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Token Settings -->
+                <div class="p-3 bg-slate-900/50 rounded border border-slate-700">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase mb-3">Model Parameters (Max Tokens)</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-emerald-400 text-xs font-bold mb-1">Verifier Tokens</label>
+                            <input type="number" id="verifierTokens" value="200" min="50" max="2000" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                            <div class="text-[10px] text-slate-500 mt-1">用於查證模組 (建議 200-500)</div>
+                        </div>
+                        <div>
+                            <label class="block text-orange-400 text-xs font-bold mb-1">Con Agent Tokens</label>
+                            <input type="number" id="conTokens" value="400" min="100" max="4000" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-orange-500">
+                            <div class="text-[10px] text-slate-500 mt-1">用於反方辯論 (建議 300-800)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                 <button onclick="saveSettings()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg transition-colors shadow-lg shadow-emerald-900/20">
+                    <i class="fa-solid fa-save mr-2"></i> Save & Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-700 p-3 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg">S</div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-wide">Safety <span class="text-emerald-400">Pipeline</span></h1>
+                <p class="text-[10px] text-slate-400 mono">Retriever -> Argue -> Verify -> Audit</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 items-center">
+            <!-- Settings Button -->
+            <button onclick="openSettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white w-9 h-9 rounded flex items-center justify-center transition-colors border border-slate-600" title="Settings">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+            <input type="text" id="topicInput" placeholder="輸入辯論主題 (例: 遠距工作是否降低生產力)" 
+                   class="bg-slate-800 text-white px-3 py-1.5 rounded border border-slate-600 focus:border-emerald-500 w-56 md:w-80 text-sm">
+            
+            <button onclick="startPipeline()" id="startBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded font-bold text-sm flex items-center gap-2">
+                <i class="fa-solid fa-play"></i>
+            </button>
+            <button onclick="stopPipeline()" id="stopBtn" disabled class="bg-slate-700 text-slate-400 px-3 py-1.5 rounded font-bold text-sm">
+                <i class="fa-solid fa-stop"></i>
+            </button>
+            <button onclick="toggleDocs()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded font-bold text-sm" title="Show/Hide Context">
+                <i class="fa-solid fa-database"></i> 知識庫
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative bg-slate-900">
+        
+        <!-- Knowledge Retriever Panel (Left Sidebar) -->
+        <div id="docPanel" class="w-0 md:w-1/4 bg-slate-950 border-r border-slate-800 flex flex-col transition-all duration-300 overflow-hidden">
+            <div class="p-3 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+                <h3 class="text-emerald-400 font-bold text-sm"><i class="fa-solid fa-database mr-1"></i> Retrieved Context</h3>
+                <span class="text-[10px] text-slate-500">Source of Truth</span>
+            </div>
+            <div id="docContainer" class="flex-1 overflow-y-auto p-3 space-y-3">
+                <div class="text-center text-slate-600 text-xs mt-10">
+                    等待初始化...<br>Retriever 將在此生成模擬文件
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Arena -->
+        <div class="flex-1 flex flex-col relative min-w-0">
+            
+            <!-- Pipeline Progress Bar -->
+            <div class="bg-slate-800/80 p-2 flex justify-center gap-4 text-[10px] font-mono border-b border-slate-700">
+                <div id="step-retriever" class="text-slate-500"><i class="fa-solid fa-search"></i> RETRIEVE</div>
+                <div class="text-slate-600">→</div>
+                <div id="step-pro" class="text-slate-500"><i class="fa-solid fa-user-tie"></i> PRO</div>
+                <div class="text-slate-600">→</div>
+                <div id="step-verifier-1" class="text-slate-500"><i class="fa-solid fa-magnifying-glass"></i> VERIFY</div>
+                <div class="text-slate-600">→</div>
+                <div id="step-con" class="text-slate-500"><i class="fa-solid fa-user-shield"></i> CON</div>
+                <div class="text-slate-600">→</div>
+                <div id="step-verifier-2" class="text-slate-500"><i class="fa-solid fa-magnifying-glass"></i> VERIFY</div>
+                <div class="text-slate-600">→</div>
+                <div id="step-judge" class="text-slate-500"><i class="fa-solid fa-gavel"></i> JUDGE</div>
+            </div>
+
+            <!-- Chat Container -->
+            <div id="chatContainer" class="flex-1 p-4 overflow-y-auto space-y-6 pb-20">
+                <!-- Welcome Message -->
+                <div class="text-center text-slate-500 mt-10 text-sm">
+                    <i class="fa-solid fa-shield-virus text-4xl mb-3 opacity-30"></i>
+                    <p>安全辯論管線已準備就緒。</p>
+                    <p class="text-xs text-slate-600 mt-2">請設定 API Keys 並輸入主題開始。</p>
+                </div>
+            </div>
+
+            <!-- Verifier Floating Status -->
+            <div id="verifierStatus" class="absolute bottom-4 right-4 bg-slate-800 border border-slate-600 p-3 rounded-lg shadow-xl text-xs hidden max-w-xs transition-all">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                    <span class="font-bold text-slate-200">Verifier Agent Working...</span>
+                </div>
+                <div class="text-slate-400" id="verifierText">Checking citations against Source ID: 2...</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Config & State ---
+        let config = { 
+            geminiKey: '', 
+            groqKey: '',
+            verifierTokens: 200,
+            conTokens: 400
+        };
+
+        let state = {
+            isRunning: false,
+            topic: '',
+            docs: [], // RAG Retrieved Documents
+            history: [],
+            round: 0,
+            maxRounds: 3,
+            auditLog: [] // Stores verification results for the Judge
+        };
+
+        const ui = {
+            chat: document.getElementById('chatContainer'),
+            docs: document.getElementById('docContainer'),
+            docPanel: document.getElementById('docPanel'),
+            verifier: document.getElementById('verifierStatus'),
+            verifierText: document.getElementById('verifierText'),
+            settingsModal: document.getElementById('settingsModal'),
+            steps: {
+                retriever: document.getElementById('step-retriever'),
+                pro: document.getElementById('step-pro'),
+                v1: document.getElementById('step-verifier-1'),
+                con: document.getElementById('step-con'),
+                v2: document.getElementById('step-verifier-2'),
+                judge: document.getElementById('step-judge')
+            }
+        };
+
+        // --- Core Functions ---
+
+        function openSettings() {
+            // Restore current values to inputs
+            document.getElementById('geminiKey').value = config.geminiKey;
+            document.getElementById('groqKey').value = config.groqKey;
+            document.getElementById('verifierTokens').value = config.verifierTokens;
+            document.getElementById('conTokens').value = config.conTokens;
+            
+            ui.settingsModal.classList.remove('hidden');
+        }
+
+        function saveSettings() {
+            const gKey = document.getElementById('geminiKey').value.trim();
+            const grKey = document.getElementById('groqKey').value.trim();
+            const vTokens = parseInt(document.getElementById('verifierTokens').value) || 200;
+            const cTokens = parseInt(document.getElementById('conTokens').value) || 400;
+
+            if (!gKey || !grKey) return alert("請輸入有效的 API Keys");
+
+            config.geminiKey = gKey;
+            config.groqKey = grKey;
+            config.verifierTokens = vTokens;
+            config.conTokens = cTokens;
+
+            ui.settingsModal.classList.add('hidden');
+            
+            // If this is the first save (no run yet), open doc panel hint
+            if (!state.isRunning && state.round === 0) {
+                ui.docPanel.classList.remove('w-0');
+                ui.docPanel.classList.add('w-full', 'md:w-1/4');
+            }
+        }
+
+        function toggleDocs() {
+            if (ui.docPanel.classList.contains('w-0')) {
+                ui.docPanel.classList.remove('w-0');
+                ui.docPanel.classList.add('w-full', 'md:w-1/4');
+            } else {
+                ui.docPanel.classList.add('w-0');
+                ui.docPanel.classList.remove('w-full', 'md:w-1/4');
+            }
+        }
+
+        function setStepActive(stepId) {
+            Object.values(ui.steps).forEach(el => el.className = "text-slate-500 opacity-50");
+            const active = document.getElementById(stepId);
+            if(active) active.className = "text-emerald-400 font-bold scale-110 transition-transform glow-green";
+        }
+
+        function addMessage(role, content, verification = null) {
+            const div = document.createElement('div');
+            let styles = '';
+            let icon = '';
+            let name = role;
+
+            if (role === 'Retriever') {
+                styles = 'bg-slate-800 border-slate-600 text-slate-300 mx-auto max-w-2xl text-center text-xs italic';
+                icon = '<i class="fa-solid fa-database"></i>';
+            } else if (role === 'Pro') {
+                styles = 'bg-blue-900/20 border-blue-500/50 text-blue-100 self-start mr-12';
+                icon = '<i class="fa-solid fa-user-tie"></i>';
+                name = 'Pro Agent (Alpha)';
+            } else if (role === 'Con') {
+                styles = 'bg-red-900/20 border-red-500/50 text-red-100 self-end ml-12';
+                icon = '<i class="fa-solid fa-user-shield"></i>';
+                name = 'Con Agent (Omega)';
+            } else if (role === 'Judge') {
+                styles = 'bg-yellow-900/20 border-yellow-500 text-yellow-100 w-full max-w-3xl mx-auto';
+                icon = '<i class="fa-solid fa-gavel"></i>';
+            } else if (role === 'Verifier') {
+                 styles = 'bg-emerald-900/30 border-emerald-500/50 text-emerald-200 text-xs w-3/4 mx-auto';
+                 icon = '<i class="fa-solid fa-check-double"></i>';
+            } else if (role === 'System') {
+                 styles = 'bg-slate-700/50 text-slate-400 text-center text-xs italic py-2';
+                 icon = '<i class="fa-solid fa-info-circle"></i>';
+            }
+
+            div.className = `p-4 rounded-lg border ${styles} relative animate-fade-in`;
+            
+            // Format Content
+            const formattedContent = marked.parse(content);
+            
+            // Verification Badge Logic
+            let badgeHtml = '';
+            if (verification) {
+                const isPass = verification.status === 'PASS';
+                const colorClass = isPass ? 'verify-pass' : 'verify-fail';
+                const iconClass = isPass ? 'fa-check' : 'fa-triangle-exclamation';
+                badgeHtml = `
+                    <div class="border-t border-white/10 mt-3 pt-2">
+                        <div class="verify-badge ${colorClass}">
+                            <i class="fa-solid ${iconClass}"></i> 
+                            ${verification.status}: ${verification.reason}
+                        </div>
+                    </div>
+                `;
+            }
+
+            div.innerHTML = `
+                <div class="flex items-center gap-2 mb-2 opacity-70 text-xs font-bold uppercase tracking-wider">
+                    ${icon} ${name}
+                </div>
+                <div class="prose prose-invert prose-sm max-w-none leading-relaxed">
+                    ${formattedContent}
+                </div>
+                ${badgeHtml}
+            `;
+            
+            ui.chat.appendChild(div);
+            ui.chat.scrollTo({ top: ui.chat.scrollHeight, behavior: 'smooth' });
+            return div; // Return for updates
+        }
+
+        // --- Simulated RAG Logic ---
+
+        async function fetchKnowledgeBase(topic) {
+            setStepActive('step-retriever');
+            ui.docs.innerHTML = '<div class="text-center text-emerald-500 animate-pulse"><i class="fa-solid fa-circle-notch fa-spin"></i> Retrieving & Indexing...</div>';
+
+            const systemPrompt = `
+                你是一個 RAG (Retrieval-Augmented Generation) 模擬器。
+                請針對主題 "${topic}" 生成 3 到 4 段「真實且具體」的知識片段。
+                
+                格式要求 (JSON Array):
+                [
+                    { "id": "doc_1", "source": "Wikipedia/Topic", "timestamp": "2023-10", "content": "..." },
+                    { "id": "doc_2", "source": "Official Report", "timestamp": "2024-01", "content": "..." }
+                ]
+                
+                內容必須看起來像從網頁或文件中擷取的真實段落。包含數據、定義或具體事實。不要寫觀點，只寫事實。
+            `;
+
+            try {
+                const response = await callGeminiAPI(systemPrompt, "Generate Docs");
+                
+                // 更穩健的 JSON 解析，尋找第一個 [ ... ]
+                const jsonMatch = response.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) {
+                    throw new Error("Retriever response did not contain valid JSON array.");
+                }
+                state.docs = JSON.parse(jsonMatch[0]);
+                
+                // Render Docs
+                ui.docs.innerHTML = '';
+                state.docs.forEach(doc => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900 border border-slate-700 p-2 rounded text-xs hover:border-emerald-500 transition-colors cursor-pointer group";
+                    card.innerHTML = `
+                        <div class="flex justify-between text-slate-500 mb-1">
+                            <span class="font-mono text-emerald-400 font-bold">[${doc.id}]</span>
+                            <span>${doc.timestamp}</span>
+                        </div>
+                        <div class="text-slate-300 line-clamp-3 group-hover:line-clamp-none transition-all">${doc.content}</div>
+                        <div class="text-[10px] text-slate-500 mt-1 italic">${doc.source}</div>
+                    `;
+                    ui.docs.appendChild(card);
+                });
+                
+                addMessage('Retriever', `已建立知識庫索引，共 ${state.docs.length} 篇文檔。此後所有論點必須基於此。`);
+                return true;
+            } catch (e) {
+                console.error("Knowledge Base Fetch Error:", e);
+                ui.docs.innerHTML = `<div class="text-red-400 text-xs text-center">Retriever Error:<br>${e.message}</div>`;
+                addMessage('System', `Retriever 初始化失敗: ${e.message}。請檢查 API Key 或網路連線。`);
+                return false;
+            }
+        }
+
+        // --- Verifier Logic ---
+        
+        async function runVerification(claimText, agentRole) {
+            const stepId = agentRole === 'Pro' ? 'step-verifier-1' : 'step-verifier-2';
+            setStepActive(stepId);
+            ui.verifier.classList.remove('hidden');
+            ui.verifierText.innerText = `Analyzing ${agentRole}'s citations (Tokens: ${config.verifierTokens})...`;
+
+            // Prepare Context
+            const docContext = state.docs.map(d => `[${d.id}]: ${d.content}`).join('\n\n');
+            
+            const prompt = `
+                你是 Verifier (查證模組)。
+                任務：檢查下方 "${agentRole}" 的發言是否忠實引用了提供的知識庫文件。
+                
+                知識庫 (Ground Truth):
+                ${docContext}
+                
+                發言內容:
+                ${claimText}
+                
+                規則：
+                1. 檢查每個引用 [doc_x] 是否存在。
+                2. 檢查引用內容是否被斷章取義或捏造 (Hallucination)。
+                3. 如果發言包含具體數據但沒有引用，標記為 MISSING_CITATION。
+                
+                請輸出 JSON 格式:
+                {
+                    "status": "PASS" | "FAIL" | "WARN",
+                    "reason": "簡短說明",
+                    "score": 0-10
+                }
+            `;
+
+            try {
+                // Dynamic Token Usage
+                const res = await callGroqAPI(prompt, config.verifierTokens, true); 
+                const jsonMatch = res.match(/\{[\s\S]*\}/);
+                const result = jsonMatch ? JSON.parse(jsonMatch[0]) : { status: "WARN", reason: "無法解析 Verifier 輸出", score: 5 };
+                
+                ui.verifier.classList.add('hidden');
+                state.auditLog.push({ round: state.round, role: agentRole, result: result });
+                return result;
+            } catch (e) {
+                console.error("Verification failed", e);
+                ui.verifier.classList.add('hidden');
+                return { status: "ERROR", reason: `Verifier Error: ${e.message}`, score: 0 };
+            }
+        }
+
+        // --- Agent Calls (Enhanced Error Handling) ---
+
+        async function callGeminiAPI(prompt, userText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.geminiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt + "\n\nUser Input: " + userText }] }]
+            };
+            
+            try {
+                const res = await fetch(url, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                const data = await res.json();
+                
+                if (data.error) {
+                    throw new Error(`Gemini API Error [${data.error.code}]: ${data.error.message}`);
+                }
+                
+                if (!data.candidates || data.candidates.length === 0) {
+                    throw new Error("Gemini returned empty candidates. (Possibly filtered by safety settings)");
+                }
+
+                return data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                console.error("Gemini Fetch Error:", e);
+                throw e; // Propagate to caller
+            }
+        }
+
+        async function callGroqAPI(systemPrompt, maxTokens = 500, jsonMode = false) {
+            const url = 'https://api.groq.com/openai/v1/chat/completions';
+            const payload = {
+                model: "moonshotai/kimi-k2-instruct-0905",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: "Proceed." }
+                ],
+                temperature: 0.1,
+                max_tokens: maxTokens, // Uses dynamic value passed from function
+                response_format: jsonMode ? { type: "json_object" } : undefined
+            };
+            
+            try {
+                const res = await fetch(url, { 
+                    method: 'POST', 
+                    headers: {'Authorization': `Bearer ${config.groqKey}`, 'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                const data = await res.json();
+
+                if (data.error) {
+                    throw new Error(`Groq API Error [${data.error.code}]: ${data.error.message}`);
+                }
+
+                if (!data.choices || data.choices.length === 0) {
+                    throw new Error("Groq returned empty choices.");
+                }
+
+                return data.choices[0].message.content;
+            } catch (e) {
+                console.error("Groq Fetch Error:", e);
+                throw e;
+            }
+        }
+
+        // --- Pipeline Flow ---
+
+        async function startPipeline() {
+            if (!config.geminiKey || !config.groqKey) {
+                alert("請先設定 API Keys");
+                return openSettings();
+            }
+            
+            state.topic = document.getElementById('topicInput').value.trim();
+            if (!state.topic) return alert("請輸入主題");
+
+            state.isRunning = true;
+            state.round = 0;
+            state.history = [];
+            state.auditLog = [];
+            ui.chat.innerHTML = '';
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('stopBtn').disabled = false;
+
+            // Step 1: Retriever
+            const docsReady = await fetchKnowledgeBase(state.topic);
+            if (!docsReady) {
+                stopPipeline(); // Stop if retriever fails
+                return;
+            }
+
+            runRound();
+        }
+
+        async function stopPipeline() {
+            state.isRunning = false;
+            addMessage('System', 'Pipeline Halted by User or Error.');
+            document.getElementById('startBtn').classList.remove('hidden');
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        async function runRound() {
+            if (!state.isRunning || state.round >= state.maxRounds) {
+                if (state.isRunning) runJudge();
+                return;
+            }
+
+            state.round++;
+            
+            // --- Step 2: Pro Agent ---
+            setStepActive('step-pro');
+            const docContext = state.docs.map(d => `[${d.id}]: ${d.content}`).join('\n');
+            
+            const proPrompt = `
+                你是 Pro Agent (正方)。主題: ${state.topic}。
+                限制：
+                1. 絕對【禁止】引入知識庫以外的事實。
+                2. 必須使用 markdown 結構：
+                   - **Conclusion**: 一句話結論
+                   - **Reasoning**: 分點說明
+                   - **Evidence**: 必須標註 [doc_id]
+                知識庫:
+                ${docContext}
+                歷史紀錄:
+                ${JSON.stringify(state.history.slice(-2))}
+            `;
+
+            try {
+                const proRes = await callGeminiAPI(proPrompt, "Generate Argument");
+                state.history.push({ role: 'Pro', content: proRes });
+                const proMsgDiv = addMessage('Pro', proRes, { status: "CHECKING", reason: "Verifier pending..." });
+
+                // --- Step 3: Verifier (Check Pro) ---
+                const proVerify = await runVerification(proRes, 'Pro');
+                const isPass = proVerify.status === 'PASS';
+                const colorClass = isPass ? 'verify-pass' : 'verify-fail';
+                const iconClass = isPass ? 'fa-check' : 'fa-triangle-exclamation';
+                
+                proMsgDiv.querySelector('.verify-badge').className = `verify-badge ${colorClass}`;
+                proMsgDiv.querySelector('.verify-badge').innerHTML = `<i class="fa-solid ${iconClass}"></i> ${proVerify.status}: ${proVerify.reason}`;
+
+                if (!state.isRunning) return;
+
+                // --- Step 4: Con Agent ---
+                setStepActive('step-con');
+                const conPrompt = `
+                    你是 Con Agent (反方)。主題: ${state.topic}。
+                    任務：反駁正方 (Pro)。
+                    限制：
+                    1. 攻擊 Pro 的邏輯漏洞或引用錯誤。
+                    2. 如果 Pro 的證據薄弱，請指出 (Burden of Proof)。
+                    3. 必須引用知識庫 [doc_id] 作為反證。
+                    正方論點:
+                    ${proRes}
+                    知識庫:
+                    ${docContext}
+                `;
+
+                // Dynamic Token Usage
+                const conRes = await callGroqAPI(conPrompt, config.conTokens); 
+                state.history.push({ role: 'Con', content: conRes });
+                const conMsgDiv = addMessage('Con', conRes, { status: "CHECKING", reason: "Verifier pending..." });
+
+                // --- Step 5: Verifier (Check Con) ---
+                const conVerify = await runVerification(conRes, 'Con');
+                const isConPass = conVerify.status === 'PASS';
+                conMsgDiv.querySelector('.verify-badge').className = `verify-badge ${isConPass ? 'verify-pass' : 'verify-fail'}`;
+                conMsgDiv.querySelector('.verify-badge').innerHTML = `<i class="fa-solid ${isConPass ? 'fa-check' : 'fa-triangle-exclamation'}</i> ${conVerify.status}: ${conVerify.reason}`;
+
+                // Loop
+                setTimeout(runRound, 1000);
+            } catch (e) {
+                console.error("Agent Loop Error:", e);
+                addMessage('System', `Pipeline Error: ${e.message}`);
+                stopPipeline();
+            }
+        }
+
+        async function runJudge() {
+            setStepActive('step-judge');
+            addMessage('System', '🛑 辯論結束。Judge 正在審閱【Audit Log】與【Verification Reports】...');
+
+            const auditSummary = state.auditLog.map(l => 
+                `Round ${l.round} [${l.role}]: Verify Status ${l.result.status} (Score: ${l.result.score}) - Reason: ${l.result.reason}`
+            ).join('\n');
+
+            const judgePrompt = `
+                你是最終裁判 (Judge)。
+                請根據以下【稽核紀錄 (Audit Log)】進行判決。
+                
+                判決原則：
+                1. 優先信任 "Verify Status = PASS" 的論點。
+                2. 嚴重懲罰 "Hallucination" (引用不存在或錯誤)。
+                3. 誰的邏輯更符合提供的 "Knowledge Base" 誰就獲勝。
+                
+                稽核紀錄:
+                ${auditSummary}
+                
+                請輸出：
+                1. **Final Verdict**: (Pro/Con/Draw)
+                2. **Trust Score**: 雙方各自的可信度分數
+                3. **Rationale**: 判決理由
+            `;
+
+            try {
+                const verdict = await callGeminiAPI(judgePrompt, "Make Verdict");
+                addMessage('Judge', verdict);
+            } catch (e) {
+                addMessage('System', 'Judge Error: ' + e.message);
+            }
+            
+            document.getElementById('startBtn').classList.remove('hidden');
+            document.getElementById('stopBtn').disabled = true;
+            state.isRunning = false;
+        }
+
+    </script>
+</body>
+</html>
