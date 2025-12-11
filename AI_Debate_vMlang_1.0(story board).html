@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Debate Arena (Multi-Lang)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans TC', 'Noto Sans SC', sans-serif;
+            background-color: #0b1120;
+            color: #e2e8f0;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Neon Glows & Animations */
+        .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
+        .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+        .glow-gold { box-shadow: 0 0 30px rgba(234, 179, 8, 0.4); }
+        
+        .speaking-blue { animation: pulse-blue 1.5s infinite; border-color: #3b82f6; }
+        .speaking-red { animation: pulse-red 1.5s infinite; border-color: #ef4444; }
+
+        @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        /* Markdown Styles */
+        .prose p { margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
+        .prose strong { color: inherit; font-weight: 700; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        /* Modal */
+        .modal-bg { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- API Key Settings Modal (Default Open) -->
+    <div id="settingsModal" class="fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-w-lg w-full p-6 transform transition-all">
+            <h2 class="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-yellow-500"></i> Settings / 設定
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">
+                Configure API keys, models, and output language.<br>
+                設定 API 金鑰、模型與輸出語言。
+            </p>
+            
+            <div class="space-y-4 mb-6">
+                <!-- Global Settings (Language) -->
+                <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-700">
+                    <label class="block text-green-400 text-sm font-bold mb-2">
+                        <i class="fa-solid fa-language"></i> Output Language / 輸出語言
+                    </label>
+                    <select id="outputLanguage" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm focus:border-green-500 focus:outline-none">
+                        <option value="Traditional Chinese (繁體中文)" selected>Traditional Chinese (繁體中文)</option>
+                        <option value="Simplified Chinese (简体中文)">Simplified Chinese (简体中文)</option>
+                        <option value="English">English (英文)</option>
+                    </select>
+                </div>
+
+                <!-- Gemini Config -->
+                <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <label class="block text-blue-400 text-sm font-bold mb-2">Google Gemini (Alpha & Judge)</label>
+                    <input type="password" id="geminiKey" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-sm focus:border-blue-500 focus:outline-none mb-2" placeholder="Enter AI Studio Key...">
+                    
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 whitespace-nowrap">Model:</span>
+                        <select id="geminiModel" class="w-full bg-slate-800 border border-slate-600 rounded p-1 text-white text-xs focus:border-blue-500 focus:outline-none">
+                            <option value="gemini-2.5-flash-preview-09-2025" selected>Gemini 2.5 Flash (Preview)</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Groq Config -->
+                <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <label class="block text-red-400 text-sm font-bold mb-2">Groq API (Omega)</label>
+                    <input type="password" id="groqKey" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none mb-2" placeholder="Enter Groq Key...">
+                    
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 whitespace-nowrap">Model:</span>
+                        <select id="groqModel" class="w-full bg-slate-800 border border-slate-600 rounded p-1 text-white text-xs focus:border-red-500 focus:outline-none">
+                            <option value="llama-3.3-70b-versatile" selected>Llama 3.3 70B</option>
+                            <option value="llama-3.1-8b-instant">Llama 3.1 8B instant</option>
+                            <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 maverick 17b 128e instruct</option>
+							<option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 scout 17b 16e instruct</option>
+							<option value="groq/compound-mini">Groq/compound-mini</option>
+							<option value="mixtral-8x7b-32768">Mixtral 8x7b</option>
+							<option value="groq/compound">Groq/compound</option>
+							<option value="gemma2-9b-it">Gemma 2 9B</option>
+							<option value="qwen/qwen3-32b">Qwen3 32b</option>
+							<option value="meta-llama/llama-4-maverick-17b-128e-instruct">LLAMA 4 maverick 17b 128e instruct</option>
+							<option value="moonshotai/kimi-k2-instruct-0905">Kimi K2 instruct 0905</option>
+							<option value="moonshotai/kimi-k2-instruct">Kimi K2 instruct</option>
+							<option value="openai/gpt-oss-120b">Gpt oss 120B</option>
+							<option value="openai/gpt-oss-20b">Gpt oss 20B</option>
+							<option value="openai/gpt-oss-safeguard-20b">Gpt oss safeguard 20B</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveKeys()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg">
+                Enter Arena / 進入競技場
+            </button>
+        </div>
+    </div>
+
+    <!-- Story/Context Modal -->
+    <div id="storyModal" class="fixed inset-0 modal-bg z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-w-2xl w-full p-6 transform transition-all">
+            <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-purple-400"></i> Set Storyline / 設定背景故事
+            </h2>
+            <p class="text-slate-400 text-sm mb-4">
+                Define the world or scenario for this debate. (Optional)<br>
+                設定辯論的世界觀或情境（選填）。<br>
+                <span class="text-xs opacity-70">Example: "The year is 2050. Earth is running out of water..."</span>
+            </p>
+            
+            <textarea id="storyInput" class="w-full h-40 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-purple-500 focus:outline-none text-sm leading-relaxed" placeholder="Enter the background story here..."></textarea>
+
+            <div class="flex justify-end gap-3 mt-4">
+                <button onclick="closeStoryModal()" class="text-slate-400 hover:text-white px-4 py-2 text-sm">Cancel</button>
+                <button onclick="saveStory()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-lg transition-colors">
+                    Set Context
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-slate-900/90 border-b border-slate-700 p-4 flex flex-col md:flex-row justify-between items-center shadow-lg z-10 backdrop-blur-sm gap-4 md:gap-0">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">AI</div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wider text-white">DEBATE <span class="text-cyan-400">LIVE</span></h1>
+                <p class="text-[10px] text-slate-400 mono" id="matchup-text">Gemini vs Llama</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 items-center w-full md:w-auto">
+            <!-- Story Button -->
+            <button onclick="openStoryModal()" id="storyBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-600 w-10 h-10 rounded flex items-center justify-center transition-colors" title="Set Story/Context">
+                <i class="fa-solid fa-book"></i>
+            </button>
+
+            <!-- Topic Input -->
+            <input type="text" id="topicInput" placeholder="Enter topic / 輸入辯論題目..." 
+                   class="bg-slate-800 text-white px-4 py-2 rounded border border-slate-600 focus:border-cyan-500 flex-1 md:w-80 placeholder-slate-500 text-sm">
+            
+            <!-- Controls -->
+            <button onclick="startDebate()" id="startBtn"
+                    class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-bold transition-all flex items-center gap-2 shadow-lg hover:shadow-cyan-500/20 text-sm">
+                <i class="fa-solid fa-play"></i> <span class="hidden md:inline">Start</span>
+            </button>
+            <button onclick="stopDebate()" id="stopBtn" disabled
+                    class="bg-slate-700 text-slate-400 px-4 py-2 rounded font-bold transition-all disabled:opacity-50 text-sm">
+                <i class="fa-solid fa-stop"></i>
+            </button>
+            <button onclick="document.getElementById('settingsModal').classList.remove('hidden')" 
+                    class="text-slate-400 hover:text-white px-3 transition-colors" title="Settings">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Arena -->
+    <main class="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden relative bg-slate-900">
+        
+        <!-- Background Grid -->
+        <div class="absolute inset-0 opacity-20 pointer-events-none" 
+             style="background-image: linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px); background-size: 40px 40px;">
+        </div>
+
+        <!-- Alpha (Left) -->
+        <div class="md:w-1/4 flex flex-col gap-3 relative z-10" id="side-blue">
+            <div class="bg-slate-800/80 border-t-4 border-blue-500 rounded-b-xl p-4 flex flex-col items-center shadow-lg backdrop-blur-sm transition-all duration-300" id="card-blue">
+                <div class="w-20 h-20 rounded-full bg-slate-900 border-2 border-blue-500 flex items-center justify-center mb-3 shadow-[0_0_15px_rgba(59,130,246,0.3)] relative">
+                    <i class="fa-brands fa-google text-3xl text-blue-400"></i>
+                    <div class="absolute -bottom-1 -right-1 bg-blue-600 text-[10px] text-white px-1.5 rounded font-bold" id="badge-blue">GEMINI</div>
+                </div>
+                <h2 class="text-xl font-bold text-blue-400">Alpha</h2>
+                <p class="text-xs text-blue-200/60 mb-2">Position: PRO / 正方</p>
+                
+                <!-- Status Badge -->
+                <div id="status-blue" class="px-3 py-1 rounded-full bg-slate-700 text-xs text-slate-400 font-mono transition-colors">
+                    IDLE
+                </div>
+            </div>
+            
+            <!-- Live Thought Process (Fake Terminal) -->
+            <div class="flex-1 bg-black/40 rounded-lg p-3 font-mono text-xs text-blue-300/80 overflow-hidden border border-slate-700/50">
+                <div class="opacity-50 mb-1 border-b border-blue-900/50 pb-1">SYSTEM LOG:</div>
+                <div id="log-blue" class="h-full overflow-y-auto">Waiting for connection...</div>
+            </div>
+        </div>
+
+        <!-- Center Stage (Chat) -->
+        <div class="flex-1 flex flex-col gap-3 relative z-10 min-w-0">
+            <!-- Moderator Info -->
+            <div class="bg-slate-800/60 border border-slate-700 rounded-lg p-2 flex items-center justify-between px-4 backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-scale-balanced text-yellow-400"></i>
+                    <span class="text-sm text-slate-300 font-bold" id="judge-status">Waiting for Round 15 Verdict...</span>
+                </div>
+                <div class="text-xs font-mono text-slate-500" id="round-counter">Round: 0 / 15</div>
+            </div>
+
+            <!-- Chat Area -->
+            <div id="chatContainer" class="flex-1 bg-slate-950/50 rounded-xl border border-slate-800 p-4 overflow-y-auto space-y-4 shadow-inner">
+                <div class="text-center text-slate-600 mt-10 text-sm">
+                    <div class="inline-block p-4 rounded-full bg-slate-800 mb-4">
+                        <i class="fa-solid fa-robot text-4xl text-cyan-500"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Welcome to the Arena</h3>
+                    <p class="max-w-md mx-auto mb-4">
+                        Configure API Keys, select language, and set the stage for an epic debate.<br>
+                        請先設定 API 金鑰並選擇辯論語言。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Omega (Right) -->
+        <div class="md:w-1/4 flex flex-col gap-3 relative z-10" id="side-red">
+            <div class="bg-slate-800/80 border-t-4 border-red-500 rounded-b-xl p-4 flex flex-col items-center shadow-lg backdrop-blur-sm transition-all duration-300" id="card-red">
+                <div class="w-20 h-20 rounded-full bg-slate-900 border-2 border-red-500 flex items-center justify-center mb-3 shadow-[0_0_15px_rgba(239,68,68,0.3)] relative">
+                    <i class="fa-solid fa-cube text-3xl text-red-400"></i>
+                    <div class="absolute -bottom-1 -right-1 bg-red-600 text-[10px] text-white px-1.5 rounded font-bold" id="badge-red">OMEGA</div>
+                </div>
+                <h2 class="text-xl font-bold text-red-400">Omega</h2>
+                <p class="text-xs text-red-200/60 mb-2">Position: CON / 反方</p>
+                
+                <!-- Status Badge -->
+                <div id="status-red" class="px-3 py-1 rounded-full bg-slate-700 text-xs text-slate-400 font-mono transition-colors">
+                    IDLE
+                </div>
+            </div>
+
+            <!-- Live Thought Process -->
+            <div class="flex-1 bg-black/40 rounded-lg p-3 font-mono text-xs text-red-300/80 overflow-hidden border border-slate-700/50">
+                <div class="opacity-50 mb-1 border-b border-red-900/50 pb-1">SYSTEM LOG:</div>
+                <div id="log-red" class="h-full overflow-y-auto">Waiting for connection...</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Configuration & State ---
+        let keys = {
+            gemini: '',
+            groq: ''
+        };
+
+        // Default Configuration
+        let config = {
+            geminiModel: 'gemini-2.5-flash-preview-09-2025',
+            groqModel: 'llama-3.3-70b-versatile',
+            language: 'Traditional Chinese (繁體中文)' // Default Language
+        };
+
+        const MAX_ROUNDS = 15;
+
+        let state = {
+            isDebating: false,
+            topic: '',
+            story: '', 
+            history: [],
+            round: 0
+        };
+
+        // UI Elements
+        const ui = {
+            chat: document.getElementById('chatContainer'),
+            topic: document.getElementById('topicInput'),
+            storyInput: document.getElementById('storyInput'),
+            storyModal: document.getElementById('storyModal'),
+            storyBtn: document.getElementById('storyBtn'),
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            settingsModal: document.getElementById('settingsModal'),
+            roundCounter: document.getElementById('round-counter'),
+            judgeStatus: document.getElementById('judge-status'),
+            
+            matchupText: document.getElementById('matchup-text'),
+            badgeBlue: document.getElementById('badge-blue'),
+            badgeRed: document.getElementById('badge-red'),
+            
+            blue: {
+                card: document.getElementById('card-blue'),
+                status: document.getElementById('status-blue'),
+                log: document.getElementById('log-blue')
+            },
+            red: {
+                card: document.getElementById('card-red'),
+                status: document.getElementById('status-red'),
+                log: document.getElementById('log-red')
+            }
+        };
+
+        // --- UI Logic ---
+        
+        function openStoryModal() {
+            ui.storyModal.classList.remove('hidden');
+            ui.storyInput.focus();
+        }
+
+        function closeStoryModal() {
+            ui.storyModal.classList.add('hidden');
+        }
+
+        function saveStory() {
+            state.story = ui.storyInput.value.trim();
+            closeStoryModal();
+            
+            // Visual feedback that story is set
+            if(state.story) {
+                ui.storyBtn.classList.remove('text-slate-400', 'bg-slate-800');
+                ui.storyBtn.classList.add('text-white', 'bg-purple-600', 'border-purple-500');
+            } else {
+                ui.storyBtn.classList.add('text-slate-400', 'bg-slate-800');
+                ui.storyBtn.classList.remove('text-white', 'bg-purple-600', 'border-purple-500');
+            }
+        }
+
+        function saveKeys() {
+            const gKey = document.getElementById('geminiKey').value.trim();
+            const grKey = document.getElementById('groqKey').value.trim();
+            const gModel = document.getElementById('geminiModel').value;
+            const grModel = document.getElementById('groqModel').value;
+            const lang = document.getElementById('outputLanguage').value;
+
+            if (!gKey || !grKey) {
+                document.getElementById('geminiKey').focus();
+                alert("Please enter both API Keys! \n請輸入兩組 API 金鑰！"); 
+                return;
+            }
+
+            keys.gemini = gKey;
+            keys.groq = grKey;
+            config.geminiModel = gModel;
+            config.groqModel = grModel;
+            config.language = lang; // Save Language Choice
+
+            // Update UI with selected models
+            ui.badgeBlue.innerText = "GEMINI";
+            ui.badgeRed.innerText = grModel.includes('llama') ? "LLAMA" : (grModel.includes('mixtral') ? "MIXTRAL" : "GROQ");
+            ui.matchupText.innerText = `${gModel} vs ${grModel} | ${lang.split(' ')[0]}`;
+
+            ui.settingsModal.classList.add('hidden');
+            log('blue', `System initialized. Model: ${config.geminiModel}`);
+            log('red', `System initialized. Model: ${config.groqModel}`);
+            
+            // Add a system message about the language
+            appendMessage('System', `Language set to: **${lang}**`);
+        }
+
+        function log(side, message) {
+            const target = side === 'blue' ? ui.blue.log : (side === 'red' ? ui.red.log : null);
+            if (!target) return;
+            
+            const line = document.createElement('div');
+            line.className = "mb-1 opacity-80 break-words";
+            line.innerText = `> ${message}`;
+            target.appendChild(line);
+            target.scrollTop = target.scrollHeight;
+        }
+
+        function updateStatus(side, status) {
+            const el = side === 'blue' ? ui.blue : ui.red;
+            const color = side === 'blue' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white';
+            const defaultColor = 'bg-slate-700 text-slate-400';
+            const activeClass = side === 'blue' ? 'speaking-blue' : 'speaking-red';
+
+            if (status === 'thinking') {
+                el.status.className = `px-3 py-1 rounded-full text-xs font-mono animate-pulse bg-yellow-600 text-white`;
+                el.status.innerText = "THINKING...";
+                el.card.classList.remove(activeClass);
+            } else if (status === 'speaking') {
+                el.status.className = `px-3 py-1 rounded-full text-xs font-mono ${color}`;
+                el.status.innerText = "SPEAKING";
+                el.card.classList.add(activeClass);
+            } else {
+                el.status.className = `px-3 py-1 rounded-full text-xs font-mono ${defaultColor}`;
+                el.status.innerText = "IDLE";
+                el.card.classList.remove(activeClass);
+            }
+        }
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            let align, bubbleColor, icon;
+
+            if (role === 'Alpha') {
+                align = 'self-start mr-12';
+                bubbleColor = 'bg-blue-900/40 border-blue-500/40 text-blue-50';
+                icon = '<i class="fa-brands fa-google mr-2 text-blue-400"></i>';
+            } else if (role === 'Omega') {
+                align = 'self-end ml-12';
+                bubbleColor = 'bg-red-900/40 border-red-500/40 text-red-50';
+                icon = '<i class="fa-solid fa-cube mr-2 text-red-400"></i>';
+            } else if (role === 'Judge') {
+                align = 'self-center w-full max-w-4xl glow-gold my-6 border-2';
+                bubbleColor = 'bg-yellow-900/60 border-yellow-500 text-yellow-50';
+                icon = '<i class="fa-solid fa-gavel mr-2 text-yellow-400"></i>';
+            } else { // System
+                align = 'self-center w-full max-w-2xl';
+                bubbleColor = 'bg-purple-900/30 border-purple-500/30 text-purple-200 text-center italic';
+                icon = '<i class="fa-solid fa-circle-info mr-2"></i>';
+            }
+
+            div.className = `p-4 rounded-lg border ${bubbleColor} ${align} animate-fade-in shadow-md relative`;
+            
+            // Parse Markdown
+            const htmlContent = role === 'System' ? text : marked.parse(text);
+
+            div.innerHTML = `
+                <div class="text-xs font-bold opacity-70 mb-2 border-b border-white/10 pb-1 flex items-center justify-between">
+                    <span>${icon} ${role}</span>
+                    <span class="opacity-50 text-[10px]">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div class="prose prose-invert prose-sm max-w-none leading-relaxed">
+                    ${htmlContent}
+                </div>
+            `;
+            ui.chat.appendChild(div);
+            ui.chat.scrollTo({ top: ui.chat.scrollHeight, behavior: 'smooth' });
+        }
+
+        // --- API Calls (Dynamic Models) ---
+
+        // 1. Gemini API Call (Alpha)
+        async function callGemini(history, topic, story) {
+            // Use selected Gemini Model
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${keys.gemini}`;
+            
+            let context = history.map(h => `${h.role}: ${h.content}`).join('\n\n');
+            let storyContext = story ? `\nIMPORTANT CONTEXT / STORYLINE:\n"${story}"\nArguments must be based on this world/scenario.` : "";
+
+            // Dynamic Language Prompt
+            const systemPrompt = `
+                You are Alpha, a debate expert. Your position is [PRO / SUPPORT] regarding the topic: "${topic}".
+                ${storyContext}
+                Your opponent is Omega. Read the dialogue history below and provide a sharp, concise, and logical rebuttal or argument.
+                Do not be overly polite. Get straight to the point. 
+                
+                IMPORTANT: Your output MUST be in ${config.language}.
+                If the language is Chinese, use strict ${config.language}.
+                
+                Use Markdown formatting. Limit to 150 words.
+            `;
+
+            const payload = {
+                contents: [{
+                    parts: [{
+                        text: `${systemPrompt}\n\n=== Dialogue History ===\n${context}\n\nAlpha (You):`
+                    }]
+                }]
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.error) throw new Error(data.error.message);
+                return data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                console.error("Gemini Error:", e);
+                return `[System Error: Unable to connect to Gemini - ${e.message}]`;
+            }
+        }
+
+        // 2. Groq API Call (Omega)
+        async function callGroq(history, topic, story) {
+            const url = 'https://api.groq.com/openai/v1/chat/completions';
+            
+            let storyContext = story ? `\nIMPORTANT CONTEXT / STORYLINE:\n"${story}"\nArguments must be based on this world/scenario.` : "";
+
+            const messages = [
+                {
+                    role: "system",
+                    content: `You are Omega, a debate expert. Your position is [CON / OPPOSE] regarding the topic: "${topic}". ${storyContext} Your opponent is Alpha. Provide a sharp, critical rebuttal. Do not be overly polite. \n\nIMPORTANT: Your output MUST be in ${config.language}. \n\nUse Markdown. Limit to 150 words.`
+                }
+            ];
+
+            history.slice(-8).forEach(msg => {
+                messages.push({
+                    role: msg.role === 'Alpha' ? 'user' : 'assistant',
+                    content: msg.content
+                });
+            });
+
+            // Use selected Groq Model
+            const payload = {
+                model: config.groqModel,
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 400
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${keys.groq}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.error) throw new Error(data.error.message);
+                return data.choices[0].message.content;
+            } catch (e) {
+                console.error("Groq Error:", e);
+                return `[System Error: Unable to connect to Groq - ${e.message}]`;
+            }
+        }
+
+        // 3. Judge API Call (Gemini)
+        async function callJudge(history, topic, story) {
+            // Use selected Gemini Model
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${keys.gemini}`;
+            
+            let context = history.map(h => `[${h.role}]: ${h.content}`).join('\n\n');
+            let storyContext = story ? `\nCONTEXT / STORYLINE:\n"${story}"\nEvaluate how well the arguments fit this context.` : "";
+
+            const systemPrompt = `
+                You are an objective, impartial, and logical AI Debate Judge.
+                The topic is: "${topic}".
+                ${storyContext}
+                
+                Alpha (Pro) and Omega (Con) have debated for 15 rounds.
+                Please carefully read the full transcript below and perform the following tasks:
+                1. Summarize the core arguments of both sides.
+                2. Evaluate who had stronger logic, better evidence, and more effective rebuttals.
+                3. Decide the winner (or declare a draw).
+                4. Provide detailed feedback.
+
+                IMPORTANT: Your output MUST be in ${config.language}.
+                If the language is Chinese, use strict ${config.language}.
+
+                Use Markdown formatting. Maintain a professional tone.
+            `;
+
+            const payload = {
+                contents: [{
+                    parts: [{
+                        text: `${systemPrompt}\n\n=== Full Debate Transcript ===\n${context}\n\nJudge's Verdict:`
+                    }]
+                }]
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.error) throw new Error(data.error.message);
+                return data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                return `[Judge System Error: Unable to connect - ${e.message}]`;
+            }
+        }
+
+        // --- Main Logic ---
+
+        async function startDebate() {
+            if(!keys.gemini || !keys.groq) {
+                ui.settingsModal.classList.remove('hidden');
+                return;
+            }
+
+            state.topic = ui.topic.value.trim();
+            if (!state.topic) {
+                alert("Please enter a debate topic");
+                return;
+            }
+
+            // Sync story one last time just in case
+            state.story = ui.storyInput.value.trim();
+
+            // UI Updates
+            state.isDebating = true;
+            state.history = [];
+            state.round = 0;
+            ui.chat.innerHTML = '';
+            ui.startBtn.classList.add('hidden');
+            ui.stopBtn.disabled = false;
+            ui.stopBtn.classList.remove('hidden', 'bg-slate-700', 'text-slate-400');
+            ui.stopBtn.classList.add('bg-red-600', 'text-white', 'hover:bg-red-500');
+            ui.judgeStatus.innerText = "Waiting for Round 15 Verdict...";
+            ui.judgeStatus.classList.remove('text-yellow-400');
+            ui.judgeStatus.classList.add('text-slate-300');
+
+            // Intro Message construction
+            let introHtml = `Debate Started!<br>Topic: <strong>${state.topic}</strong>`;
+            introHtml += `<br>Language: <strong>${config.language}</strong>`;
+
+            if (state.story) {
+                introHtml += `<br><br><em class="text-purple-300 border-l-2 border-purple-500 pl-2 block">Context: ${state.story}</em>`;
+            }
+            introHtml += `<br>Rules: After 15 rounds, the AI Judge will decide the winner.`;
+
+            appendMessage('System', introHtml);
+            log('blue', 'Debate Started');
+            log('red', 'Debate Started');
+
+            await runTurn();
+        }
+
+        async function concludeDebate() {
+            state.isDebating = false; // Stop the loop
+            
+            // UI Update for Judging
+            ui.judgeStatus.innerText = "⚡ Judge is deliberating...";
+            ui.judgeStatus.classList.remove('text-slate-300');
+            ui.judgeStatus.classList.add('text-yellow-400', 'animate-pulse');
+            
+            appendMessage('System', '🛑 Debate rounds ended (15/15). Requesting final verdict from Judge...');
+
+            // Call Judge with Story
+            const judgeVerdict = await callJudge(state.history, state.topic, state.story);
+            
+            // Show Verdict
+            appendMessage('Judge', judgeVerdict);
+            
+            // Reset UI
+            ui.judgeStatus.innerText = "🏆 Verdict Delivered";
+            ui.judgeStatus.classList.remove('animate-pulse');
+            
+            ui.stopBtn.disabled = true;
+            ui.stopBtn.classList.add('bg-slate-700', 'text-slate-400');
+            ui.stopBtn.classList.remove('bg-red-600', 'text-white');
+            ui.startBtn.classList.remove('hidden');
+            
+            updateStatus('blue', 'idle');
+            updateStatus('red', 'idle');
+        }
+
+        function stopDebate() {
+            state.isDebating = false;
+            ui.stopBtn.disabled = true;
+            ui.stopBtn.classList.add('bg-slate-700', 'text-slate-400');
+            ui.stopBtn.classList.remove('bg-red-600', 'text-white');
+            ui.startBtn.classList.remove('hidden');
+            
+            updateStatus('blue', 'idle');
+            updateStatus('red', 'idle');
+            appendMessage('System', 'Debate terminated by user.');
+        }
+
+        async function runTurn() {
+            if (!state.isDebating) return;
+
+            state.round++;
+            ui.roundCounter.innerText = `Round: ${state.round} / ${MAX_ROUNDS}`;
+
+            // --- Alpha (Gemini) Turn ---
+            updateStatus('blue', 'thinking');
+            log('blue', `Analyzing topic & context...`);
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Pass Story
+            const alphaResponse = await callGemini(state.history, state.topic, state.story);
+            
+            if (!state.isDebating) return;
+            
+            updateStatus('blue', 'speaking');
+            log('blue', 'Response generated.');
+            appendMessage('Alpha', alphaResponse);
+            state.history.push({ role: 'Alpha', content: alphaResponse });
+            updateStatus('blue', 'idle');
+
+            await new Promise(r => setTimeout(r, 1500));
+            if (!state.isDebating) return;
+
+            // --- Omega (Groq/Llama 3) Turn ---
+            updateStatus('red', 'thinking');
+            log('red', `Processing argument...`);
+            
+            // Pass Story
+            const omegaResponse = await callGroq(state.history, state.topic, state.story);
+            
+            if (!state.isDebating) return;
+
+            updateStatus('red', 'speaking');
+            log('red', 'Counter-argument ready.');
+            appendMessage('Omega', omegaResponse);
+            state.history.push({ role: 'Omega', content: omegaResponse });
+            updateStatus('red', 'idle');
+
+            // --- Check for End Condition ---
+            if (state.round >= MAX_ROUNDS) {
+                await concludeDebate();
+                return; // Stop recursion
+            }
+
+            // Loop
+            if (state.isDebating) {
+                setTimeout(runTurn, 2000);
+            }
+        }
+    </script>
+</body>
+</html>
