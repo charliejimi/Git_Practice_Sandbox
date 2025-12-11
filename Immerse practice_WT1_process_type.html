@@ -1,5 +1,5 @@
 <!-- Chosen Palette: Calm Harmony (bg-slate-50, text-slate-700, accent-emerald-600) -->
-<!-- Application Structure Plan: A tab-based SPA structure was chosen. The tabs ("總覽", "自然循環", "製造流程", "系統流程") directly correspond to the major categories of IELTS process diagrams. This design allows the user to easily isolate and study one category at a time, which is ideal for focused learning. Within each tab, an accordion-style interaction reveals real-life analogies. This 'click-to-reveal' mechanic encourages active exploration rather than passive reading and directly links the abstract IELTS task to a tangible life experience, which was the core of the user's request. New LLM-powered sections were added to each tab for vocabulary expansion, prompt generation, and Image Analysis. -->
+<!-- Application Structure Plan: A tab-based SPA structure was chosen. The tabs ("總覽", "自然循環", "製造流程", "系統流程", "圖文轉考題") directly correspond to the major categories of IELTS process diagrams. This design allows the user to easily isolate and study one category at a time, which is ideal for focused learning. Within each tab, an accordion-style interaction reveals real-life analogies. This 'click-to-reveal' mechanic encourages active exploration rather than passive reading and directly links the abstract IELTS task to a tangible life experience, which was the core of the user's request. New LLM-powered sections were added to each tab for vocabulary expansion, prompt generation, and Image Analysis. -->
 <!-- Visualization & Content Choices: Report Info: Analysis of IELTS process questions. Goal: Show the *flow* of each process. Viz/Presentation Method: Text-based, responsive flowcharts using structured HTML (flexbox) and Unicode arrows (→). Interaction: Accordion toggles to reveal detailed descriptions and vocabulary for each analogy. LLM Interaction: Two new buttons trigger Gemini API calls for vocabulary generation and practice prompt generation (Text Gen), one button for Image Analysis (Multimodal Gen), and one button for TTS (Audio Gen). Justification: This method (HTML diagrams + LLM enhancements) is chosen to maximize practical learning tools. It avoids all banned libraries (SVG, Mermaid) as required. -->
 <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
@@ -80,6 +80,9 @@
             <button class="nav-tab text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="system-flows">
                 系統流程
             </button>
+            <button class="nav-tab text-sm sm:text-base font-medium py-2 px-4 rounded-full border-2 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" data-target="text-to-prompt">
+                圖文轉考題
+            </button>
         </nav>
 
         <main>
@@ -87,7 +90,8 @@
                 <h2 class="text-2xl font-semibold text-emerald-600 mb-4">歡迎使用！</h2>
                 <p class="mb-4">雅思 Task 1 的流程圖 (Process Diagram) 常常讓人感到棘手，因為它們看起來很學術、很生硬。但事實上，這些圖表所描述的「語境」— 也就是「一個步驟接著一個步驟」— 充滿在我們的日常生活中。</p>
                 <p class="mb-4">這個工具的目的，就是幫助您打破這種隔閡。我們將流程圖考題歸納為三大核心類型：<strong class="text-emerald-700">自然循環</strong>、<strong class="text-emerald-700">製造流程</strong>和<strong class="text-emerald-700">系統流程</strong>。</p>
-                <p class="mb-4">請點擊上方的頁籤，探索每一種類型。現在，您可以使用 AI 提供的「進階詞彙」清單來豐富您的寫作，並且上傳「相關情境照片」讓 AI 分析，助您從不同維度理解流程圖寫作！</p>
+                <p class="mb-4">請點擊上方的頁籤，探索每一種類型。現在，您可以使用 AI 提供的「進階詞彙」清單來豐富您的寫作，並且上傳「相關情境照片」讓 AI 分析。</p>
+                <p class="mb-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200"><strong class="text-emerald-700">NEW! 新功能：</strong>點擊「圖文轉考題」頁籤，您可以上傳包含文章或文字說明的圖片（例如課本截圖），系統會自動解析其中的文字，將其轉化為一道標準的雅思流程圖考題！</p>
             </section>
 
             <!-- ============================================== -->
@@ -351,11 +355,73 @@
                 </div>
 
             </section>
+
+             <!-- ============================================== -->
+            <!-- TYPE 4: TEXT TO PROMPT (圖文轉考題) -->
+            <!-- ============================================== -->
+            <section id="text-to-prompt" class="content-panel hidden bg-white p-6 sm:p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-emerald-600 mb-4">功能：圖文轉考題 (Text to Prompt)</h2>
+                <p class="mb-6">除了分析情境圖片，此功能專門用來處理含有<strong class="text-emerald-700">文字說明</strong>的圖片（例如教科書截圖、產品說明書、科學雜誌圖解）。AI 將辨識圖片中的文字，理解其描述的流程，並自動為您生成一道 IELTS Task 1 的考題。</p>
+                
+                <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 mb-8">
+                    <h3 class="font-semibold text-amber-800 mb-2">💡 使用情境範例：</h3>
+                    <ul class="list-disc list-inside text-slate-700 space-y-1">
+                        <li>拍下生物課本上關於「光合作用」的段落。</li>
+                        <li>上傳一張家具組裝說明書的照片。</li>
+                        <li>截圖一篇關於「塑膠回收流程」的網路文章。</li>
+                    </ul>
+                </div>
+
+                <!-- Text-Image Analysis Section -->
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div class="flex-grow">
+                            <label for="image-upload-text-prompt" class="block text-sm font-medium text-slate-700 mb-1">選擇含有文字的圖片</label>
+                            <input type="file" accept="image/*" class="image-upload-input block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" id="image-upload-text-prompt">
+                        </div>
+                        <button id="btn-text-to-prompt" class="w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white font-semibold rounded-full hover:bg-emerald-700 transition-colors shadow-md">
+                            📝 辨識文字並出題
+                        </button>
+                    </div>
+
+                    <div id="text-prompt-output-container" class="mt-6 hidden space-y-6">
+                        
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <!-- Left: Image Preview -->
+                            <div id="preview-text-prompt" class="w-full sm:w-1/3 flex-shrink-0 max-h-60 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                <p class="text-sm text-slate-400 p-4">圖片預覽</p>
+                            </div>
+                            
+                            <!-- Right: Extracted Context (Summary) -->
+                            <div class="w-full sm:w-2/3 p-4 bg-slate-100 rounded border border-slate-200">
+                                <h4 class="font-medium text-slate-700 mb-2 border-b border-slate-300 pb-2">AI 流程分析結果 (中文詳解)</h4>
+                                <div id="extracted-text-content" class="text-slate-600 text-sm whitespace-pre-wrap h-48 overflow-y-auto"></div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom: Generated Prompt -->
+                        <div class="p-6 bg-white rounded-lg border-2 border-emerald-500 shadow-sm relative">
+                            <div class="absolute -top-3 left-4 bg-emerald-500 text-white px-3 py-1 text-sm font-bold rounded">GENERATED IELTS TASK 1 PROCESS PROMPT</div>
+                            <p id="generated-exam-prompt" class="text-slate-800 text-lg font-medium mt-2 whitespace-pre-wrap font-serif leading-relaxed"></p>
+                            
+                            <div class="mt-4 flex gap-2">
+                                <button class="tts-button text-sm text-slate-500 hover:text-emerald-600 flex items-center gap-1" data-target="generated-exam-prompt">
+                                    🔊 朗讀考題
+                                </button>
+                                <audio id="audio-player-text-prompt" class="hidden" controls></audio>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+
         </main>
     </div>
 
     <script>
-        const apiKey = "AIzaSyCKKfTgA-4wY7aOP0fqLHRJ8dBV9AQRkzs";
+        const apiKey = "AIzaSyD0Fzwpz1xj85Y0Ofd2IRZZiDGQArHsqI0"; // 使用者需自行填入 API Key
         const LLM_TEXT_MODEL = 'gemini-2.5-flash-preview-09-2025';
         const LLM_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
         const loadingIndicator = document.getElementById('loading-indicator');
@@ -487,12 +553,10 @@
         const analyzeImage = async (base64Image, mimeType, category) => {
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${apiKey}`;
             
-            // --- 修正開始：針對自然循環添加強制主動語態提醒 ---
             let extraInstruction = "";
             if (category.includes("Natural Cycles") || category.includes("自然循環")) {
                 extraInstruction = " 重要提醒：針對「自然循環」類型，請在回應中明確提醒學生，描述自然界生物生長或循環時，必須使用「主動語態」(Active Voice)。";
             }
-            // --- 修正結束 ---
 
             const userQuery = `請分析這張圖片，並以 IELTS Task 1 流程圖寫作的角度，說明圖片中的物體、動作或狀態如何能被描述為一個流程。這個流程屬於「${category}」類型。${extraInstruction}`;
             
@@ -523,21 +587,75 @@
             return result.candidates?.[0]?.content?.parts?.[0]?.text || '圖像分析失敗。';
         };
 
+        // NEW: Function to extract text from image and generate prompt
+        const generatePromptFromImageText = async (base64Image, mimeType) => {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TEXT_MODEL}:generateContent?key=${apiKey}`;
+            
+            // Revised prompt to enforce Process type and Chinese steps output
+            const userQuery = `Task: Convert the content of the attached image into a structured analysis for generating an IELTS Writing Task 1 Process Diagram question.
+            Step 1 (OCR): Extract ALL raw text content from the image exactly as it appears.
+            Step 2 (Analysis): Analyze the extracted text and visual flow (if applicable) to identify the steps or stages of the process depicted.
+            Step 3 (Translation): List these identified process steps clearly and sequentially in Traditional Chinese. Use bullet points or numbered lists.
+            Step 4 (Generation): Create a formal IELTS Academic Writing Task 1 *Process Diagram* Prompt (in English) based on the analysis. The prompt MUST clearly state the subject (The process of [Topic]) and follow the standard IELTS instruction text: "The diagram illustrates the process of [Topic]. Summarise the information by selecting and reporting the main features, and make comparisons where relevant."
+
+            
+
+            Output format MUST be JSON:
+            {
+                "extracted_text": "The raw text extracted from the image...",
+                "process_steps_cn": "1. 第一步：...\n2. 第二步：...\n(Formatted list of the process steps in Traditional Chinese)",
+                "prompt": "The diagram illustrates the process of..."
+            }`;
+            
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: userQuery },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Image
+                            }
+                        }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                },
+                systemInstruction: {
+                    parts: [{ text: "You are an expert IELTS exam writer. Your priority is to generate a VALID IELTS Writing Task 1 PROCESS DIAGRAM question. You must also output the detailed steps of the process in English so the user can understand the flow." }]
+                },
+            };
+
+            const response = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            
+            try {
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                return JSON.parse(text);
+            } catch (e) {
+                console.error("Error parsing JSON response", e);
+                return { extracted_text: "JSON Parsing Error", process_steps_cn: "解析失敗", prompt: "Generation failed." };
+            }
+        };
+
         // LLM TTS Generation Function
         const generateTTS = async (text, audioId) => {
             const audioPlayer = document.getElementById(audioId);
             const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_TTS_MODEL}:generateContent?key=${apiKey}`;
             
-            // --- 修正：定義播放結束時的動作 ---
             const onAudioEnd = () => {
                 loadingIndicator.classList.add('hidden'); // 在播放結束時隱藏指示器
                 audioPlayer.removeEventListener('ended', onAudioEnd); // 清理監聽器
             };
             
-            // --- 修正：移除舊監聽器並添加新監聽器 ---
             audioPlayer.removeEventListener('ended', onAudioEnd);
             audioPlayer.addEventListener('ended', onAudioEnd);
-            // --- 修正結束 ---
 
             audioPlayer.classList.add('hidden');
             audioPlayer.pause();
@@ -580,18 +698,17 @@
                     audioPlayer.src = audioUrl;
                     audioPlayer.classList.remove('hidden');
                     audioPlayer.play();
-                    // 播放開始，loadingIndicator 保持可見，直到 'ended' 事件觸發
                 } else {
                     console.error("TTS generation failed or returned invalid format:", result);
                     const message = "語音生成失敗：無法取得音訊資料。";
                     console.warn(message);
-                    loadingIndicator.classList.add('hidden'); // --- 修正：在失敗時隱藏
+                    loadingIndicator.classList.add('hidden');
                 }
             } catch (error) {
                 console.error("TTS API call error:", error);
                 const message = "語音生成發生錯誤。請稍後再試。";
                 console.warn(message);
-                loadingIndicator.classList.add('hidden'); // --- 修正：在 catch 中隱藏
+                loadingIndicator.classList.add('hidden');
             }
         };
 
@@ -708,8 +825,7 @@
                     try {
                         const resultText = await generateContent(userQuery, systemPrompt.replace('[CATEGORY NAME]', category));
                         outputDiv.textContent = resultText;
-                    } catch (error)
- {
+                    } catch (error) {
                         outputDiv.textContent = '生成失敗，請檢查網路或稍後再試。';
                         console.error("Prompt generation error:", error);
                     } finally {
@@ -761,17 +877,59 @@
                 });
             });
 
+            // NEW: Text to Prompt Logic
+            const btnTextToPrompt = document.getElementById('btn-text-to-prompt');
+            if (btnTextToPrompt) {
+                btnTextToPrompt.addEventListener('click', async () => {
+                    const input = document.getElementById('image-upload-text-prompt');
+                    const file = input.files[0];
+                    const outputContainer = document.getElementById('text-prompt-output-container');
+                    const previewContainer = document.getElementById('preview-text-prompt');
+                    const summaryOutput = document.getElementById('extracted-text-content');
+                    const promptOutput = document.getElementById('generated-exam-prompt');
+                    const audioPlayer = document.getElementById('audio-player-text-prompt');
+
+                    if (!file) {
+                        alert('請先選擇包含文字的圖片！');
+                        return;
+                    }
+
+                    // Reset UI
+                    outputContainer.classList.remove('hidden');
+                    previewContainer.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Preview">`;
+                    summaryOutput.textContent = 'AI 正在仔細辨識圖片文字 (OCR) 並分析流程...';
+                    promptOutput.textContent = '正在生成考題...';
+                    audioPlayer.classList.add('hidden');
+                    
+                    loadingIndicator.classList.remove('hidden');
+
+                    try {
+                        const { base64, mimeType } = await fileToBase64(file);
+                        const result = await generatePromptFromImageText(base64, mimeType);
+                        
+                        // Update UI to show Extracted Text and Process Steps (Chinese)
+                        summaryOutput.innerHTML = `<strong>【辨識文字 (OCR)】</strong><br>${result.extracted_text || '無法辨識到文字'}<br><br><strong>【中文流程詳解 (Process Steps)】</strong><br>${result.process_steps_cn || '無法分析流程'}`;
+                        promptOutput.textContent = result.prompt || "無法生成考題。";
+
+                    } catch (error) {
+                        console.error(error);
+                        summaryOutput.textContent = '發生錯誤，請重試。';
+                        promptOutput.textContent = '';
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
+                    }
+                });
+            }
 
             // TTS Logic
             document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('tts-button')) {
-                    const button = e.target;
+                if (e.target.classList.contains('tts-button') || e.target.closest('.tts-button')) {
+                    const button = e.target.classList.contains('tts-button') ? e.target : e.target.closest('.tts-button');
                     const targetId = button.getAttribute('data-target');
                     const targetElement = document.getElementById(targetId);
                     
                     const textToRead = targetElement.textContent.trim();
-                    if (!textToRead || textToRead === '生成中...' || textToRead.includes('生成失敗') || textToRead.includes('圖像分析中')) {
-                        // 使用自定義提示框或控制台警告，而不是 alert
+                    if (!textToRead || textToRead === '生成中...' || textToRead.includes('生成失敗') || textToRead.includes('圖像分析中') || textToRead.includes('正在閱讀')) {
                         console.warn('請先生成內容或確保內容非空。');
                         return;
                     }
@@ -784,11 +942,10 @@
                     loadingIndicator.classList.remove('hidden'); // 顯示指示器
                     
                     try {
-                        // generateTTS 函數現在將處理何時隱藏指示器
                         generateTTS(cleanedText, audioId);
                     } catch (error) {
                         console.error("TTS execution error:", error);
-                        loadingIndicator.classList.add('hidden'); // --- 修正：添加安全網以防
+                        loadingIndicator.classList.add('hidden');
                     }
                 }
             });
